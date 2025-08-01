@@ -1,0 +1,4 @@
+build-cache/
+dist/
+venv
+.env
