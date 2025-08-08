@@ -56,7 +56,6 @@ class TestMainApp:
             response = client.get("/health")
             assert response.status_code == 200
 
-
     def test_it_returns_404_for_unknown_routes(self):
         with create_test_client(route_handlers=[health_check]) as client:
             response = client.get("/unknown/route")

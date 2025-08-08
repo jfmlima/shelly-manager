@@ -12,9 +12,17 @@ from .network import NetworkGateway
 
 class AsyncShellyRPCClient(NetworkGateway):
 
-    def __init__(self, session: httpx.AsyncClient | None = None, timeout: int = 3):
+    def __init__(
+        self,
+        session: httpx.AsyncClient | None = None,
+        timeout: int = 3,
+        verify: bool | None = None,
+    ):
         self.timeout = timeout
-        self._session = session or httpx.AsyncClient(timeout=timeout)
+        self._session = session or httpx.AsyncClient(
+            timeout=timeout, verify=True if verify is None else verify
+        )
+        self._closed = False
 
     async def make_rpc_request(
         self,
@@ -59,4 +67,6 @@ class AsyncShellyRPCClient(NetworkGateway):
             raise Exception(f"Network error: {str(e)}") from e
 
     async def close(self) -> None:
-        await self._session.aclose()
+        if not self._closed:
+            await self._session.aclose()
+            self._closed = True

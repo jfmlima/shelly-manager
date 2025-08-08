@@ -128,9 +128,9 @@ class ConfigUpdateUseCase:
         self, device_ips: list[str], config_data: dict[str, Any]
     ) -> list[Any]:
         """Perform configuration updates on devices."""
-        set_config_interactor = self._container.get_set_device_config_interactor()
+        set_config_interactor = self._container.get_device_config_set_interactor()
         successful_updates = 0
-        results = []
+        results: list[Any] = []
 
         with Progress(
             SpinnerColumn(),
@@ -149,9 +149,7 @@ class ConfigUpdateUseCase:
                     self._console.print(
                         f"[blue]⚙️ Updating configuration for {device_ip}...[/blue]"
                     )
-
                     result = await set_config_interactor.execute(device_ip, config_data)
-
                     if result.get("success"):
                         self._console.print(
                             f"[green]✅ {device_ip}: Configuration updated successfully[/green]"
@@ -172,7 +170,6 @@ class ConfigUpdateUseCase:
                         results.append(
                             {"ip": device_ip, "success": False, "message": error_msg}
                         )
-
                 except Exception as e:
                     self._console.print(
                         f"[red]❌ {device_ip}: Configuration update error - {e}[/red]"
@@ -180,18 +177,15 @@ class ConfigUpdateUseCase:
                     results.append(
                         {"ip": device_ip, "success": False, "message": str(e)}
                     )
-
                 progress.advance(update_task)
 
         self._console.print(
             f"\n[green]🎉 Successfully updated configuration on {successful_updates}/{len(device_ips)} devices[/green]"
         )
-
         if successful_updates < len(device_ips):
             self._console.print(
                 "[yellow]⚠️ Some devices failed to update. Check logs for details.[/yellow]"
             )
-
         return results
 
 

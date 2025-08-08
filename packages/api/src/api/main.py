@@ -3,6 +3,8 @@ Main Litestar application setup using core.
 """
 
 import os
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
 
@@ -24,7 +26,7 @@ from .dependencies.container import APIContainer
 
 
 def create_app(config_file_path: str | None = None) -> Litestar:
-    _container = APIContainer()
+    _container = APIContainer(config_file_path)
 
     cors_config = CORSConfig(
         allow_origins=["*"],  # Configure based on your needs
@@ -86,6 +88,13 @@ def create_app(config_file_path: str | None = None) -> Litestar:
         ],
     )
 
+    @asynccontextmanager
+    async def lifespan(app: Litestar) -> AsyncGenerator[None, None]:
+        try:
+            yield
+        finally:
+            await _container.close()
+
     app = Litestar(
         route_handlers=[api_router],
         cors_config=cors_config,
@@ -117,6 +126,7 @@ def create_app(config_file_path: str | None = None) -> Litestar:
             ),
         },
         debug=os.getenv("DEBUG", "false").lower() == "true",
+        lifespan=[lifespan],
     )
 
     return app

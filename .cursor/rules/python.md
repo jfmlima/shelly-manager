@@ -1,0 +1,159 @@
+## Core Python Standards
+- Use Python 3.10+ features and syntax
+- Follow PEP 8 style guide strictly
+- Use type hints for all function signatures, class attributes, and variables
+- Prefer dataclasses or Pydantic models over plain dictionaries for structured data
+- Use pathlib.Path instead of os.path for file operations
+- Implement proper error handling with specific exception types
+
+## Code Organization & Structure
+- Follow single responsibility principle for classes and functions
+- Keep functions under 20 lines when possible
+- Use dependency injection pattern throughout the application
+- Organize imports: standard library, third-party, local imports (with blank lines between groups)
+- Use absolute imports, avoid relative imports except within packages
+- Structure modules with clear separation of concerns
+
+## Litestar Framework Guidelines
+- Use Litestar's dependency injection system for all dependencies
+- Leverage Litestar's route handlers with proper type annotations
+- Use Litestar's built-in validation with Pydantic models
+- Implement proper middleware for cross-cutting concerns
+- Use Litestar's OpenAPI integration for API documentation
+- Follow Litestar's plugin architecture for extensions
+- Use Litestar's state management for application-wide state
+
+## Testing Standards
+- Write tests using pytest framework
+- Always use dependency injection in tests - NEVER use patch, mock.patch, or unittest.mock
+- Create fixture factories for test data generation
+- Use pytest fixtures for dependency injection in tests
+- Structure tests with Arrange-Act-Assert pattern
+- Write descriptive test names that explain the scenario and expected outcome
+- Use parametrized tests for multiple input scenarios
+- Maintain test isolation - no shared state between tests
+- Prefer integration tests over unit tests for business logic
+
+## Variable & Function Naming
+- Use snake_case for variables, functions, and module names
+- Use PascalCase for class names
+- Use SCREAMING_SNAKE_CASE for constants
+- Choose descriptive names that explain intent, not implementation
+- Avoid abbreviations unless they're domain-standard
+- Use verbs for functions, nouns for variables and classes
+
+## Error Handling & Logging
+- Create custom exception classes that inherit from appropriate base exceptions
+- Use structured logging with appropriate log levels
+- Log at entry and exit points of important functions
+- Include context in error messages
+- Use try-except blocks judiciously - don't catch exceptions you can't handle
+- Validate inputs early and fail fast
+
+## Database & ORM Guidelines
+- Use SQLAlchemy 2.0+ async syntax
+- Define database models with proper relationships and constraints
+- Use Alembic for database migrations
+- Implement repository pattern for data access layer
+- Use database transactions appropriately
+- Always use parameterized queries to prevent SQL injection
+
+## API Development Best Practices
+- Use HTTP status codes correctly (200, 201, 400, 401, 403, 404, 422, 500)
+- Implement proper request/response models with Pydantic
+- Use meaningful endpoint names that reflect resources and actions
+- Implement proper authentication and authorization
+- Add rate limiting for public endpoints
+- Return consistent error response format
+
+## Performance & Optimization
+- Use async/await for I/O bound operations
+- Implement proper connection pooling for databases
+- Use lazy loading for expensive operations
+- Cache frequently accessed data appropriately
+- Profile code before optimizing
+- Use generators for large data processing
+
+## Documentation Standards
+- Write clear docstrings for all public functions and classes using Google style
+- Document complex algorithms and business logic
+- Keep README files updated with setup and usage instructions
+- Document API endpoints with proper examples
+- Avoid unnecessary inline comments - code should be self-documenting
+
+## Security Guidelines
+- Validate all inputs at API boundaries
+- Use environment variables for sensitive configuration
+- Implement proper authentication and session management
+- Sanitize data before database operations
+- Use HTTPS for all external communications
+- Follow principle of least privilege for permissions
+
+## Code Quality Rules
+- Maintain cyclomatic complexity under 10 per function
+- Keep line length under 88 characters (Black formatter standard)
+- Use meaningful variable names even for short-lived variables
+- Eliminate dead code and unused imports
+- Use consistent code formatting (Black + isort + ruff)
+- Implement proper separation between business logic and framework code
+
+## Development Workflow
+- Use virtual environments for all projects
+- Pin dependency versions in requirements files
+- Use pre-commit hooks for code quality checks
+- Write tests before implementing features (TDD when appropriate)
+- Commit frequently with descriptive commit messages
+- Use feature branches for new development
+
+## Anti-Patterns to Avoid
+- No global variables or shared mutable state
+- No monkey patching in production code
+- No bare except clauses
+- No mutable default arguments
+- No circular imports
+- No god classes or functions
+- No magic numbers or strings
+- No deep inheritance hierarchies (prefer composition)
+
+## Specific Litestar Patterns
+```python
+# Dependency injection example
+async def get_user_service() -> UserService:
+    return UserService()
+
+@get("/users/{user_id:int}")
+async def get_user(
+    user_id: int,
+    user_service: UserService = Dependency(get_user_service)
+) -> UserResponse:
+    return await user_service.get_user(user_id)
+
+# Route handler with proper validation
+@post("/users")
+async def create_user(
+    data: UserCreateRequest,
+    user_service: UserService = Dependency(get_user_service)
+) -> UserResponse:
+    return await user_service.create_user(data)
+```
+
+## Testing Pattern Examples
+```python
+# Dependency injection in tests
+@pytest.fixture
+def user_service():
+    return UserService(repository=FakeUserRepository())
+
+async def test_create_user_success(user_service):
+    # Arrange
+    user_data = UserCreateRequest(name="Test User", email="test@example.com")
+    
+    # Act
+    result = await user_service.create_user(user_data)
+    
+    # Assert
+    assert result.name == "Test User"
+    assert result.email == "test@example.com"
+```
+
+Remember: Clean code is not just about following rules, but about making code that is easy to read, understand, and maintain. Always consider the next developer who will work with your code.

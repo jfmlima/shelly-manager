@@ -6,6 +6,10 @@ import asyncio
 from datetime import datetime
 from typing import Any
 
+from ...domain.entities.exceptions import (
+    DeviceAuthenticationError,
+    DeviceCommunicationError,
+)
 from ...domain.entities.shelly_device import ShellyDevice
 from ...domain.enums.enums import DeviceStatus
 from ...domain.value_objects.action_result import ActionResult
@@ -100,12 +104,18 @@ class ShellyDeviceGateway(DeviceGateway):
                 )
 
         except Exception as e:
+            err = str(e)
+            if "401" in err or "unauthorized" in err.lower():
+                error_message = DeviceAuthenticationError(ip, err).message
+            else:
+                error_message = DeviceCommunicationError(ip, err, err).message
+            
             return ActionResult(
                 device_ip=ip,
                 action_type=action_type,
                 success=False,
-                message=f"Action failed: {str(e)}",
-                error=str(e),
+                message=f"Action failed: {err}",
+                error=error_message,
             )
 
     async def _execute_update(

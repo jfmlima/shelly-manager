@@ -119,30 +119,41 @@ class AppSettings(BaseSettings):
         self._load_config_file()
 
     def _load_config_file(self) -> None:
+        """Load and merge external config file safely with validation.
+
+        The previous implementation assigned values directly via setattr which could
+        bypass pydantic validation for nested models. This version reconstructs
+        sub-settings objects when corresponding sections are provided and only
+        applies known fields. Unknown top-level keys are ignored (could be logged
+        in future for transparency).
+        """
         config_path = Path(self.config_file)
-        if config_path.exists():
-            try:
-                with open(config_path) as f:
-                    file_config = json.load(f)
+        if not config_path.exists():
+            return
 
-                for key, value in file_config.items():
-                    if hasattr(self, key):
-                        setattr(self, key, value)
-                    elif hasattr(self.device, key):
-                        setattr(self.device, key, value)
-                    elif hasattr(self.network, key):
-                        setattr(self.network, key, value)
-                    elif hasattr(self.api, key):
-                        setattr(self.api, key, value)
-                    elif hasattr(self.logging, key):
-                        setattr(self.logging, key, value)
-                    elif hasattr(self.database, key):
-                        setattr(self.database, key, value)
+        try:
+            with open(config_path) as f:
+                raw = json.load(f)
 
-            except Exception as e:
-                raise ConfigurationError(
-                    "load_config_file", f"Failed to load config file: {e}"
-                ) from e
+            if isinstance(raw.get("database"), dict):
+                self.database = DatabaseSettings(**raw["database"])
+            if isinstance(raw.get("logging"), dict):
+                self.logging = LoggingSettings(**raw["logging"])
+            if isinstance(raw.get("network"), dict):
+                self.network = NetworkSettings(**raw["network"])
+            if isinstance(raw.get("api"), dict):
+                self.api = APISettings(**raw["api"])
+            if isinstance(raw.get("device"), dict):
+                self.device = DeviceSettings(**raw["device"])
+
+            for field_name in ["config_file", "data_dir", "cache_ttl"]:
+                if field_name in raw:
+                    setattr(self, field_name, raw[field_name])
+
+        except Exception as e:
+            raise ConfigurationError(
+                "load_config_file", f"Failed to load config file: {e}"
+            ) from e
 
     def save_config(self) -> None:
         try:
@@ -202,7 +213,7 @@ class AppSettings(BaseSettings):
                 )
 
         except Exception as e:
-            if isinstance(e, ValidationError | ConfigurationError):
+            if isinstance(e, (ValidationError | ConfigurationError)):
                 raise
             raise ConfigurationError(
                 "validate", f"Configuration validation failed: {e}"

@@ -2,6 +2,8 @@
 Device management API routes using core interactors.
 """
 
+from typing import TypeVar
+
 from core.domain.enums.enums import UpdateChannel
 from core.domain.value_objects.scan_request import ScanRequest
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
@@ -11,7 +13,16 @@ from core.use_cases.scan_devices import ScanDevicesUseCase
 from core.use_cases.set_configuration import SetConfigurationUseCase
 from core.use_cases.update_device_firmware import UpdateDeviceFirmwareUseCase
 from litestar import Router, get, post
+from litestar.exceptions import HTTPException
 from litestar.params import Body
+
+T = TypeVar("T")
+
+
+def _require(dep_name: str, dep: T | None) -> T:
+    if dep is None:
+        raise HTTPException(status_code=500, detail=f"Missing dependency: {dep_name}")
+    return dep
 
 
 @get("/scan")
@@ -23,7 +34,7 @@ async def scan_devices(
     max_workers: int = 50,
     scan_interactor: ScanDevicesUseCase | None = None,
 ) -> list[dict]:
-    assert scan_interactor is not None
+    scan_interactor = _require("scan_interactor", scan_interactor)
 
     scan_request = ScanRequest(
         start_ip=start_ip,
@@ -56,7 +67,7 @@ async def update_device(
     channel: str = "stable",
     update_interactor: UpdateDeviceFirmwareUseCase | None = None,
 ) -> dict:
-    assert update_interactor is not None
+    update_interactor = _require("update_interactor", update_interactor)
 
     update_channel = (
         UpdateChannel.STABLE if channel.lower() == "stable" else UpdateChannel.BETA
@@ -76,7 +87,7 @@ async def update_device(
 async def bulk_update_devices(
     data: dict = Body(), update_interactor: UpdateDeviceFirmwareUseCase | None = None
 ) -> list[dict]:
-    assert update_interactor is not None
+    update_interactor = _require("update_interactor", update_interactor)
 
     device_ips = data.get("device_ips", [])
     channel = data.get("channel", "stable")
@@ -102,7 +113,7 @@ async def bulk_update_devices(
 async def reboot_device(
     ip: str, reboot_interactor: RebootDeviceUseCase | None = None
 ) -> dict:
-    assert reboot_interactor is not None
+    reboot_interactor = _require("reboot_interactor", reboot_interactor)
 
     result = await reboot_interactor.execute(ip)
 
@@ -121,7 +132,7 @@ async def get_device_status(
     include_updates: bool = True,
     status_interactor: CheckDeviceStatusUseCase | None = None,
 ) -> dict:
-    assert status_interactor is not None
+    status_interactor = _require("status_interactor", status_interactor)
 
     device = await status_interactor.execute(ip, include_updates)
 
@@ -143,7 +154,7 @@ async def get_device_status(
 async def get_device_config(
     ip: str, get_config_interactor: GetConfigurationUseCase | None = None
 ) -> dict:
-    assert get_config_interactor is not None
+    get_config_interactor = _require("get_config_interactor", get_config_interactor)
 
     try:
         config = await get_config_interactor.execute(ip)
@@ -158,7 +169,7 @@ async def set_device_config(
     data: dict = Body(),
     set_config_interactor: SetConfigurationUseCase | None = None,
 ) -> dict:
-    assert set_config_interactor is not None
+    set_config_interactor = _require("set_config_interactor", set_config_interactor)
 
     try:
         config = data.get("config", {})

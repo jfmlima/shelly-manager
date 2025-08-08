@@ -5,6 +5,8 @@ Device firmware update use case.
 import asyncio
 from typing import Any
 
+from core.settings import settings
+
 from ..domain.enums.enums import UpdateChannel
 from ..domain.value_objects.action_result import ActionResult
 from ..gateways.device import DeviceGateway
@@ -57,7 +59,16 @@ class UpdateDeviceFirmwareUseCase:
         """
         parameters = {"channel": channel.value, **kwargs}
 
-        semaphore = asyncio.Semaphore(5)
+        # Determine effective concurrency: request override via kwargs or settings
+        override_workers = kwargs.get("max_workers")
+        max_workers = (
+            int(override_workers)
+            if override_workers is not None
+            else int(settings.network.max_workers)
+        )
+        if max_workers < 1:
+            max_workers = 1
+        semaphore = asyncio.Semaphore(max_workers)
 
         async def update_single(ip: str) -> ActionResult:
             async with semaphore:
