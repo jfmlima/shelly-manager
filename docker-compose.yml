@@ -1,0 +1,25 @@
+services:
+  api:
+    image: ghcr.io/jfmlima/shelly-manager-api:0.1.0
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      DEBUG: "true"
+      SHELLY_CONFIG_FILE: "/app/config.json"
+      PYTHONPATH: "/app/src:/app/src_core"
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./packages/api/src:/app/src:ro
+      - ./packages/core/src:/app/src_core:ro
+    command: >
+      sh -lc 'uvicorn api.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8000}
+      --reload --reload-dir /app/src --reload-dir /app/src_core --log-level info'
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ['CMD-SHELL', 'python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(\'http://127.0.0.1:8000/api/health\', timeout=2).getcode()==200 else 1)"']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
