@@ -147,10 +147,10 @@ def user_service():
 async def test_create_user_success(user_service):
     # Arrange
     user_data = UserCreateRequest(name="Test User", email="test@example.com")
-    
+
     # Act
     result = await user_service.create_user(user_data)
-    
+
     # Assert
     assert result.name == "Test User"
     assert result.email == "test@example.com"

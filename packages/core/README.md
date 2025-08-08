@@ -17,7 +17,7 @@ This package follows Clean Architecture principles:
 core/
 ├── domain/
 │   ├── entities/         # Core business entities
-│   ├── value_objects/    # Immutable value objects  
+│   ├── value_objects/    # Immutable value objects
 │   ├── services/         # Domain business logic
 │   └── enums/           # Domain enumerations
 ├── use_cases/           # Application business logic

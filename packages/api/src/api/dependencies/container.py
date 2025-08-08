@@ -4,13 +4,13 @@ Dependency injection container for API layer.
 
 from pathlib import Path
 
-from core.utils.path import resolve_config_path
+from core.dependencies.container_base import BaseContainer
 from core.gateways.configuration.file_configuration_gateway import (
     FileConfigurationGateway,
 )
-from core.dependencies.container_base import BaseContainer
 from core.gateways.network.async_shelly_rpc_client import AsyncShellyRPCClient
 from core.settings import settings as core_settings
+from core.utils.path import resolve_config_path
 
 
 class APIContainer(BaseContainer):

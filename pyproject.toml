@@ -15,19 +15,19 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = [
-    "pytest==8.0.0",
-    "pytest-asyncio==0.23.5",
-    "pytest-cov==4.1.0",
-    "black==24.1.1",
-    "ruff==0.2.1",
+    "pytest==8.4.1",
+    "pytest-asyncio==1.1.0",
+    "pytest-cov==6.2.1",
+    "black==25.1.0",
+    "ruff==0.12.8",
     "mypy==1.8.0",
-    "pre-commit==3.6.0",
+    "pre-commit==4.2.0",
 ]
 
 # All packages for complete development setup
 all = [
     "shelly-manager-core",
-    "shelly-manager-api", 
+    "shelly-manager-api",
     "shelly-manager-cli",
 ]
 
@@ -92,7 +92,7 @@ disable_error_code = ["call-arg"]
 [[tool.mypy.overrides]]
 module = [
     "litestar.*",
-    "uvicorn.*", 
+    "uvicorn.*",
     "structlog.*",
     "click.*",
     "rich.*",
@@ -109,12 +109,12 @@ addopts = [
     "--strict-config",
     "--cov=packages",
     "--cov-report=term-missing",
-    "--cov-report=html", 
+    "--cov-report=html",
     "--cov-report=xml",
 ]
 markers = [
     "unit: Unit tests",
-    "integration: Integration tests", 
+    "integration: Integration tests",
     "slow: Slow running tests",
 ]
 

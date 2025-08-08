@@ -3,15 +3,14 @@
 from pathlib import Path
 
 import requests
-from core.utils.path import resolve_config_path
+from core.dependencies.container_base import BaseContainer
 from core.gateways.configuration.file_configuration_gateway import (
     FileConfigurationGateway,
 )
-from core.dependencies.container_base import BaseContainer
 from core.gateways.network.shelly_rpc_client import ShellyRPCClient
 from core.use_cases.get_configuration import GetConfigurationUseCase
 from core.use_cases.scan_devices import ScanDevicesUseCase
-from core.use_cases.set_configuration import SetConfigurationUseCase
+from core.utils.path import resolve_config_path
 
 
 class CLIContainer(BaseContainer):
@@ -40,4 +39,3 @@ class CLIContainer(BaseContainer):
 
     def get_device_scan_interactor(self) -> ScanDevicesUseCase:
         return self.get_scan_interactor()
-

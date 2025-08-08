@@ -109,7 +109,7 @@ class ShellyDeviceGateway(DeviceGateway):
                 error_message = DeviceAuthenticationError(ip, err).message
             else:
                 error_message = DeviceCommunicationError(ip, err, err).message
-            
+
             return ActionResult(
                 device_ip=ip,
                 action_type=action_type,

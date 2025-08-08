@@ -18,7 +18,7 @@ shelly-manager/
 ### 📦 Package Overview
 
 - **🏛️ Core** - Pure business logic, domain models, and use cases
-- **🌐 API** - HTTP REST API for web applications and integrations  
+- **🌐 API** - HTTP REST API for web applications and integrations
 - **💻 CLI** - Modern command-line interface with rich output
 
 ## 🚀 Quick Start
@@ -179,6 +179,26 @@ make test          # Run tests
 make run-cli       # Test CLI
 make run-api       # Start API server
 ```
+
+### Pre-commit Hooks
+Pre-commit hooks are configured to run linting and tests automatically before each commit:
+
+```bash
+# Install pre-commit hooks (one-time setup)
+pre-commit install
+
+# Run hooks manually on all files
+pre-commit run --all-files
+
+# Run hooks on specific files
+pre-commit run --files path/to/file.py
+```
+
+The hooks will automatically:
+- Run `make lint` (black, ruff, mypy)
+- Run `make test` (all package tests)
+- Fix trailing whitespace and file endings
+- Check YAML, TOML, and JSON syntax
 
 ### Package Development
 ```bash

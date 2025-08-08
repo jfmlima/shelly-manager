@@ -5,7 +5,7 @@ REST API server for Shelly Manager built with modern async framework.
 ## Features
 
 - RESTful API for device management
-- OpenAPI documentation 
+- OpenAPI documentation
 - Request/response validation
 - Error handling middleware
 - Rate limiting

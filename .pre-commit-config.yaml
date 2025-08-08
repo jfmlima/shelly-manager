@@ -1,0 +1,37 @@
+repos:
+  # Local hooks using the Makefile
+  - repo: local
+    hooks:
+      # Lint check
+      - id: lint
+        name: Run linting
+        entry: make lint
+        language: system
+        files: '\.py$'
+        pass_filenames: false
+        description: "Run black, ruff, and mypy linting checks"
+
+      # Test execution
+      - id: test
+        name: Run tests
+        entry: make test
+        language: system
+        files: '\.py$'
+        pass_filenames: false
+        description: "Run all tests for core, api, and cli packages"
+
+  # Additional standard hooks for code quality
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: ['--fix=lf']

@@ -6,9 +6,9 @@ from typing import Any
 
 from core.domain.value_objects.scan_request import ScanRequest
 
+from cli.commands.common import parse_ip_range
 from cli.dependencies.container import CLIContainer
 from cli.entities import DeviceDiscoveryRequest
-from cli.commands.common import parse_ip_range
 
 
 class DeviceDiscoveryUseCase:

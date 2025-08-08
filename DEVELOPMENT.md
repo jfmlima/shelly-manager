@@ -27,7 +27,7 @@
    ```bash
    # CLI
    cd packages/cli && python -m cli --help
-   
+
    # API
    cd packages/api && python -m api
    ```
@@ -60,7 +60,7 @@ source venv/bin/activate
 pip install -e ../core
 pip install -e ".[dev]"
 
-# For API development  
+# For API development
 cd packages/api
 python -m venv venv
 source venv/bin/activate
