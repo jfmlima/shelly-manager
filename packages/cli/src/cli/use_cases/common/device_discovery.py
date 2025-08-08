@@ -8,6 +8,7 @@ from core.domain.value_objects.scan_request import ScanRequest
 
 from cli.dependencies.container import CLIContainer
 from cli.entities import DeviceDiscoveryRequest
+from cli.commands.common import parse_ip_range
 
 
 class DeviceDiscoveryUseCase:
@@ -37,8 +38,6 @@ class DeviceDiscoveryUseCase:
             )
 
         if request.ip_ranges:
-            from cli.commands.common import parse_ip_range
-
             start_ip, end_ip = parse_ip_range(request.ip_ranges[0])
             return ScanRequest(
                 start_ip=start_ip,
@@ -49,8 +48,6 @@ class DeviceDiscoveryUseCase:
             )
 
         if request.devices:
-            from cli.commands.common import parse_ip_range
-
             if len(request.devices) == 1:
                 start_ip, end_ip = parse_ip_range(request.devices[0])
             else:

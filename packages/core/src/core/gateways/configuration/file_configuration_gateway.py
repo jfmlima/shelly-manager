@@ -30,9 +30,9 @@ class FileConfigurationGateway(ConfigurationGateway):
     async def get_predefined_ips(self) -> list[str]:
         config = await self.get_config()
 
-        device_ips = config.get("device_ips", [])
-
+        device_ips_set: set[str] = set(config.get("device_ips", []))
         ranges = config.get("predefined_ranges", [])
+
         for range_config in ranges:
             start_ip = range_config.get("start")
             end_ip = range_config.get("end")
@@ -47,10 +47,9 @@ class FileConfigurationGateway(ConfigurationGateway):
                     end_octet = int(end_parts[3])
 
                     for i in range(start_octet, end_octet + 1):
-                        device_ips.append(f"{base_ip}{i}")
+                        device_ips_set.add(f"{base_ip}{i}")
 
-        ip_list: list[str] = device_ips
-        return ip_list
+        return list(device_ips_set)
 
     def _get_default_config(self) -> dict[str, Any]:
         return {
