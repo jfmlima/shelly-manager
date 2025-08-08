@@ -20,7 +20,7 @@ dev = [
     "pytest-cov==6.2.1",
     "black==25.1.0",
     "ruff==0.12.8",
-    "mypy==1.8.0",
+    "mypy==1.17.1",
     "pre-commit==4.2.0",
 ]
 
