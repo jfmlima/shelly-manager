@@ -1,216 +1,247 @@
-# Shelly Device Manager
+# 🏠 Shelly Manager - Smart Device Management Platform
 
-A production-ready Shelly Gen4 device scanner and management tool that supports discovery, firmware updates, configuration, and monitoring with **action-based operations**.
+A production-ready monorepo for managing Shelly IoT devices featuring device discovery, firmware updates, configuration management, and monitoring capabilities.
 
-## Project Structure
-
-The project has been organized into multiple modules for better maintainability:
+## 🏗️ Project Architecture
 
 ```
-src/
-├── __init__.py          # Package initialization
-├── main.py             # Main entry point
-├── cli.py              # Command-line interface with action support
-├── models.py           # Data models (DeviceStatus, ShellyDevice)
-├── scanner.py          # Core scanning functionality
-├── network.py          # Network utilities and RPC client
-├── exporter.py         # Export functionality (JSON, CSV)
-├── ui.py               # Display utilities and progress handling
-├── actions.py          # Action definitions (list, update, reboot, etc.)
-└── config.py           # Configuration constants and settings
+shelly-manager/
+├── packages/
+│   ├── core/              # 🏛️ Business Logic & Domain Models
+│   ├── api/               # 🌐 HTTP REST API (Litestar)
+│   └── cli/               # 💻 Command Line Interface (Click)
+├── config.json            # Device configuration
+├── Makefile              # Development commands
+└── pyproject.toml        # Workspace configuration
 ```
 
-## Installation
+### 📦 Package Overview
 
-1. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+- **🏛️ Core** - Pure business logic, domain models, and use cases
+- **🌐 API** - HTTP REST API for web applications and integrations  
+- **💻 CLI** - Modern command-line interface with rich output
 
-## Usage
+## 🚀 Quick Start
 
-The tool now supports **discrete actions** that can be performed on discovered devices:
-
-### Available Actions
-
-- **`list`** - Discover and list Shelly devices (no modifications)
-- **`update`** - Check for and apply firmware updates
-- **`reboot`** - Reboot Shelly devices
-- **`status`** - Get detailed device status, system information, and available updates
-- **`config-get`** - Get device configuration
-- **`config-set`** - Set device configuration
-
-### Basic Examples
+### Installation
 
 ```bash
-# List/discover devices without any modifications
-python -m src.main --start 192.168.1.100 --end 150 --action list
+# Install core package first (required by both CLI and API)
+cd packages/core
+pip install -e .
 
-# Update firmware on devices in range
-python -m src.main --start 192.168.1.1 --end 254 --action update --verbose
+# Install CLI package
+cd ../cli
+pip install -e .
 
-# Reboot specific devices
-python -m src.main --start 192.168.1.100 --end 105 --action reboot --username admin --password secret
-
-# Get detailed device status with update information
-python -m src.main --start 192.168.1.1 --end 50 --action status --export json
-
-# Get device configurations
-python -m src.main --start 192.168.1.1 --end 10 --action config-get --export json
+# Install API package (optional)
+cd ../api
+pip install -e .
 ```
 
-### Advanced Configuration Management
+### Alternative: Development Setup with Virtual Environment
 
 ```bash
-# Set configuration from JSON file
-python -m src.main --start 192.168.1.100 --end 105 --action config-set --config-file config.json
+# For CLI development
+cd packages/cli
+python -m venv venv
+source venv/bin/activate
+pip install -e ../core
+pip install -e ".[dev]"
 
-# Set configuration from JSON string
-python -m src.main --start 192.168.1.100 --end 105 --action config-set --config-data '{"wifi":{"enable":true}}'
+# For API development
+cd packages/api
+python -m venv venv
+source venv/bin/activate
+pip install -e ../core
+pip install -e ".[dev]"
 ```
 
-### Performance Tuning
+### CLI Usage
 
 ```bash
-# High-performance scanning
-python -m src.main --start 192.168.1.1 --end 50 --action list --max-workers 100 --timeout 5
+# Scan for devices
+shelly-manager scan --range 192.168.1.0/24
+
+# List devices from configuration
+shelly-manager device list --from-config
+
+# Check device status
+shelly-manager device status 192.168.1.100
+
+# Update firmware
+shelly-manager update check --all
+
+# Bulk operations
+shelly-manager bulk reboot --scan
 ```
 
-## Features
+### API Usage
 
-- **Action-Based Operations**: Choose specific actions to perform (list, update, reboot, config, status)
-- **Device Discovery**: Automatically detect Shelly Gen4 devices on the network
-- **Firmware Updates**: Check for and initiate firmware updates
-- **Configuration Management**: Get and set device configurations with JSON support
-- **Device Control**: Reboot devices remotely
-- **Status Monitoring**: Get detailed device status and system information
-- **Authentication Support**: Handle devices with authentication
-- **Export Results**: Export action results to JSON or CSV with detailed information
-- **Multi-threading**: Concurrent operations for improved performance
-- **Progress Tracking**: Real-time progress updates during operations
-- **Comprehensive Logging**: Detailed logging with verbose mode
-
-## Architecture Benefits
-
-### Decoupled Actions
-Actions are now completely decoupled from the scanning logic:
-- **Single Responsibility**: Each action has one clear purpose
-- **Extensibility**: Easy to add new actions without modifying existing code
-- **Reusability**: Actions can be used independently or combined
-- **Testability**: Each action can be unit tested in isolation
-
-### Flexible Operations
-- **Selective Operations**: Only perform the actions you need
-- **Non-destructive Discovery**: List devices without making any changes
-- **Targeted Updates**: Update only when needed, reboot only when required
-- **Configuration Management**: Separate get/set operations for better control
-
-## Module Overview
-
-### Models (`models.py`)
-- `DeviceStatus`: Enumeration of possible device states
-- `ShellyDevice`: Data class representing a Shelly device with all its properties
-
-### Network (`network.py`)
-- `NetworkUtils`: IP range generation and network utilities
-- `ShellyRPCClient`: RPC communication with Shelly devices
-
-### Scanner (`scanner.py`)
-- `DeviceManager`: Executes actions on individual devices
-- `ShellyScanner`: Main scanner class with action-based range operations
-
-### Actions (`actions.py`)
-- `DeviceAction`: Abstract base class for all actions
-- `ListAction`: Discover devices without modifications
-- `UpdateAction`: Check for and apply firmware updates
-- `RebootAction`: Reboot devices
-- `ConfigAction`: Get or set device configuration
-- `StatusAction`: Get detailed device status
-- `AVAILABLE_ACTIONS`: Registry of all available actions
-
-### Export (`exporter.py`)
-- `ResultsExporter`: Export action results to various formats
-
-### UI (`ui.py`)
-- `DisplayUtils`: Progress callbacks and result summary display with action context
-
-### CLI (`cli.py`)
-- `CLI`: Command-line interface with action selection and validation
-
-## API Usage
-
-You can also use the modules programmatically with the new action-based approach:
-
-```python
-from src import ShellyScanner, DisplayUtils, AVAILABLE_ACTIONS
-
-# Create scanner
-with ShellyScanner(timeout=5, max_workers=100, verbose=True) as scanner:
-    # Execute specific action on range
-    results = scanner.execute_action_range(
-        "192.168.1.1", 50, "list",
-        progress_callback=DisplayUtils.action_progress_callback
-    )
-    
-    # Extract devices and action results
-    devices = [device for device, _ in results]
-    action_results = [result for _, result in results]
-    
-    # Print action-specific summary
-    DisplayUtils.print_action_summary(devices, action_results, "list")
-    
-    # Execute different action on specific device
-    device, result = scanner.device_manager.execute_action(
-        "192.168.1.100", AVAILABLE_ACTIONS["status"]
-    )
-```
-
-## Key Improvements from Refactoring
-
-### 🎯 **Decoupled Actions**
-- **Before**: Scanning always included update checking and was tightly coupled
-- **After**: Choose exactly what action to perform (list, update, reboot, config, status)
-- **Benefit**: No unintended side effects, clear operation intent
-
-### 🧩 **Modular Architecture**
-- **Before**: Single 500+ line monolithic file
-- **After**: 10 focused modules with single responsibilities
-- **Benefit**: Easy to maintain, extend, and test individual components
-
-### 🔧 **Flexible Configuration**
-- **Before**: Limited configuration options
-- **After**: JSON-based configuration with file or string input
-- **Benefit**: Complex configurations, scripting support, version control
-
-### 📊 **Rich Export Options**
-- **Before**: Basic device information export
-- **After**: Action results, detailed status, configuration data
-- **Benefit**: Better reporting, analysis, and audit trails
-
-### 🚀 **Enhanced Performance**
-- **Before**: Fixed operation pattern
-- **After**: Optimized per-action execution with targeted RPC calls
-- **Benefit**: Faster operations, reduced network overhead
-
-## Migration Guide
-
-### From Old CLI
 ```bash
-# Old: Auto-update during scan
-python main.py --start 192.168.1.100 --end 150
+# Start the API server
+cd packages/api
+python -m api
 
-# New: Explicit action-based approach
-python -m src.main --start 192.168.1.100 --end 150 --action list        # Just discover
-python -m src.main --start 192.168.1.100 --end 150 --action update      # Discover + update
+# API will be available at http://localhost:8000
+curl http://localhost:8000/health
 ```
 
-### From Old API
-```python
-# Old: Tightly coupled
-scanner.scan_range(start, end)  # Always did discovery + update check
 
-# New: Action-based
-scanner.execute_action_range(start, end, "list")      # Just discovery
-scanner.execute_action_range(start, end, "update")    # Discovery + update
-scanner.execute_action_range(start, end, "reboot")    # Discovery + reboot
+## 💻 CLI Commands
+
+### Device Management
+```bash
+# Scan for devices
+shelly-manager scan --range 192.168.1.0/24
+shelly-manager device scan --from-config
+
+# List devices with details
+shelly-manager device list --from-config
+
+# Check device status
+shelly-manager device status 192.168.1.100 192.168.1.101
+shelly-manager device status --from-config
+
+# Reboot devices
+shelly-manager device reboot 192.168.1.100 --force
 ```
+
+### Firmware Updates
+```bash
+# Check for updates
+shelly-manager update check --all
+
+# Update specific devices
+shelly-manager update apply 192.168.1.100
+
+# Check update status
+shelly-manager update status
+```
+
+### Bulk Operations
+```bash
+# Bulk reboot with device discovery
+shelly-manager bulk reboot --scan
+
+# Bulk operations on configured devices
+shelly-manager bulk update --from-config
+```
+
+### Configuration Management
+```bash
+# Get device configuration
+shelly-manager config get --ip 192.168.1.100
+
+# Set device configuration
+shelly-manager config set --ip 192.168.1.100 --key wifi.ssid --value "MyNetwork"
+
+# Manage predefined IPs
+shelly-manager config ips add 192.168.1.100
+shelly-manager config ips list
+```
+
+## 🌐 API Endpoints
+
+When running the API server (`cd packages/api && python -m api`):
+
+```bash
+# Health check
+GET /health
+
+# Device operations
+GET /api/devices/scan
+GET /api/devices/{ip}/status
+POST /api/devices/{ip}/update
+POST /api/devices/{ip}/reboot
+
+# Configuration
+GET /api/config
+PUT /api/config
+GET /api/config/predefined-ips
+PUT /api/config/predefined-ips
+
+# Monitoring
+GET /api/actions
+GET /api/devices/updates
+```
+
+## 🛠️ Development
+
+### Available Commands
+```bash
+make help           # Show all available commands
+make install        # Install all packages
+make install-dev    # Install with dev dependencies
+make clean         # Clean build artifacts
+make lint          # Run linting
+make test          # Run tests
+make run-cli       # Test CLI
+make run-api       # Start API server
+```
+
+### Package Development
+```bash
+# Install specific packages
+make install-core   # Core business logic only
+make install-api    # Core + API
+make install-cli    # Core + CLI
+```
+
+## ✨ Features
+
+### 🔍 **Device Discovery**
+- Network scanning with IP ranges and CIDR notation
+- Configuration-based device lists
+- Async scanning with configurable workers
+
+### 🔄 **Firmware Management**
+- Automatic update checking
+- Safe firmware updates
+- Update status monitoring
+
+### ⚙️ **Configuration Management**
+- Get/set device configurations
+- JSON configuration support
+- Bulk configuration operations
+
+### 📊 **Rich Output**
+- Beautiful table formatting
+- Progress indicators
+- Colored status messages
+- Export to JSON/CSV
+
+### 🏗️ **Architecture**
+- Clean Architecture principles
+- Domain-Driven Design
+- Async/await support
+- Type safety with Pydantic
+
+## 📋 Requirements
+
+- **Python 3.11+**
+- **Network access** to Shelly devices
+- **Optional**: Device credentials for authenticated devices
+
+## 🤝 Contributing
+
+1. **Fork** the repository
+2. **Create** a feature branch
+3. **Make** your changes following the architecture principles
+4. **Add** tests for new functionality
+5. **Submit** a pull request
+
+### Development Guidelines
+
+- Follow **Clean Architecture** principles
+- Keep **domain logic** in the core package
+- Use **dependency injection** for external dependencies
+- Write **comprehensive tests**
+- Maintain **type safety** with type hints
+
+## 📄 License
+
+This project is open source and available under the [MIT License](LICENSE).
+---
+
+**Made with ❤️ for the smart home community**

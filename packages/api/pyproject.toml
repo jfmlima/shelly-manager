@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shelly-manager-api"
+version = "0.1.0"
+description = "REST API for Shelly Manager"
+authors = [{name = "Jorge Lima", email = "jorgefilipemlima@gmail.com"}]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "litestar[standard]==2.16.0",
+    "uvicorn[standard]==0.35.0",
+    "pydantic==2.11.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.4.1",
+    "pytest-asyncio==1.1.0",
+    "pytest-cov==6.2.1",
+    "black==25.1.0",
+    "ruff==0.12.7",
+    "mypy==1.17.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"

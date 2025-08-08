@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shelly-manager-core"
+version = "0.1.0"
+description = "Core business logic for Shelly Manager"
+authors = [{name = "Jorge Lima", email = "jorgefilipemlima@gmail.com"}]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic==2.11.7",
+    "pydantic-settings==2.10.1",
+    "structlog==25.4.0",
+    "httpx==0.28.1",
+    "requests==2.32.4",
+    "urllib3==2.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.4.1",
+    "pytest-asyncio==1.1.0",
+    "pytest-cov==6.2.1",
+    "black==25.1.0",
+    "ruff==0.12.7",
+    "mypy==1.17.0",
+    "types-requests==2.32.4.20250611",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_it_*"]
+python_classes = ["Test*"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"

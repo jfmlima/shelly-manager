@@ -1,0 +1,142 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shelly-manager"
+version = "0.1.0"
+description = "Shelly IoT device management tool with clean architecture"
+authors = [{name = "Jorge Lima", email = "jorgefilipemlima@gmail.com"}]
+readme = "README.md"
+requires-python = ">=3.11"
+
+# This is a workspace project that doesn't install anything itself
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.0.0",
+    "pytest-asyncio==0.23.5",
+    "pytest-cov==4.1.0",
+    "black==24.1.1",
+    "ruff==0.2.1",
+    "mypy==1.8.0",
+    "pre-commit==3.6.0",
+]
+
+# All packages for complete development setup
+all = [
+    "shelly-manager-core",
+    "shelly-manager-api", 
+    "shelly-manager-cli",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+# Ignore call-arg errors for Pydantic models with default field values
+disable_error_code = ["call-arg"]
+
+[[tool.mypy.overrides]]
+module = [
+    "litestar.*",
+    "uvicorn.*", 
+    "structlog.*",
+    "click.*",
+    "rich.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["packages/*/tests", "tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--cov=packages",
+    "--cov-report=term-missing",
+    "--cov-report=html", 
+    "--cov-report=xml",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests", 
+    "slow: Slow running tests",
+]
+
+[tool.coverage.run]
+source = ["packages"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

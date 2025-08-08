@@ -1,0 +1,1 @@
+"""Configuration gateways tests package."""

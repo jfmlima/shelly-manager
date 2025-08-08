@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shelly-manager-cli"
+version = "0.1.0"
+description = "Command-line interface for Shelly Manager"
+authors = [{name = "Jorge Lima", email = "jorgefilipemlima@gmail.com"}]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "click==8.2.1",
+    "rich==14.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.4.1",
+    "pytest-asyncio==1.1.0",
+    "pytest-cov==6.2.1",
+    "black==25.1.0",
+    "ruff==0.12.7",
+    "mypy==1.17.0",
+    "types-PyYAML==6.0.12.20250516",
+]
+
+[project.scripts]
+shelly-manager = "cli.main:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+python_classes = ["Test*"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"

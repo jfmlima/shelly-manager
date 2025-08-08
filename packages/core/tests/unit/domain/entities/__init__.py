@@ -1,0 +1,1 @@
+"""Domain entities tests package."""
