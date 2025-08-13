@@ -1,7 +1,9 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from core.domain.enums.enums import UpdateChannel
+from core.domain.entities.exceptions import DeviceValidationError
+from core.domain.entities.shelly_device import ShellyDevice
+from core.domain.enums.enums import DeviceStatus, UpdateChannel
 from core.domain.value_objects.action_result import ActionResult
 from core.use_cases.update_device_firmware import UpdateDeviceFirmwareUseCase
 
@@ -16,12 +18,21 @@ class TestUpdateDeviceFirmwareUseCase:
         self, use_case, mock_device_gateway
     ):
         device_ip = "192.168.1.100"
+        device = ShellyDevice(
+            ip=device_ip,
+            status=DeviceStatus.DETECTED,
+            device_id="shelly1-test",
+            device_type="SHSW-1", 
+            firmware_version="1.13.0",
+            has_update=True,
+        )
         expected_result = ActionResult(
             success=True,
             action_type="update",
             device_ip=device_ip,
             message="Firmware update started successfully",
         )
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device)
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
         result = await use_case.execute(device_ip)
@@ -30,6 +41,7 @@ class TestUpdateDeviceFirmwareUseCase:
         assert result.action_type == "update"
         assert result.device_ip == device_ip
         assert result.message == "Firmware update started successfully"
+        mock_device_gateway.get_device_status.assert_called_once_with(device_ip)
         mock_device_gateway.execute_action.assert_called_once_with(
             device_ip, "update", {"channel": "stable"}
         )
@@ -38,24 +50,42 @@ class TestUpdateDeviceFirmwareUseCase:
         self, use_case, mock_device_gateway
     ):
         device_ip = "192.168.1.100"
+        device = ShellyDevice(
+            ip=device_ip,
+            status=DeviceStatus.DETECTED,
+            device_id="shelly1-test",
+            device_type="SHSW-1", 
+            firmware_version="1.13.0",
+            has_update=True,
+        )
         expected_result = ActionResult(
             success=True,
             action_type="update",
             device_ip=device_ip,
             message="Beta firmware update started",
         )
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device)
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
         result = await use_case.execute(device_ip, UpdateChannel.BETA)
 
         assert result.success is True
         assert result.message == "Beta firmware update started"
+        mock_device_gateway.get_device_status.assert_called_once_with(device_ip)
         mock_device_gateway.execute_action.assert_called_once_with(
             device_ip, "update", {"channel": "beta"}
         )
 
     async def test_it_handles_update_failure(self, use_case, mock_device_gateway):
         device_ip = "192.168.1.100"
+        device = ShellyDevice(
+            ip=device_ip,
+            status=DeviceStatus.DETECTED,
+            device_id="shelly1-test",
+            device_type="SHSW-1", 
+            firmware_version="1.13.0",
+            has_update=True,
+        )
         expected_result = ActionResult(
             success=False,
             action_type="update",
@@ -63,6 +93,7 @@ class TestUpdateDeviceFirmwareUseCase:
             message="Firmware update failed",
             error="Device already has latest firmware",
         )
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device)
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
         result = await use_case.execute(device_ip)
@@ -70,19 +101,29 @@ class TestUpdateDeviceFirmwareUseCase:
         assert result.success is False
         assert result.action_type == "update"
         assert result.error == "Device already has latest firmware"
+        mock_device_gateway.get_device_status.assert_called_once_with(device_ip)
         mock_device_gateway.execute_action.assert_called_once_with(
             device_ip, "update", {"channel": "stable"}
         )
 
     async def test_it_passes_additional_parameters(self, use_case, mock_device_gateway):
         device_ip = "192.168.1.100"
-        additional_params = {"force": True, "timeout": 300}
+        device = ShellyDevice(
+            ip=device_ip,
+            status=DeviceStatus.DETECTED,
+            device_id="shelly1-test",
+            device_type="SHSW-1", 
+            firmware_version="1.13.0",
+            has_update=True,
+        )
+        additional_params = {"timeout": 300}
         expected_result = ActionResult(
             success=True,
             action_type="update",
             device_ip=device_ip,
             message="Forced firmware update started",
         )
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device)
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
         result = await use_case.execute(
@@ -91,30 +132,49 @@ class TestUpdateDeviceFirmwareUseCase:
 
         assert result.success is True
         assert result.message == "Forced firmware update started"
-        expected_params = {"channel": "stable", "force": True, "timeout": 300}
+        expected_params = {"channel": "stable", "timeout": 300}
+        mock_device_gateway.get_device_status.assert_called_once_with(device_ip)
         mock_device_gateway.execute_action.assert_called_once_with(
             device_ip, "update", expected_params
         )
 
     async def test_it_defaults_to_stable_channel(self, use_case, mock_device_gateway):
         device_ip = "192.168.1.100"
+        device = ShellyDevice(
+            ip=device_ip,
+            status=DeviceStatus.DETECTED,
+            device_id="shelly1-test",
+            device_type="SHSW-1", 
+            firmware_version="1.13.0",
+            has_update=True,
+        )
         expected_result = ActionResult(
             success=True,
             action_type="update",
             device_ip=device_ip,
             message="Firmware update started",
         )
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device)
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
         result = await use_case.execute(device_ip)
 
         assert result.success is True
+        mock_device_gateway.get_device_status.assert_called_once_with(device_ip)
         mock_device_gateway.execute_action.assert_called_once_with(
             device_ip, "update", {"channel": "stable"}
         )
 
     async def test_it_handles_auth_required_device(self, use_case, mock_device_gateway):
         device_ip = "192.168.1.100"
+        device = ShellyDevice(
+            ip=device_ip,
+            status=DeviceStatus.DETECTED,
+            device_id="shelly1-test",
+            device_type="SHSW-1", 
+            firmware_version="1.13.0",
+            has_update=True,
+        )
         expected_result = ActionResult(
             success=False,
             action_type="update",
@@ -122,6 +182,7 @@ class TestUpdateDeviceFirmwareUseCase:
             message="Authentication required",
             error="Device requires username and password",
         )
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device)
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
         result = await use_case.execute(device_ip)
@@ -131,6 +192,14 @@ class TestUpdateDeviceFirmwareUseCase:
 
     async def test_it_handles_offline_device(self, use_case, mock_device_gateway):
         device_ip = "192.168.1.100"
+        device = ShellyDevice(
+            ip=device_ip,
+            status=DeviceStatus.DETECTED,
+            device_id="shelly1-test",
+            device_type="SHSW-1", 
+            firmware_version="1.13.0",
+            has_update=True,
+        )
         expected_result = ActionResult(
             success=False,
             action_type="update",
@@ -138,6 +207,7 @@ class TestUpdateDeviceFirmwareUseCase:
             message="Device is offline",
             error="Connection timeout",
         )
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device)
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
         result = await use_case.execute(device_ip)
@@ -148,6 +218,15 @@ class TestUpdateDeviceFirmwareUseCase:
 
     async def test_it_propagates_network_errors(self, use_case, mock_device_gateway):
         device_ip = "192.168.1.100"
+        device = ShellyDevice(
+            ip=device_ip,
+            status=DeviceStatus.DETECTED,
+            device_id="shelly1-test",
+            device_type="SHSW-1", 
+            firmware_version="1.13.0",
+            has_update=True,
+        )
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device)
         mock_device_gateway.execute_action = AsyncMock(
             side_effect=ConnectionError("Network unreachable")
         )
@@ -159,19 +238,38 @@ class TestUpdateDeviceFirmwareUseCase:
         self, use_case, mock_device_gateway
     ):
         device_ips = ["192.168.1.100", "192.168.1.101", "192.168.1.102"]
+        devices = [
+            ShellyDevice(
+                ip="192.168.1.100",
+                status=DeviceStatus.DETECTED,
+                device_id="shelly1-test",
+                device_type="SHSW-1", 
+                firmware_version="1.13.0",
+                has_update=True,
+            ),
+            ShellyDevice(
+                ip="192.168.1.101",
+                status=DeviceStatus.DETECTED,
+                device_id="shelly2-test",
+                device_type="SHSW-1", 
+                firmware_version="1.14.0",
+                has_update=False,
+            ),
+            ShellyDevice(
+                ip="192.168.1.102",
+                status=DeviceStatus.DETECTED,
+                device_id="shelly3-test",
+                device_type="SHSW-1", 
+                firmware_version="1.13.0",
+                has_update=True,
+            ),
+        ]
         expected_results = [
             ActionResult(
                 success=True,
                 action_type="update",
                 device_ip="192.168.1.100",
                 message="Update successful",
-            ),
-            ActionResult(
-                success=False,
-                action_type="update",
-                device_ip="192.168.1.101",
-                message="Update failed",
-                error="Already latest version",
             ),
             ActionResult(
                 success=True,
@@ -180,20 +278,38 @@ class TestUpdateDeviceFirmwareUseCase:
                 message="Update successful",
             ),
         ]
+        mock_device_gateway.get_device_status = AsyncMock(side_effect=devices)
         mock_device_gateway.execute_action = AsyncMock(side_effect=expected_results)
 
         results = await use_case.execute_bulk(device_ips)
 
         assert len(results) == 3
         assert results[0].success is True
-        assert results[1].success is False
+        assert results[1].success is False  # Device with no update available
         assert results[2].success is True
-        assert mock_device_gateway.execute_action.call_count == 3
 
     async def test_it_updates_bulk_with_beta_channel(
         self, use_case, mock_device_gateway
     ):
         device_ips = ["192.168.1.100", "192.168.1.101"]
+        devices = [
+            ShellyDevice(
+                ip="192.168.1.100",
+                status=DeviceStatus.DETECTED,
+                device_id="shelly1-test",
+                device_type="SHSW-1", 
+                firmware_version="1.13.0",
+                has_update=True,
+            ),
+            ShellyDevice(
+                ip="192.168.1.101",
+                status=DeviceStatus.DETECTED,
+                device_id="shelly2-test",
+                device_type="SHSW-1", 
+                firmware_version="1.13.0",
+                has_update=True,
+            ),
+        ]
         expected_results = [
             ActionResult(
                 success=True,
@@ -208,6 +324,7 @@ class TestUpdateDeviceFirmwareUseCase:
                 message="Beta update successful",
             ),
         ]
+        mock_device_gateway.get_device_status = AsyncMock(side_effect=devices)
         mock_device_gateway.execute_action = AsyncMock(side_effect=expected_results)
 
         results = await use_case.execute_bulk(device_ips, UpdateChannel.BETA)
@@ -220,7 +337,15 @@ class TestUpdateDeviceFirmwareUseCase:
         self, use_case, mock_device_gateway
     ):
         device_ips = ["192.168.1.100"]
-        additional_params = {"force": True, "timeout": 600}
+        device = ShellyDevice(
+            ip="192.168.1.100",
+            status=DeviceStatus.DETECTED,
+            device_id="shelly1-test",
+            device_type="SHSW-1", 
+            firmware_version="1.13.0",
+            has_update=True,
+        )
+        additional_params = {"timeout": 600}
         expected_results = [
             ActionResult(
                 success=True,
@@ -229,6 +354,7 @@ class TestUpdateDeviceFirmwareUseCase:
                 message="Forced update successful",
             )
         ]
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device)
         mock_device_gateway.execute_action = AsyncMock(side_effect=expected_results)
 
         results = await use_case.execute_bulk(
@@ -243,6 +369,14 @@ class TestUpdateDeviceFirmwareUseCase:
         self, use_case, mock_device_gateway
     ):
         device_ip = "192.168.1.100"
+        device = ShellyDevice(
+            ip=device_ip,
+            status=DeviceStatus.DETECTED,
+            device_id="shelly1-test",
+            device_type="SHSW-1", 
+            firmware_version="1.13.0",
+            has_update=True,
+        )
         expected_result = ActionResult(
             success=True,
             action_type="update",
@@ -255,6 +389,7 @@ class TestUpdateDeviceFirmwareUseCase:
                 "device_type": "SHPM-1",
             },
         )
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device)
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
         result = await use_case.execute(device_ip)
@@ -264,3 +399,131 @@ class TestUpdateDeviceFirmwareUseCase:
         assert result.data["old_version"] == "1.13.0"
         assert result.data["new_version"] == "1.14.0"
         assert result.data["update_duration"] == 120
+
+    # Validation tests (merged from DeviceUpdateService tests)
+    async def test_it_validates_device_exists_before_update(
+        self, use_case, mock_device_gateway
+    ):
+        device_ip = "192.168.1.100"
+        mock_device_gateway.get_device_status = AsyncMock(return_value=None)
+
+        with pytest.raises(
+            DeviceValidationError, match="Device 192.168.1.100 not found"
+        ):
+            await use_case.execute(device_ip)
+
+        mock_device_gateway.execute_action.assert_not_called()
+
+    async def test_it_validates_update_available_unless_forced(
+        self, use_case, mock_device_gateway
+    ):
+        device_ip = "192.168.1.100"
+        device = ShellyDevice(
+            ip=device_ip,
+            status=DeviceStatus.DETECTED,
+            device_id="shelly1-test",
+            device_type="SHSW-1",
+            firmware_version="1.14.0",
+            has_update=False,
+        )
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device)
+
+        with pytest.raises(DeviceValidationError, match="has no available updates"):
+            await use_case.execute(device_ip)
+
+        mock_device_gateway.execute_action.assert_not_called()
+
+    async def test_it_allows_forced_update_when_no_update_available(
+        self, use_case, mock_device_gateway
+    ):
+        device_ip = "192.168.1.100"
+        device = ShellyDevice(
+            ip=device_ip,
+            status=DeviceStatus.DETECTED,
+            device_id="shelly1-test",
+            device_type="SHSW-1",
+            firmware_version="1.14.0",
+            has_update=False,
+        )
+        action_result = ActionResult(
+            success=True,
+            action_type="update",
+            device_ip=device_ip,
+            message="Forced update successful",
+        )
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device)
+        mock_device_gateway.execute_action = AsyncMock(return_value=action_result)
+
+        result = await use_case.execute(device_ip, force=True)
+
+        assert result.success is True
+
+    async def test_it_validates_device_status_for_update(
+        self, use_case, mock_device_gateway
+    ):
+        device_ip = "192.168.1.100"
+        device = ShellyDevice(
+            ip=device_ip,
+            status=DeviceStatus.UNREACHABLE,
+            device_id="shelly1-test",
+            device_type="SHSW-1",
+            firmware_version="1.13.0",
+            has_update=True,
+        )
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device)
+
+        with pytest.raises(
+            DeviceValidationError, match="is not in valid state for update"
+        ):
+            await use_case.execute(device_ip)
+
+        mock_device_gateway.execute_action.assert_not_called()
+
+    async def test_it_rejects_auth_required_devices(
+        self, use_case, mock_device_gateway
+    ):
+        device_ip = "192.168.1.100"
+        device = ShellyDevice(
+            ip=device_ip,
+            status=DeviceStatus.AUTH_REQUIRED,
+            device_id="shelly1-test",
+            device_type="SHSW-1",
+            firmware_version="1.13.0",
+            has_update=True,
+        )
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device)
+
+        with pytest.raises(
+            DeviceValidationError, match="is not in valid state for update"
+        ):
+            await use_case.execute(device_ip)
+
+        mock_device_gateway.execute_action.assert_not_called()
+
+    async def test_it_updates_with_all_channels(
+        self, use_case, mock_device_gateway
+    ):
+        device_ip = "192.168.1.100"
+        device = ShellyDevice(
+            ip=device_ip,
+            status=DeviceStatus.DETECTED,
+            device_id="shelly1-test",
+            device_type="SHSW-1",
+            firmware_version="1.13.0",
+            has_update=True,
+        )
+        action_result = ActionResult(
+            success=True,
+            action_type="update",
+            device_ip=device_ip,
+            message="Update successful",
+        )
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device)
+        mock_device_gateway.execute_action = AsyncMock(return_value=action_result)
+
+        result_stable = await use_case.execute(device_ip, UpdateChannel.STABLE)
+        result_beta = await use_case.execute(device_ip, UpdateChannel.BETA)
+
+        assert result_stable.success is True
+        assert result_beta.success is True
+        assert mock_device_gateway.execute_action.call_count == 2
