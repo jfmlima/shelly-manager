@@ -8,8 +8,14 @@ from typing import Any
 from core.settings import settings
 
 from ..domain.entities.exceptions import DeviceValidationError
-from ..domain.enums.enums import DeviceStatus, UpdateChannel
+from ..domain.enums.enums import DeviceStatus
 from ..domain.value_objects.action_result import ActionResult
+from ..domain.value_objects.bulk_update_device_firmware_request import (
+    BulkUpdateDeviceFirmwareRequest,
+)
+from ..domain.value_objects.update_device_firmware_request import (
+    UpdateDeviceFirmwareRequest,
+)
 from ..gateways.device import DeviceGateway
 
 
@@ -20,18 +26,14 @@ class UpdateDeviceFirmwareUseCase:
 
     async def execute(
         self,
-        device_ip: str,
-        channel: UpdateChannel = UpdateChannel.STABLE,
-        force: bool = False,
+        request: UpdateDeviceFirmwareRequest,
         **kwargs: Any,
     ) -> ActionResult:
         """
         Update firmware on a single device with validation.
 
         Args:
-            device_ip: IP address of the device to update
-            channel: Update channel (stable or beta)
-            force: Force update even if not needed
+            request: UpdateDeviceFirmwareRequest with validated IP and parameters
             **kwargs: Additional parameters
 
         Returns:
@@ -41,41 +43,41 @@ class UpdateDeviceFirmwareUseCase:
             DeviceValidationError: If update validation fails
         """
         # Validate device before update (merged from DeviceUpdateService)
-        device = await self._device_gateway.get_device_status(device_ip)
+        device = await self._device_gateway.get_device_status(request.device_ip)
 
         if not device:
-            raise DeviceValidationError(device_ip, f"Device {device_ip} not found")
-
-        if not force and not device.has_update:
             raise DeviceValidationError(
-                device_ip, f"Device {device_ip} has no available updates"
+                request.device_ip, f"Device {request.device_ip} not found"
+            )
+
+        if not request.force and not device.has_update:
+            raise DeviceValidationError(
+                request.device_ip,
+                f"Device {request.device_ip} has no available updates",
             )
 
         if device.status != DeviceStatus.DETECTED:
             raise DeviceValidationError(
-                device_ip, f"Device {device_ip} is not in valid state for update"
+                request.device_ip,
+                f"Device {request.device_ip} is not in valid state for update",
             )
 
-        parameters = {"channel": channel.value, **kwargs}
+        parameters = {"channel": request.channel.value, **kwargs}
 
         return await self._device_gateway.execute_action(
-            device_ip, "update", parameters
+            request.device_ip, "update", parameters
         )
 
     async def execute_bulk(
         self,
-        device_ips: list[str],
-        channel: UpdateChannel = UpdateChannel.STABLE,
-        force: bool = False,
+        request: BulkUpdateDeviceFirmwareRequest,
         **kwargs: Any,
     ) -> list[ActionResult]:
         """
         Update firmware on multiple devices.
 
         Args:
-            device_ips: List of IP addresses to update
-            channel: Update channel (stable or beta)
-            force: Force update even if not needed
+            request: BulkUpdateDeviceFirmwareRequest with validated IPs and parameters
             **kwargs: Additional parameters
 
         Returns:
@@ -95,17 +97,21 @@ class UpdateDeviceFirmwareUseCase:
         async def update_single(ip: str) -> ActionResult:
             async with semaphore:
                 try:
-                    return await self.execute(ip, channel, force, **kwargs)
+                    single_request = UpdateDeviceFirmwareRequest(
+                        device_ip=ip, channel=request.channel, force=request.force
+                    )
+                    return await self.execute(single_request, **kwargs)
                 except DeviceValidationError as e:
                     # Return failed result instead of raising exception for bulk operations
                     from ..domain.value_objects.action_result import ActionResult
+
                     return ActionResult(
-                        success=False, 
+                        success=False,
                         action_type="update",
                         device_ip=ip,
-                        message=str(e), 
-                        data={"ip": ip}
+                        message=str(e),
+                        data={"ip": ip},
                     )
 
-        tasks = [update_single(ip) for ip in device_ips]
+        tasks = [update_single(ip) for ip in request.device_ips]
         return await asyncio.gather(*tasks, return_exceptions=False)

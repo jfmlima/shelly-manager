@@ -22,7 +22,7 @@ class TestUpdateDeviceFirmwareUseCase:
             ip=device_ip,
             status=DeviceStatus.DETECTED,
             device_id="shelly1-test",
-            device_type="SHSW-1", 
+            device_type="SHSW-1",
             firmware_version="1.13.0",
             has_update=True,
         )
@@ -54,7 +54,7 @@ class TestUpdateDeviceFirmwareUseCase:
             ip=device_ip,
             status=DeviceStatus.DETECTED,
             device_id="shelly1-test",
-            device_type="SHSW-1", 
+            device_type="SHSW-1",
             firmware_version="1.13.0",
             has_update=True,
         )
@@ -82,7 +82,7 @@ class TestUpdateDeviceFirmwareUseCase:
             ip=device_ip,
             status=DeviceStatus.DETECTED,
             device_id="shelly1-test",
-            device_type="SHSW-1", 
+            device_type="SHSW-1",
             firmware_version="1.13.0",
             has_update=True,
         )
@@ -112,7 +112,7 @@ class TestUpdateDeviceFirmwareUseCase:
             ip=device_ip,
             status=DeviceStatus.DETECTED,
             device_id="shelly1-test",
-            device_type="SHSW-1", 
+            device_type="SHSW-1",
             firmware_version="1.13.0",
             has_update=True,
         )
@@ -144,7 +144,7 @@ class TestUpdateDeviceFirmwareUseCase:
             ip=device_ip,
             status=DeviceStatus.DETECTED,
             device_id="shelly1-test",
-            device_type="SHSW-1", 
+            device_type="SHSW-1",
             firmware_version="1.13.0",
             has_update=True,
         )
@@ -171,7 +171,7 @@ class TestUpdateDeviceFirmwareUseCase:
             ip=device_ip,
             status=DeviceStatus.DETECTED,
             device_id="shelly1-test",
-            device_type="SHSW-1", 
+            device_type="SHSW-1",
             firmware_version="1.13.0",
             has_update=True,
         )
@@ -196,7 +196,7 @@ class TestUpdateDeviceFirmwareUseCase:
             ip=device_ip,
             status=DeviceStatus.DETECTED,
             device_id="shelly1-test",
-            device_type="SHSW-1", 
+            device_type="SHSW-1",
             firmware_version="1.13.0",
             has_update=True,
         )
@@ -222,7 +222,7 @@ class TestUpdateDeviceFirmwareUseCase:
             ip=device_ip,
             status=DeviceStatus.DETECTED,
             device_id="shelly1-test",
-            device_type="SHSW-1", 
+            device_type="SHSW-1",
             firmware_version="1.13.0",
             has_update=True,
         )
@@ -243,7 +243,7 @@ class TestUpdateDeviceFirmwareUseCase:
                 ip="192.168.1.100",
                 status=DeviceStatus.DETECTED,
                 device_id="shelly1-test",
-                device_type="SHSW-1", 
+                device_type="SHSW-1",
                 firmware_version="1.13.0",
                 has_update=True,
             ),
@@ -251,7 +251,7 @@ class TestUpdateDeviceFirmwareUseCase:
                 ip="192.168.1.101",
                 status=DeviceStatus.DETECTED,
                 device_id="shelly2-test",
-                device_type="SHSW-1", 
+                device_type="SHSW-1",
                 firmware_version="1.14.0",
                 has_update=False,
             ),
@@ -259,7 +259,7 @@ class TestUpdateDeviceFirmwareUseCase:
                 ip="192.168.1.102",
                 status=DeviceStatus.DETECTED,
                 device_id="shelly3-test",
-                device_type="SHSW-1", 
+                device_type="SHSW-1",
                 firmware_version="1.13.0",
                 has_update=True,
             ),
@@ -297,7 +297,7 @@ class TestUpdateDeviceFirmwareUseCase:
                 ip="192.168.1.100",
                 status=DeviceStatus.DETECTED,
                 device_id="shelly1-test",
-                device_type="SHSW-1", 
+                device_type="SHSW-1",
                 firmware_version="1.13.0",
                 has_update=True,
             ),
@@ -305,7 +305,7 @@ class TestUpdateDeviceFirmwareUseCase:
                 ip="192.168.1.101",
                 status=DeviceStatus.DETECTED,
                 device_id="shelly2-test",
-                device_type="SHSW-1", 
+                device_type="SHSW-1",
                 firmware_version="1.13.0",
                 has_update=True,
             ),
@@ -341,7 +341,7 @@ class TestUpdateDeviceFirmwareUseCase:
             ip="192.168.1.100",
             status=DeviceStatus.DETECTED,
             device_id="shelly1-test",
-            device_type="SHSW-1", 
+            device_type="SHSW-1",
             firmware_version="1.13.0",
             has_update=True,
         )
@@ -373,7 +373,7 @@ class TestUpdateDeviceFirmwareUseCase:
             ip=device_ip,
             status=DeviceStatus.DETECTED,
             device_id="shelly1-test",
-            device_type="SHSW-1", 
+            device_type="SHSW-1",
             firmware_version="1.13.0",
             has_update=True,
         )
@@ -500,9 +500,7 @@ class TestUpdateDeviceFirmwareUseCase:
 
         mock_device_gateway.execute_action.assert_not_called()
 
-    async def test_it_updates_with_all_channels(
-        self, use_case, mock_device_gateway
-    ):
+    async def test_it_updates_with_all_channels(self, use_case, mock_device_gateway):
         device_ip = "192.168.1.100"
         device = ShellyDevice(
             ip=device_ip,

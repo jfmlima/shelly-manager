@@ -10,11 +10,10 @@ from ...domain.value_objects.action_result import ActionResult
 
 
 class DeviceGateway(ABC):
+    timeout: float = 3.0
 
     @abstractmethod
-    async def discover_device(
-        self, ip: str, timeout: float = 3.0
-    ) -> ShellyDevice | None:
+    async def discover_device(self, ip: str) -> ShellyDevice | None:
         pass
 
     @abstractmethod

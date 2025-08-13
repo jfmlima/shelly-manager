@@ -21,12 +21,10 @@ class ShellyDeviceGateway(DeviceGateway):
     def __init__(self, rpc_client: Any) -> None:
         self._rpc_client = rpc_client
 
-    async def discover_device(
-        self, ip: str, timeout: float = 3.0
-    ) -> ShellyDevice | None:
+    async def discover_device(self, ip: str) -> ShellyDevice | None:
         try:
             device_info, response_time = await self._rpc_client.make_rpc_request(
-                ip, "Shelly.GetDeviceInfo", timeout=timeout
+                ip, "Shelly.GetDeviceInfo", timeout=self.timeout
             )
 
             return ShellyDevice(
@@ -59,7 +57,7 @@ class ShellyDeviceGateway(DeviceGateway):
             if include_updates:
                 try:
                     update_info, _ = await self._rpc_client.make_rpc_request(
-                        ip, "Shelly.CheckForUpdate"
+                        ip, "Shelly.CheckForUpdate", timeout=self.timeout
                     )
 
                     stable_update = update_info.get("stable", {}) if update_info else {}

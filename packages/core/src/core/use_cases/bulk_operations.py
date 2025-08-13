@@ -9,6 +9,7 @@ from ..domain.entities.exceptions import BulkOperationError
 from ..domain.entities.shelly_device import ShellyDevice
 from ..domain.enums.enums import DeviceStatus
 from ..domain.value_objects.action_result import ActionResult
+from ..domain.value_objects.bulk_scan_request import BulkScanRequest
 from ..gateways.device import DeviceGateway
 
 
@@ -20,15 +21,12 @@ class BulkOperationsUseCase:
     ):
         self._device_gateway = device_gateway
 
-    async def execute_bulk_scan(
-        self, ips: list[str], timeout: float = 3.0
-    ) -> list[ShellyDevice]:
+    async def execute_bulk_scan(self, request: BulkScanRequest) -> list[ShellyDevice]:
         """
         Scan multiple IP addresses for devices.
 
         Args:
-            ips: List of IP addresses to scan
-            timeout: Scan timeout per device
+            request: BulkScanRequest with validated IPs and timeout
 
         Returns:
             List of discovered devices
@@ -36,7 +34,10 @@ class BulkOperationsUseCase:
         results = []
 
         try:
-            tasks = [self._device_gateway.discover_device(ip, timeout) for ip in ips]
+            tasks = [
+                self._device_gateway.discover_device(ip, request.timeout)
+                for ip in request.ips
+            ]
 
             devices = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -49,7 +50,7 @@ class BulkOperationsUseCase:
 
         except Exception as e:
             raise BulkOperationError(
-                "bulk_scan", [], f"Bulk scan failed: {str(e)}"
+                "bulk_scan", request.ips, f"Bulk scan failed: {str(e)}"
             ) from e
 
         return results

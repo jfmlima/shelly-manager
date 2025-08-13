@@ -6,7 +6,7 @@ import asyncio
 import ipaddress
 from datetime import datetime
 
-from ..domain.entities.exceptions import ValidationError, DeviceValidationError
+from ..domain.entities.exceptions import DeviceValidationError, ValidationError
 from ..domain.entities.shelly_device import ShellyDevice
 from ..domain.enums.enums import DeviceStatus
 from ..domain.value_objects.scan_request import ScanRequest
@@ -49,14 +49,11 @@ class ScanDevicesUseCase:
 
         discovered_devices = []
         for result in results:
-            if (
-                isinstance(result, ShellyDevice)
-                and result.status in [
-                    DeviceStatus.DETECTED,
-                    DeviceStatus.UPDATE_AVAILABLE,
-                    DeviceStatus.NO_UPDATE_NEEDED,
-                ]
-            ):
+            if isinstance(result, ShellyDevice) and result.status in [
+                DeviceStatus.DETECTED,
+                DeviceStatus.UPDATE_AVAILABLE,
+                DeviceStatus.NO_UPDATE_NEEDED,
+            ]:
                 discovered_devices.append(result)
 
         return discovered_devices
@@ -83,9 +80,7 @@ class ScanDevicesUseCase:
                 "end_ip", request.end_ip, f"Invalid end IP address: {request.end_ip}"
             )
 
-        if not self._validate_scan_range(
-            request.start_ip, request.end_ip
-        ):
+        if not self._validate_scan_range(request.start_ip, request.end_ip):
             raise ValidationError(
                 "ip_range",
                 f"{request.start_ip}-{request.end_ip}",
@@ -143,7 +138,9 @@ class ScanDevicesUseCase:
         except ipaddress.AddressValueError:
             return False
 
-    def _validate_device_credentials(self, username: str | None, password: str | None) -> bool:
+    def _validate_device_credentials(
+        self, username: str | None, password: str | None
+    ) -> bool:
         """Validate device credentials."""
         if (username is None) != (password is None):
             return False
@@ -183,7 +180,7 @@ class ScanDevicesUseCase:
             DeviceValidationError: If device validation fails
         """
         try:
-            device = await self._device_gateway.get_device_status(ip, timeout)
+            device = await self._device_gateway.get_device_status(ip)
 
             if device:
                 self._validate_discovered_device(device)
