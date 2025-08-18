@@ -5,7 +5,8 @@ Device gateway interface.
 from abc import ABC, abstractmethod
 from typing import Any
 
-from ...domain.entities.shelly_device import ShellyDevice
+from ...domain.entities.device_status import DeviceStatus
+from ...domain.entities.discovered_device import DiscoveredDevice
 from ...domain.value_objects.action_result import ActionResult
 
 
@@ -13,13 +14,12 @@ class DeviceGateway(ABC):
     timeout: float = 3.0
 
     @abstractmethod
-    async def discover_device(self, ip: str) -> ShellyDevice | None:
+    async def discover_device(self, ip: str) -> DiscoveredDevice | None:
         pass
 
     @abstractmethod
-    async def get_device_status(
-        self, ip: str, include_updates: bool = True
-    ) -> ShellyDevice | None:
+    async def get_device_status(self, ip: str) -> DeviceStatus | None:
+        """Get device components and status information."""
         pass
 
     @abstractmethod

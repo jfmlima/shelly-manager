@@ -1,11 +1,11 @@
 """Domain enums."""
 
 from .enums import (
-    DeviceStatus,
+    Status,
     UpdateChannel,
 )
 
 __all__ = [
     "UpdateChannel",
-    "DeviceStatus",
+    "Status",
 ]

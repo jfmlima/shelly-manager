@@ -8,8 +8,8 @@ from api.controllers.devices import (
     set_device_config,
     update_device,
 )
-from core.domain.entities.shelly_device import ShellyDevice
-from core.domain.enums.enums import DeviceStatus
+from core.domain.entities.discovered_device import DiscoveredDevice
+from core.domain.enums.enums import Status
 from core.domain.value_objects.action_result import ActionResult
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.get_configuration import GetConfigurationUseCase
@@ -29,9 +29,9 @@ class TestDevicesController:
                 pass
 
             async def execute(self, scan_request):
-                device = ShellyDevice(
+                device = DiscoveredDevice(
                     ip="192.168.1.100",
-                    status=DeviceStatus.DETECTED,
+                    status=Status.DETECTED,
                     device_type="Shelly 1",
                     device_name="Test Device",
                     firmware_version="1.0.0",
@@ -120,9 +120,9 @@ class TestDevicesController:
                 pass
 
             async def execute(self, ip, include_updates=True):
-                return ShellyDevice(
+                return DiscoveredDevice(
                     ip=ip,
-                    status=DeviceStatus.DETECTED,
+                    status=Status.DETECTED,
                     device_type="Shelly 1",
                     device_name="Test Device",
                     firmware_version="1.0.0",

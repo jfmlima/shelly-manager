@@ -7,8 +7,8 @@ from unittest.mock import MagicMock
 import pytest
 from cli.main import CliContext
 from click.testing import CliRunner
-from core.domain.entities.shelly_device import ShellyDevice
-from core.domain.enums.enums import DeviceStatus
+from core.domain.entities.discovered_device import DiscoveredDevice
+from core.domain.enums.enums import Status
 from core.domain.value_objects.action_result import ActionResult
 from core.domain.value_objects.scan_request import ScanRequest
 from core.gateways.configuration import ConfigurationGateway
@@ -109,9 +109,9 @@ def cli_context(mock_container, mock_console):
 
 @pytest.fixture
 def sample_device():
-    return ShellyDevice(
+    return DiscoveredDevice(
         ip="192.168.1.100",
-        status=DeviceStatus.DETECTED,
+        status=Status.DETECTED,
         device_id="shelly1pm-test123",
         device_type="SHPM-1",
         firmware_version="20230913-114010/v1.14.0-gcb84623",
@@ -124,9 +124,9 @@ def sample_device():
 
 @pytest.fixture
 def sample_devices(sample_device):
-    device2 = ShellyDevice(
+    device2 = DiscoveredDevice(
         ip="192.168.1.101",
-        status=DeviceStatus.DETECTED,
+        status=Status.DETECTED,
         device_id="shelly1pm-test124",
         device_type="SHPM-1",
         firmware_version="20230913-114010/v1.14.0-gcb84623",

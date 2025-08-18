@@ -1,8 +1,8 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from core.domain.entities.shelly_device import ShellyDevice
-from core.domain.enums.enums import DeviceStatus
+from core.domain.entities.discovered_device import DiscoveredDevice
+from core.domain.enums.enums import Status
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 
 
@@ -13,35 +13,35 @@ class TestCheckDeviceStatusUseCase:
         return CheckDeviceStatusUseCase(device_gateway=mock_device_gateway)
 
     async def test_it_returns_device_status_with_updates(
-        self, use_case, mock_device_gateway, sample_shelly_device
+        self, use_case, mock_device_gateway, sample_discovered_device
     ):
         device_ip = "192.168.1.100"
-        sample_shelly_device.has_update = True
+        sample_discovered_device.has_update = True
         mock_device_gateway.get_device_status = AsyncMock(
-            return_value=sample_shelly_device
+            return_value=sample_discovered_device
         )
 
         result = await use_case.execute(device_ip, include_updates=True)
 
         assert result is not None
         assert result.ip == device_ip
-        assert result.status == DeviceStatus.DETECTED
+        assert result.status == Status.DETECTED
         assert result.has_update is True
         mock_device_gateway.get_device_status.assert_called_once_with(device_ip, True)
 
     async def test_it_returns_device_status_without_updates(
-        self, use_case, mock_device_gateway, sample_shelly_device
+        self, use_case, mock_device_gateway, sample_discovered_device
     ):
         device_ip = "192.168.1.100"
         mock_device_gateway.get_device_status = AsyncMock(
-            return_value=sample_shelly_device
+            return_value=sample_discovered_device
         )
 
         result = await use_case.execute(device_ip, include_updates=False)
 
         assert result is not None
         assert result.ip == device_ip
-        assert result.status == DeviceStatus.DETECTED
+        assert result.status == Status.DETECTED
         mock_device_gateway.get_device_status.assert_called_once_with(device_ip, False)
 
     async def test_it_returns_none_when_device_not_found(
@@ -67,7 +67,7 @@ class TestCheckDeviceStatusUseCase:
 
         assert result is not None
         assert result.ip == device_ip
-        assert result.status == DeviceStatus.UNREACHABLE
+        assert result.status == Status.UNREACHABLE
         assert result.error_message == "Connection timeout"
         mock_device_gateway.get_device_status.assert_called_once_with(device_ip, True)
 
@@ -75,9 +75,9 @@ class TestCheckDeviceStatusUseCase:
         self, use_case, mock_device_gateway
     ):
         device_ip = "192.168.1.102"
-        auth_required_device = ShellyDevice(
+        auth_required_device = DiscoveredDevice(
             ip=device_ip,
-            status=DeviceStatus.AUTH_REQUIRED,
+            status=Status.AUTH_REQUIRED,
             auth_required=True,
             device_id="shelly1pm-auth",
             device_type="SHPM-1",
@@ -90,7 +90,7 @@ class TestCheckDeviceStatusUseCase:
 
         assert result is not None
         assert result.ip == device_ip
-        assert result.status == DeviceStatus.AUTH_REQUIRED
+        assert result.status == Status.AUTH_REQUIRED
         assert result.auth_required is True
         mock_device_gateway.get_device_status.assert_called_once_with(device_ip, True)
 
@@ -98,9 +98,9 @@ class TestCheckDeviceStatusUseCase:
         self, use_case, mock_device_gateway
     ):
         device_ip = "192.168.1.100"
-        device_with_timing = ShellyDevice(
+        device_with_timing = DiscoveredDevice(
             ip=device_ip,
-            status=DeviceStatus.DETECTED,
+            status=Status.DETECTED,
             device_id="shelly1pm-fast",
             device_type="SHPM-1",
             response_time=0.05,
@@ -119,9 +119,9 @@ class TestCheckDeviceStatusUseCase:
         self, use_case, mock_device_gateway
     ):
         device_ip = "192.168.1.100"
-        device_with_firmware = ShellyDevice(
+        device_with_firmware = DiscoveredDevice(
             ip=device_ip,
-            status=DeviceStatus.DETECTED,
+            status=Status.DETECTED,
             device_id="shelly1pm-fw",
             device_type="SHPM-1",
             firmware_version="20230913-114010/v1.14.0-gcb84623",
@@ -139,11 +139,11 @@ class TestCheckDeviceStatusUseCase:
         mock_device_gateway.get_device_status.assert_called_once_with(device_ip, True)
 
     async def test_it_defaults_include_updates_to_true(
-        self, use_case, mock_device_gateway, sample_shelly_device
+        self, use_case, mock_device_gateway, sample_discovered_device
     ):
         device_ip = "192.168.1.100"
         mock_device_gateway.get_device_status = AsyncMock(
-            return_value=sample_shelly_device
+            return_value=sample_discovered_device
         )
 
         result = await use_case.execute(device_ip)

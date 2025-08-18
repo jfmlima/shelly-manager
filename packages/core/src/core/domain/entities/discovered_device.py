@@ -1,5 +1,5 @@
 """
-ShellyDevice domain model.
+DiscoveredDevice domain model.
 """
 
 import ipaddress
@@ -7,14 +7,14 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..enums.enums import DeviceStatus
+from ..enums.enums import Status
 
 
-class ShellyDevice(BaseModel):
+class DiscoveredDevice(BaseModel):
     model_config = ConfigDict(use_enum_values=True, validate_assignment=True)
 
     ip: str = Field(..., description="Device IP address")
-    status: DeviceStatus = Field(..., description="Current device status")
+    status: Status = Field(..., description="Current device status")
     device_id: str | None = Field(None, description="Unique device identifier")
     device_type: str | None = Field(None, description="Device model/type")
     firmware_version: str | None = Field(None, description="Current firmware version")

@@ -5,9 +5,10 @@ Bulk operations use case for executing actions on multiple devices.
 import asyncio
 from typing import Any
 
+from ..domain.entities.device_status import DeviceStatus
+from ..domain.entities.discovered_device import DiscoveredDevice
 from ..domain.entities.exceptions import BulkOperationError
-from ..domain.entities.shelly_device import ShellyDevice
-from ..domain.enums.enums import DeviceStatus
+from ..domain.enums.enums import Status
 from ..domain.value_objects.action_result import ActionResult
 from ..domain.value_objects.bulk_scan_request import BulkScanRequest
 from ..gateways.device import DeviceGateway
@@ -21,7 +22,9 @@ class BulkOperationsUseCase:
     ):
         self._device_gateway = device_gateway
 
-    async def execute_bulk_scan(self, request: BulkScanRequest) -> list[ShellyDevice]:
+    async def execute_bulk_scan(
+        self, request: BulkScanRequest
+    ) -> list[DiscoveredDevice]:
         """
         Scan multiple IP addresses for devices.
 
@@ -43,8 +46,8 @@ class BulkOperationsUseCase:
 
             for device in devices:
                 if (
-                    isinstance(device, ShellyDevice)
-                    and device.status == DeviceStatus.DETECTED
+                    isinstance(device, DiscoveredDevice)
+                    and device.status == Status.DETECTED
                 ):
                     results.append(device)
 
@@ -120,7 +123,7 @@ class BulkOperationsUseCase:
 
     async def get_bulk_status(
         self, device_ips: list[str], include_updates: bool = True
-    ) -> list[ShellyDevice]:
+    ) -> list[DeviceStatus]:
         """
         Get status of multiple devices.
 

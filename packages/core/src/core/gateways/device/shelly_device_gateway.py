@@ -3,17 +3,21 @@ Device gateway implementation for Shelly devices.
 """
 
 import asyncio
+import logging
 from datetime import datetime
 from typing import Any
 
+from ...domain.entities.device_status import DeviceStatus
+from ...domain.entities.discovered_device import DiscoveredDevice
 from ...domain.entities.exceptions import (
     DeviceAuthenticationError,
     DeviceCommunicationError,
 )
-from ...domain.entities.shelly_device import ShellyDevice
-from ...domain.enums.enums import DeviceStatus
+from ...domain.enums.enums import Status
 from ...domain.value_objects.action_result import ActionResult
 from .device import DeviceGateway
+
+logger = logging.getLogger(__name__)
 
 
 class ShellyDeviceGateway(DeviceGateway):
@@ -21,15 +25,24 @@ class ShellyDeviceGateway(DeviceGateway):
     def __init__(self, rpc_client: Any) -> None:
         self._rpc_client = rpc_client
 
-    async def discover_device(self, ip: str) -> ShellyDevice | None:
+    async def discover_device(self, ip: str) -> DiscoveredDevice | None:
+        """
+        Discover basic device information (original get_device_status logic).
+
+        Args:
+            ip: Device IP address
+
+        Returns:
+            DiscoveredDevice with basic info and update status, or None if unreachable
+        """
         try:
             device_info, response_time = await self._rpc_client.make_rpc_request(
                 ip, "Shelly.GetDeviceInfo", timeout=self.timeout
             )
 
-            return ShellyDevice(
+            device = DiscoveredDevice(
                 ip=ip,
-                status=DeviceStatus.DETECTED,
+                status=Status.DETECTED,
                 device_id=device_info.get("id"),
                 device_type=device_info.get("model"),
                 device_name=device_info.get("name"),
@@ -38,46 +51,55 @@ class ShellyDeviceGateway(DeviceGateway):
                 last_seen=datetime.now(),
             )
 
-        except Exception as e:
-            return ShellyDevice(
-                ip=ip,
-                status=DeviceStatus.UNREACHABLE,
-                error_message=str(e),
-                last_seen=datetime.now(),
-            )
+            # Check for updates (original get_device_status behavior)
+            try:
+                update_info, _ = await self._rpc_client.make_rpc_request(
+                    ip, "Shelly.CheckForUpdate", timeout=self.timeout
+                )
 
-    async def get_device_status(
-        self, ip: str, include_updates: bool = True
-    ) -> ShellyDevice | None:
-        try:
-            device = await self.discover_device(ip)
-            if not device or device.status != DeviceStatus.DETECTED:
-                return device
+                stable_update = update_info.get("stable", {}) if update_info else {}
+                beta_update = update_info.get("beta", {}) if update_info else {}
 
-            if include_updates:
-                try:
-                    update_info, _ = await self._rpc_client.make_rpc_request(
-                        ip, "Shelly.CheckForUpdate", timeout=self.timeout
-                    )
+                if stable_update.get("version") or beta_update.get("version"):
+                    device.status = Status.UPDATE_AVAILABLE
+                else:
+                    device.status = Status.NO_UPDATE_NEEDED
 
-                    stable_update = update_info.get("stable", {}) if update_info else {}
-                    beta_update = update_info.get("beta", {}) if update_info else {}
-
-                    if stable_update.get("version") or beta_update.get("version"):
-                        device.status = DeviceStatus.UPDATE_AVAILABLE
-
-                except Exception:
-                    pass
+            except Exception:
+                # If update check fails, keep device as DETECTED
+                pass
 
             return device
 
         except Exception as e:
-            return ShellyDevice(
+            return DiscoveredDevice(
                 ip=ip,
-                status=DeviceStatus.ERROR,
+                status=Status.UNREACHABLE,
                 error_message=str(e),
                 last_seen=datetime.now(),
             )
+
+    async def get_device_status(self, ip: str) -> DeviceStatus | None:
+        """
+        Get device components and detailed status information.
+
+        Args:
+            ip: Device IP address
+
+        Returns:
+            DeviceStatus with all component data, or None if unreachable
+        """
+        try:
+            # Call shelly.getcomponents to get component data
+            response_data, _ = await self._rpc_client.make_rpc_request(
+                ip, "shelly.getcomponents", params={"offset": 0}, timeout=self.timeout
+            )
+
+            return DeviceStatus.from_raw_response(ip, response_data)
+
+        except Exception as e:
+            logger.error(f"Error getting device status: {e}", exc_info=True)
+            return None
 
     async def execute_action(
         self, ip: str, action_type: str, parameters: dict[str, Any]

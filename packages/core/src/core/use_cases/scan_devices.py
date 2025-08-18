@@ -6,9 +6,9 @@ import asyncio
 import ipaddress
 from datetime import datetime
 
+from ..domain.entities.discovered_device import DiscoveredDevice
 from ..domain.entities.exceptions import DeviceValidationError, ValidationError
-from ..domain.entities.shelly_device import ShellyDevice
-from ..domain.enums.enums import DeviceStatus
+from ..domain.enums.enums import Status
 from ..domain.value_objects.scan_request import ScanRequest
 from ..gateways.configuration import ConfigurationGateway
 from ..gateways.device import DeviceGateway
@@ -22,7 +22,7 @@ class ScanDevicesUseCase:
         self._device_gateway = device_gateway
         self._config_gateway = config_gateway
 
-    async def execute(self, request: ScanRequest) -> list[ShellyDevice]:
+    async def execute(self, request: ScanRequest) -> list[DiscoveredDevice]:
         """
         Execute device scanning use case.
 
@@ -30,7 +30,7 @@ class ScanDevicesUseCase:
             request: ScanRequest containing scan parameters
 
         Returns:
-            List of discovered ShellyDevice objects
+            List of discovered DiscoveredDevice objects
 
         Raises:
             ValidationError: If request validation fails
@@ -49,10 +49,10 @@ class ScanDevicesUseCase:
 
         discovered_devices = []
         for result in results:
-            if isinstance(result, ShellyDevice) and result.status in [
-                DeviceStatus.DETECTED,
-                DeviceStatus.UPDATE_AVAILABLE,
-                DeviceStatus.NO_UPDATE_NEEDED,
+            if isinstance(result, DiscoveredDevice) and result.status in [
+                Status.DETECTED,
+                Status.UPDATE_AVAILABLE,
+                Status.NO_UPDATE_NEEDED,
             ]:
                 discovered_devices.append(result)
 
@@ -99,15 +99,15 @@ class ScanDevicesUseCase:
 
     async def _scan_single_device(
         self, ip: str, timeout: float, semaphore: asyncio.Semaphore
-    ) -> ShellyDevice | None:
+    ) -> DiscoveredDevice | None:
         async with semaphore:
             try:
                 device = await self._discover_device(ip, timeout)
                 return device
             except Exception:
-                return ShellyDevice(
+                return DiscoveredDevice(
                     ip=ip,
-                    status=DeviceStatus.ERROR,
+                    status=Status.ERROR,
                     last_seen=datetime.now(),
                     error_message="Device scan failed",
                 )
@@ -165,7 +165,7 @@ class ScanDevicesUseCase:
     # Private device discovery methods (merged from DeviceDiscoveryService)
     async def _discover_device(
         self, ip: str, timeout: float = 3.0
-    ) -> ShellyDevice | None:
+    ) -> DiscoveredDevice | None:
         """
         Discover a device with business logic validation.
 
@@ -174,13 +174,13 @@ class ScanDevicesUseCase:
             timeout: Discovery timeout
 
         Returns:
-            ShellyDevice if found and valid, None otherwise
+            DiscoveredDevice if found and valid, None otherwise
 
         Raises:
             DeviceValidationError: If device validation fails
         """
         try:
-            device = await self._device_gateway.get_device_status(ip)
+            device = await self._device_gateway.discover_device(ip)
 
             if device:
                 self._validate_discovered_device(device)
@@ -193,7 +193,7 @@ class ScanDevicesUseCase:
                 ip, f"Failed to discover device at {ip}: {str(e)}"
             ) from e
 
-    def _validate_discovered_device(self, device: ShellyDevice) -> None:
+    def _validate_discovered_device(self, device: DiscoveredDevice) -> None:
         """Validate discovered device properties."""
         if not device.device_type:
             raise DeviceValidationError(
@@ -205,11 +205,11 @@ class ScanDevicesUseCase:
                 device.ip, f"Device {device.ip} has no firmware version"
             )
 
-    def _apply_device_status_rules(self, device: ShellyDevice) -> None:
+    def _apply_device_status_rules(self, device: DiscoveredDevice) -> None:
         """Apply business rules to device status."""
         if device.auth_required and device.status in [
-            DeviceStatus.DETECTED,
-            DeviceStatus.UPDATE_AVAILABLE,
-            DeviceStatus.NO_UPDATE_NEEDED,
+            Status.DETECTED,
+            Status.UPDATE_AVAILABLE,
+            Status.NO_UPDATE_NEEDED,
         ]:
-            device.status = DeviceStatus.AUTH_REQUIRED
+            device.status = Status.AUTH_REQUIRED

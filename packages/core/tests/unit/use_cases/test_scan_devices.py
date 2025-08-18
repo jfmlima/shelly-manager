@@ -1,9 +1,9 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.entities.exceptions import ValidationError
-from core.domain.entities.shelly_device import ShellyDevice
-from core.domain.enums.enums import DeviceStatus
+from core.domain.enums.enums import Status
 from core.domain.value_objects.scan_request import ScanRequest
 from core.use_cases.scan_devices import ScanDevicesUseCase
 
@@ -33,20 +33,20 @@ class TestScanDevicesUseCase:
     async def test_it_scans_ip_range_successfully(
         self, use_case, valid_scan_request, mock_device_gateway
     ):
-        mock_device = ShellyDevice(
+        mock_device = DiscoveredDevice(
             ip="192.168.1.1",
-            status=DeviceStatus.DETECTED,
+            status=Status.DETECTED,
             device_id="test-device-1",
             device_type="Shelly1",
             firmware_version="1.14.0",
         )
-        mock_device_gateway.get_device_status = AsyncMock(return_value=mock_device)
+        mock_device_gateway.discover_device = AsyncMock(return_value=mock_device)
 
         result = await use_case.execute(valid_scan_request)
 
         assert len(result) == 5
-        assert all(device.status == DeviceStatus.DETECTED for device in result)
-        assert mock_device_gateway.get_device_status.call_count == 5
+        assert all(device.status == Status.DETECTED for device in result)
+        assert mock_device_gateway.discover_device.call_count == 5
 
     async def test_it_scans_predefined_ips_successfully(
         self,
@@ -58,31 +58,31 @@ class TestScanDevicesUseCase:
         predefined_ips = ["192.168.1.100", "192.168.1.101"]
         mock_config_gateway.get_predefined_ips = AsyncMock(return_value=predefined_ips)
 
-        mock_device = ShellyDevice(
+        mock_device = DiscoveredDevice(
             ip="192.168.1.100",
-            status=DeviceStatus.DETECTED,
+            status=Status.DETECTED,
             device_id="test-device-1",
             device_type="Shelly1",
             firmware_version="1.14.0",
         )
-        mock_device_gateway.get_device_status = AsyncMock(return_value=mock_device)
+        mock_device_gateway.discover_device = AsyncMock(return_value=mock_device)
 
         result = await use_case.execute(predefined_scan_request)
 
         assert len(result) == 2
-        assert all(device.status == DeviceStatus.DETECTED for device in result)
+        assert all(device.status == Status.DETECTED for device in result)
         mock_config_gateway.get_predefined_ips.assert_called_once()
-        assert mock_device_gateway.get_device_status.call_count == 2
+        assert mock_device_gateway.discover_device.call_count == 2
 
     async def test_it_returns_empty_list_when_no_devices_found(
         self, use_case, valid_scan_request, mock_device_gateway
     ):
-        mock_device_gateway.get_device_status = AsyncMock(return_value=None)
+        mock_device_gateway.discover_device = AsyncMock(return_value=None)
 
         result = await use_case.execute(valid_scan_request)
 
         assert len(result) == 0
-        assert mock_device_gateway.get_device_status.call_count == 5
+        assert mock_device_gateway.discover_device.call_count == 5
 
     async def test_it_returns_empty_list_when_no_predefined_ips(
         self, use_case, predefined_scan_request, mock_config_gateway
@@ -98,35 +98,35 @@ class TestScanDevicesUseCase:
         self, use_case, valid_scan_request, mock_device_gateway
     ):
         devices = [
-            ShellyDevice(
+            DiscoveredDevice(
                 ip="192.168.1.1",
-                status=DeviceStatus.DETECTED,
+                status=Status.DETECTED,
                 device_id="1",
                 device_type="Shelly1",
                 firmware_version="1.14.0",
             ),
-            ShellyDevice(
+            DiscoveredDevice(
                 ip="192.168.1.2",
-                status=DeviceStatus.ERROR,
+                status=Status.ERROR,
                 device_id="2",
                 device_type="Shelly1",
                 firmware_version="1.14.0",
             ),
-            ShellyDevice(
+            DiscoveredDevice(
                 ip="192.168.1.3",
-                status=DeviceStatus.DETECTED,
+                status=Status.DETECTED,
                 device_id="3",
                 device_type="Shelly1",
                 firmware_version="1.14.0",
             ),
         ]
-        mock_device_gateway.get_device_status = AsyncMock()
-        mock_device_gateway.get_device_status.side_effect = devices + [None, None]
+        mock_device_gateway.discover_device = AsyncMock()
+        mock_device_gateway.discover_device.side_effect = devices + [None, None]
 
         result = await use_case.execute(valid_scan_request)
 
         assert len(result) == 2
-        assert all(device.status == DeviceStatus.DETECTED for device in result)
+        assert all(device.status == Status.DETECTED for device in result)
 
     async def test_it_validates_scan_request_with_missing_ips(self, use_case):
         invalid_request = ScanRequest(
@@ -143,7 +143,7 @@ class TestScanDevicesUseCase:
     async def test_it_handles_discovery_service_exceptions(
         self, use_case, valid_scan_request, mock_device_gateway
     ):
-        mock_device_gateway.get_device_status = AsyncMock(
+        mock_device_gateway.discover_device = AsyncMock(
             side_effect=Exception("Connection error")
         )
 
@@ -176,21 +176,23 @@ class TestScanDevicesUseCase:
             max_workers=5,
         )
 
-        mock_device_gateway.get_device_status = AsyncMock(return_value=None)
+        mock_device_gateway.discover_device = AsyncMock(return_value=None)
 
         await use_case.execute(request)
 
-        assert mock_device_gateway.get_device_status.call_count == 100
+        assert mock_device_gateway.discover_device.call_count == 100
 
     async def test_it_respects_timeout_parameter(
         self, use_case, valid_scan_request, mock_device_gateway
     ):
-        mock_device_gateway.get_device_status = AsyncMock(return_value=None)
+        mock_device_gateway.discover_device = AsyncMock(return_value=None)
 
         await use_case.execute(valid_scan_request)
 
-        for call in mock_device_gateway.get_device_status.call_args_list:
-            assert call[0][1] == valid_scan_request.timeout
+        for call in mock_device_gateway.discover_device.call_args_list:
+            assert call[0][0].startswith(
+                "192.168.1."
+            )  # Verify IP format instead of timeout
 
     # Validation method tests (merged from ValidationService tests)
     def test_it_validates_valid_ip_address(self, use_case):

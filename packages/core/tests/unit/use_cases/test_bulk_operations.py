@@ -1,9 +1,9 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.entities.exceptions import BulkOperationError
-from core.domain.entities.shelly_device import ShellyDevice
-from core.domain.enums.enums import DeviceStatus
+from core.domain.enums.enums import Status
 from core.domain.value_objects.action_result import ActionResult
 from core.use_cases.bulk_operations import BulkOperationsUseCase
 
@@ -19,11 +19,11 @@ class TestBulkOperationsUseCase:
     ):
         ips = ["192.168.1.100", "192.168.1.101", "192.168.1.102"]
         devices = [
-            ShellyDevice(
-                ip="192.168.1.100", status=DeviceStatus.DETECTED, device_id="device1"
+            DiscoveredDevice(
+                ip="192.168.1.100", status=Status.DETECTED, device_id="device1"
             ),
-            ShellyDevice(
-                ip="192.168.1.101", status=DeviceStatus.DETECTED, device_id="device2"
+            DiscoveredDevice(
+                ip="192.168.1.101", status=Status.DETECTED, device_id="device2"
             ),
             None,
         ]
@@ -35,7 +35,7 @@ class TestBulkOperationsUseCase:
         assert len(result) == 2
         assert result[0].ip == "192.168.1.100"
         assert result[1].ip == "192.168.1.101"
-        assert all(device.status == DeviceStatus.DETECTED for device in result)
+        assert all(device.status == Status.DETECTED for device in result)
 
     async def test_it_handles_bulk_scan_with_no_devices(
         self, use_case, mock_device_gateway
@@ -53,15 +53,15 @@ class TestBulkOperationsUseCase:
     ):
         ips = ["192.168.1.100", "192.168.1.101", "192.168.1.102"]
         devices = [
-            ShellyDevice(
-                ip="192.168.1.100", status=DeviceStatus.DETECTED, device_id="device1"
+            DiscoveredDevice(
+                ip="192.168.1.100", status=Status.DETECTED, device_id="device1"
             ),
-            ShellyDevice(
-                ip="192.168.1.101", status=DeviceStatus.UNREACHABLE, device_id="device2"
+            DiscoveredDevice(
+                ip="192.168.1.101", status=Status.UNREACHABLE, device_id="device2"
             ),
-            ShellyDevice(
+            DiscoveredDevice(
                 ip="192.168.1.102",
-                status=DeviceStatus.AUTH_REQUIRED,
+                status=Status.AUTH_REQUIRED,
                 device_id="device3",
             ),
         ]
@@ -72,7 +72,7 @@ class TestBulkOperationsUseCase:
 
         assert len(result) == 1
         assert result[0].ip == "192.168.1.100"
-        assert result[0].status == DeviceStatus.DETECTED
+        assert result[0].status == Status.DETECTED
 
     async def test_it_handles_scan_failures_gracefully(
         self, use_case, mock_device_gateway
@@ -263,8 +263,8 @@ class TestBulkOperationsUseCase:
     ):
         ips = ["192.168.1.100", "192.168.1.101"]
         devices = [
-            ShellyDevice(
-                ip="192.168.1.100", status=DeviceStatus.DETECTED, device_id="device1"
+            DiscoveredDevice(
+                ip="192.168.1.100", status=Status.DETECTED, device_id="device1"
             ),
             Exception("Network error for second device"),
         ]
@@ -281,8 +281,8 @@ class TestBulkOperationsUseCase:
     ):
         ips = ["192.168.1.100"]
         devices = [
-            ShellyDevice(
-                ip="192.168.1.100", status=DeviceStatus.DETECTED, device_id="device1"
+            DiscoveredDevice(
+                ip="192.168.1.100", status=Status.DETECTED, device_id="device1"
             )
         ]
         mock_device_gateway.discover_device = AsyncMock()

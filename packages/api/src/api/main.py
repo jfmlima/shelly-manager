@@ -19,7 +19,6 @@ from pydantic import ValidationError
 from .controllers.devices import devices_router
 from .controllers.monitoring import (
     get_action_history,
-    get_devices_with_updates,
     health_check,
 )
 from .dependencies.container import APIContainer
@@ -84,7 +83,6 @@ def create_app(config_file_path: str | None = None) -> Litestar:
             devices_router,
             health_check,
             get_action_history,
-            get_devices_with_updates,
         ],
     )
 

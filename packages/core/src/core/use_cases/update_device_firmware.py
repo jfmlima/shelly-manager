@@ -8,7 +8,7 @@ from typing import Any
 from core.settings import settings
 
 from ..domain.entities.exceptions import DeviceValidationError
-from ..domain.enums.enums import DeviceStatus
+from ..domain.enums.enums import Status
 from ..domain.value_objects.action_result import ActionResult
 from ..domain.value_objects.bulk_update_device_firmware_request import (
     BulkUpdateDeviceFirmwareRequest,
@@ -43,7 +43,7 @@ class UpdateDeviceFirmwareUseCase:
             DeviceValidationError: If update validation fails
         """
         # Validate device before update (merged from DeviceUpdateService)
-        device = await self._device_gateway.get_device_status(request.device_ip)
+        device = await self._device_gateway.discover_device(request.device_ip)
 
         if not device:
             raise DeviceValidationError(
@@ -56,7 +56,7 @@ class UpdateDeviceFirmwareUseCase:
                 f"Device {request.device_ip} has no available updates",
             )
 
-        if device.status != DeviceStatus.DETECTED:
+        if device.status != Status.DETECTED:
             raise DeviceValidationError(
                 request.device_ip,
                 f"Device {request.device_ip} is not in valid state for update",

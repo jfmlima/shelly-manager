@@ -5,7 +5,7 @@ Core enumerations for Shelly device management.
 from enum import Enum
 
 
-class DeviceStatus(str, Enum):
+class Status(str, Enum):
 
     DETECTED = "detected"
     UPDATED = "updated"

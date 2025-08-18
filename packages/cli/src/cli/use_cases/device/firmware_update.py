@@ -5,6 +5,7 @@ Firmware update use case for CLI operations.
 from typing import Any
 
 from core.domain.enums.enums import UpdateChannel
+from core.domain.value_objects.update_device_firmware_request import UpdateDeviceFirmwareRequest
 from rich.console import Console
 
 from cli.dependencies.container import CLIContainer
@@ -157,7 +158,8 @@ class FirmwareUpdateUseCase:
 
             for device_ip in device_ips:
                 try:
-                    result = await update_interactor.execute(device_ip, channel_enum)
+                    request = UpdateDeviceFirmwareRequest(device_ip=device_ip, channel=channel_enum)
+                    result = await update_interactor.execute(request)
                     if result.success:
                         # Parse update information from result
                         update_info = result.data if hasattr(result, "data") else {}

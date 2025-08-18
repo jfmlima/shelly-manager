@@ -5,7 +5,21 @@ Device management API routes using core interactors.
 from typing import TypeVar
 
 from core.domain.enums.enums import UpdateChannel
+from core.domain.value_objects.bulk_update_device_firmware_request import (
+    BulkUpdateDeviceFirmwareRequest,
+)
+from core.domain.value_objects.check_device_status_request import (
+    CheckDeviceStatusRequest,
+)
+from core.domain.value_objects.device_configuration_request import (
+    DeviceConfigurationRequest,
+)
+from core.domain.value_objects.reboot_device_request import RebootDeviceRequest
 from core.domain.value_objects.scan_request import ScanRequest
+from core.domain.value_objects.set_configuration_request import SetConfigurationRequest
+from core.domain.value_objects.update_device_firmware_request import (
+    UpdateDeviceFirmwareRequest,
+)
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.get_configuration import GetConfigurationUseCase
 from core.use_cases.reboot_device import RebootDeviceUseCase
@@ -25,7 +39,7 @@ def _require(dep_name: str, dep: T | None) -> T:
     return dep
 
 
-@get("/scan")
+@get("/scan")  # type: ignore[misc]
 async def scan_devices(
     start_ip: str | None = None,
     end_ip: str | None = None,
@@ -61,7 +75,7 @@ async def scan_devices(
     ]
 
 
-@post("/{ip:str}/update", status_code=200)
+@post("/{ip:str}/update", status_code=200)  # type: ignore[misc]
 async def update_device(
     ip: str,
     channel: str = "stable",
@@ -72,7 +86,8 @@ async def update_device(
     update_channel = (
         UpdateChannel.STABLE if channel.lower() == "stable" else UpdateChannel.BETA
     )
-    result = await update_interactor.execute(ip, update_channel)
+    request = UpdateDeviceFirmwareRequest(device_ip=ip, channel=update_channel)
+    result = await update_interactor.execute(request)
 
     return {
         "ip": result.device_ip,
@@ -83,7 +98,7 @@ async def update_device(
     }
 
 
-@post("/bulk/update")
+@post("/bulk/update")  # type: ignore[misc]
 async def bulk_update_devices(
     data: dict = Body(), update_interactor: UpdateDeviceFirmwareUseCase | None = None
 ) -> list[dict]:
@@ -95,7 +110,10 @@ async def bulk_update_devices(
     update_channel = (
         UpdateChannel.STABLE if channel.lower() == "stable" else UpdateChannel.BETA
     )
-    results = await update_interactor.execute_bulk(device_ips, update_channel)
+    request = BulkUpdateDeviceFirmwareRequest(
+        device_ips=device_ips, channel=update_channel
+    )
+    results = await update_interactor.execute_bulk(request)
 
     return [
         {
@@ -109,13 +127,14 @@ async def bulk_update_devices(
     ]
 
 
-@post("/{ip:str}/reboot", status_code=200)
+@post("/{ip:str}/reboot", status_code=200)  # type: ignore[misc]
 async def reboot_device(
     ip: str, reboot_interactor: RebootDeviceUseCase | None = None
 ) -> dict:
     reboot_interactor = _require("reboot_interactor", reboot_interactor)
 
-    result = await reboot_interactor.execute(ip)
+    request = RebootDeviceRequest(device_ip=ip)
+    result = await reboot_interactor.execute(request)
 
     return {
         "ip": result.device_ip,
@@ -126,7 +145,7 @@ async def reboot_device(
     }
 
 
-@get("/{ip:str}/status")
+@get("/{ip:str}/status")  # type: ignore[misc]
 async def get_device_status(
     ip: str,
     include_updates: bool = True,
@@ -134,36 +153,58 @@ async def get_device_status(
 ) -> dict:
     status_interactor = _require("status_interactor", status_interactor)
 
-    device = await status_interactor.execute(ip, include_updates)
+    request = CheckDeviceStatusRequest(device_ip=ip, include_updates=include_updates)
+    device_status = await status_interactor.execute(request)
+    if device_status:
+        # Return component-based response
+        summary = device_status.get_device_summary()
+        system_info = device_status.get_system_info()
 
-    if device:
+        # Extract firmware information
+        firmware_info = {}
+        if system_info:
+            firmware_info = {
+                "current_version": system_info.firmware_version,
+                "available_updates": system_info.available_updates,
+                "restart_required": system_info.restart_required,
+            }
+
         return {
-            "ip": device.ip,
-            "status": device.status,
-            "device_type": device.device_type,
-            "device_name": device.device_name,
-            "firmware_version": device.firmware_version,
-            "response_time": device.response_time,
-            "last_seen": device.last_seen.isoformat() if device.last_seen else None,
+            "ip": device_status.device_ip,
+            "components": [
+                {
+                    "key": comp.key,
+                    "type": comp.component_type,
+                    "id": comp.component_id,
+                    "status": comp.status,
+                    "config": comp.config,
+                }
+                for comp in device_status.components
+            ],
+            "summary": summary,
+            "firmware": firmware_info,
+            "last_updated": device_status.last_updated.isoformat(),
+            "total_components": device_status.total_components,
         }
     else:
         return {"ip": ip, "error": "Device not found or unreachable"}
 
 
-@get("/{ip:str}/config")
+@get("/{ip:str}/config")  # type: ignore[misc]
 async def get_device_config(
     ip: str, get_config_interactor: GetConfigurationUseCase | None = None
 ) -> dict:
     get_config_interactor = _require("get_config_interactor", get_config_interactor)
 
     try:
-        config = await get_config_interactor.execute(ip)
+        request = DeviceConfigurationRequest(device_ip=ip)
+        config = await get_config_interactor.execute(request)
         return {"ip": ip, "success": True, "config": config}
     except Exception as e:
         return {"ip": ip, "success": False, "error": str(e)}
 
 
-@post("/{ip:str}/config", status_code=200)
+@post("/{ip:str}/config", status_code=200)  # type: ignore[misc]
 async def set_device_config(
     ip: str,
     data: dict = Body(),
@@ -173,7 +214,8 @@ async def set_device_config(
 
     try:
         config = data.get("config", {})
-        result = await set_config_interactor.execute(ip, config)
+        request = SetConfigurationRequest(device_ip=ip, config=config)
+        result = await set_config_interactor.execute(request)
         return {
             "ip": ip,
             "success": result["success"],

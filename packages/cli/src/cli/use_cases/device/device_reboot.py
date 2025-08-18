@@ -4,6 +4,8 @@ Device reboot use case for CLI operations.
 
 from typing import Any
 
+from core.domain.value_objects.reboot_device_request import RebootDeviceRequest as CoreRebootDeviceRequest
+
 from rich.console import Console
 
 from cli.dependencies.container import CLIContainer
@@ -106,7 +108,8 @@ class DeviceRebootUseCase:
         ) as task:
             for device_ip in device_ips:
                 try:
-                    result = await reboot_interactor.execute(device_ip)
+                    reboot_request = CoreRebootDeviceRequest(device_ip=device_ip)
+                    result = await reboot_interactor.execute(reboot_request)
                     results.append(
                         {
                             "ip": device_ip,

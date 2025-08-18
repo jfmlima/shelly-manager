@@ -4,6 +4,8 @@ Device status checking use case for CLI operations.
 
 from typing import Any
 
+from core.domain.value_objects.check_device_status_request import CheckDeviceStatusRequest
+
 from rich.console import Console
 
 from cli.dependencies.container import CLIContainer
@@ -92,9 +94,10 @@ class DeviceStatusUseCase:
         ) as task:
             for device_ip in device_ips:
                 try:
-                    status_result = await status_interactor.execute(
-                        device_ip, request.include_updates
+                    status_request = CheckDeviceStatusRequest(
+                        device_ip=device_ip, include_updates=request.include_updates
                     )
+                    status_result = await status_interactor.execute(status_request)
                     results.append(status_result)
                 except Exception as e:
                     if request.verbose:

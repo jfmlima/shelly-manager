@@ -5,6 +5,8 @@ Configuration update use case for CLI operations.
 import json
 from typing import Any
 
+from core.domain.value_objects.set_configuration_request import SetConfigurationRequest
+
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -149,7 +151,8 @@ class ConfigUpdateUseCase:
                     self._console.print(
                         f"[blue]⚙️ Updating configuration for {device_ip}...[/blue]"
                     )
-                    result = await set_config_interactor.execute(device_ip, config_data)
+                    config_request = SetConfigurationRequest(device_ip=device_ip, config=config_data)
+                    result = await set_config_interactor.execute(config_request)
                     if result.get("success"):
                         self._console.print(
                             f"[green]✅ {device_ip}: Configuration updated successfully[/green]"
