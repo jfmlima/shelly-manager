@@ -4,7 +4,9 @@ Device status checking use case for CLI operations.
 
 from typing import Any
 
-from core.domain.value_objects.check_device_status_request import CheckDeviceStatusRequest
+from core.domain.value_objects.check_device_status_request import (
+    CheckDeviceStatusRequest,
+)
 
 from rich.console import Console
 

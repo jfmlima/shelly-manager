@@ -9,6 +9,7 @@ from api.controllers.devices import (
     update_device,
 )
 from core.domain.entities.discovered_device import DiscoveredDevice
+from core.domain.entities.device_status import DeviceStatus
 from core.domain.enums.enums import Status
 from core.domain.value_objects.action_result import ActionResult
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
@@ -61,9 +62,9 @@ class TestDevicesController:
             def __init__(self):
                 pass
 
-            async def execute(self, ip, channel):
+            async def execute(self, request):
                 return ActionResult(
-                    device_ip=ip,
+                    device_ip=request.device_ip,
                     success=True,
                     message="Update started",
                     action_type="firmware_update",
@@ -90,9 +91,9 @@ class TestDevicesController:
             def __init__(self):
                 pass
 
-            async def execute(self, ip):
+            async def execute(self, request):
                 return ActionResult(
-                    device_ip=ip,
+                    device_ip=request.device_ip,
                     success=True,
                     message="Reboot initiated",
                     action_type="reboot",
@@ -119,15 +120,11 @@ class TestDevicesController:
             def __init__(self):
                 pass
 
-            async def execute(self, ip, include_updates=True):
-                return DiscoveredDevice(
-                    ip=ip,
-                    status=Status.DETECTED,
-                    device_type="Shelly 1",
-                    device_name="Test Device",
-                    firmware_version="1.0.0",
-                    response_time=0.3,
-                    last_seen=datetime.now(),
+            async def execute(self, request):
+                return DeviceStatus(
+                    device_ip=request.device_ip,
+                    components=[],
+                    total_components=0,
                 )
 
         with create_test_client(
@@ -143,14 +140,16 @@ class TestDevicesController:
             assert response.status_code == 200
             data = response.json()
             assert data["ip"] == "192.168.1.100"
-            assert data["status"] == "detected"
+            assert "components" in data
+            assert "summary" in data
+            assert "firmware" in data
 
     def test_get_device_config_successfully(self):
         class MockGetConfigurationUseCase(GetConfigurationUseCase):
             def __init__(self):
                 pass
 
-            async def execute(self, ip):
+            async def execute(self, request):
                 return {"relay": {"name": "Test Relay"}}
 
         with create_test_client(
@@ -174,7 +173,7 @@ class TestDevicesController:
             def __init__(self):
                 pass
 
-            async def execute(self, ip, config):
+            async def execute(self, request):
                 return {"success": True, "message": "Configuration updated"}
 
         with create_test_client(
@@ -201,7 +200,7 @@ class TestDevicesController:
             def __init__(self):
                 pass
 
-            async def execute(self, ip):
+            async def execute(self, request):
                 raise Exception("Device not reachable")
 
         with create_test_client(
@@ -225,7 +224,7 @@ class TestDevicesController:
             def __init__(self):
                 pass
 
-            async def execute(self, ip, config):
+            async def execute(self, request):
                 raise Exception("Permission denied")
 
         with create_test_client(

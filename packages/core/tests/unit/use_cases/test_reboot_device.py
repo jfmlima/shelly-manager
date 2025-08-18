@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from core.domain.value_objects.reboot_device_request import RebootDeviceRequest
 from core.domain.value_objects.action_result import ActionResult
 from core.use_cases.reboot_device import RebootDeviceUseCase
 
@@ -21,7 +22,7 @@ class TestRebootDeviceUseCase:
         )
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
-        result = await use_case.execute(device_ip)
+        result = await use_case.execute(RebootDeviceRequest(device_ip=device_ip))
 
         assert result.success is True
         assert result.action_type == "reboot"
@@ -42,7 +43,7 @@ class TestRebootDeviceUseCase:
         )
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
-        result = await use_case.execute(device_ip)
+        result = await use_case.execute(RebootDeviceRequest(device_ip=device_ip))
 
         assert result.success is False
         assert result.action_type == "reboot"
@@ -64,7 +65,7 @@ class TestRebootDeviceUseCase:
         )
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
-        result = await use_case.execute(device_ip, **additional_params)
+        result = await use_case.execute(RebootDeviceRequest(device_ip=device_ip, delay=5, force=True))
 
         assert result.success is True
         assert result.message == "Device reboot scheduled"
@@ -83,7 +84,7 @@ class TestRebootDeviceUseCase:
         )
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
-        result = await use_case.execute(device_ip)
+        result = await use_case.execute(RebootDeviceRequest(device_ip=device_ip))
 
         assert result.success is False
         assert result.error == "Device requires username and password"
@@ -102,7 +103,7 @@ class TestRebootDeviceUseCase:
         )
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
-        result = await use_case.execute(device_ip)
+        result = await use_case.execute(RebootDeviceRequest(device_ip=device_ip))
 
         assert result.success is False
         assert result.message == "Device is offline"
@@ -118,7 +119,7 @@ class TestRebootDeviceUseCase:
         )
 
         with pytest.raises(ConnectionError, match="Network unreachable"):
-            await use_case.execute(device_ip)
+            await use_case.execute(RebootDeviceRequest(device_ip=device_ip))
 
     async def test_it_handles_credentials(self, use_case, mock_device_gateway):
         device_ip = "192.168.1.100"
@@ -131,7 +132,7 @@ class TestRebootDeviceUseCase:
         )
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
-        result = await use_case.execute(device_ip, **auth_params)
+        result = await use_case.execute(RebootDeviceRequest(device_ip=device_ip, username="admin", password="password123"))
 
         assert result.success is True
         assert "authentication" in result.message
@@ -150,7 +151,7 @@ class TestRebootDeviceUseCase:
         )
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
-        result = await use_case.execute(device_ip, **timeout_params)
+        result = await use_case.execute(RebootDeviceRequest(device_ip=device_ip, timeout=10))
 
         assert result.success is True
         mock_device_gateway.execute_action.assert_called_once_with(
@@ -166,7 +167,7 @@ class TestRebootDeviceUseCase:
         )
 
         with pytest.raises(Exception, match="Internal gateway error"):
-            await use_case.execute(device_ip)
+            await use_case.execute(RebootDeviceRequest(device_ip=device_ip))
 
     async def test_it_includes_response_data(self, use_case, mock_device_gateway):
         device_ip = "192.168.1.100"
@@ -183,7 +184,7 @@ class TestRebootDeviceUseCase:
         )
         mock_device_gateway.execute_action = AsyncMock(return_value=expected_result)
 
-        result = await use_case.execute(device_ip)
+        result = await use_case.execute(RebootDeviceRequest(device_ip=device_ip))
 
         assert result.success is True
         assert result.data is not None

@@ -151,7 +151,9 @@ class ConfigUpdateUseCase:
                     self._console.print(
                         f"[blue]⚙️ Updating configuration for {device_ip}...[/blue]"
                     )
-                    config_request = SetConfigurationRequest(device_ip=device_ip, config=config_data)
+                    config_request = SetConfigurationRequest(
+                        device_ip=device_ip, config=config_data
+                    )
                     result = await set_config_interactor.execute(config_request)
                     if result.get("success"):
                         self._console.print(

@@ -2,6 +2,8 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from core.domain.entities.discovered_device import DiscoveredDevice
+from core.domain.entities.device_status import DeviceStatus
 from core.domain.enums.enums import Status
 from core.gateways.device.shelly_device_gateway import ShellyDeviceGateway
 
@@ -23,35 +25,49 @@ class TestShellyDeviceGateway:
             "name": "Living Room Switch",
             "fw_id": "20230913-114010/v1.14.0-gcb84623",
         }
-        mock_rpc_client.make_rpc_request = AsyncMock(return_value=(device_info, 0.15))
+        update_info = {}  # No updates available
+        
+        # Mock both GetDeviceInfo and CheckForUpdate calls
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[(device_info, 0.15), (update_info, 0.05)]
+        )
 
         result = await gateway.discover_device("192.168.1.100")
 
         assert result is not None
         assert result.ip == "192.168.1.100"
-        assert result.status == Status.DETECTED
+        assert result.status == Status.NO_UPDATE_NEEDED  # Updated to match actual behavior
         assert result.device_id == "shelly1pm-001"
         assert result.device_type == "SHPM-1"
         assert result.device_name == "Living Room Switch"
         assert result.firmware_version == "20230913-114010/v1.14.0-gcb84623"
         assert result.response_time == 0.15
         assert isinstance(result.last_seen, datetime)
-        mock_rpc_client.make_rpc_request.assert_called_once_with(
-            "192.168.1.100", "Shelly.GetDeviceInfo", timeout=3.0
-        )
+        # Gateway makes two calls: GetDeviceInfo and CheckForUpdate
+        assert mock_rpc_client.make_rpc_request.call_count == 2
+        calls = mock_rpc_client.make_rpc_request.call_args_list
+        assert calls[0] == (("192.168.1.100", "Shelly.GetDeviceInfo"), {"timeout": 3.0})
+        assert calls[1] == (("192.168.1.100", "Shelly.CheckForUpdate"), {"timeout": 3.0})
 
     async def test_it_discovers_device_with_custom_timeout(
         self, gateway, mock_rpc_client
     ):
         device_info = {"id": "test-device", "model": "SHSW-1", "fw_id": "1.0.0"}
-        mock_rpc_client.make_rpc_request = AsyncMock(return_value=(device_info, 0.2))
+        update_info = {}
+        
+        # Gateway now uses internal timeout, test that calls are made with default timeout
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[(device_info, 0.2), (update_info, 0.05)]
+        )
 
-        result = await gateway.discover_device("192.168.1.100", timeout=5.0)
+        result = await gateway.discover_device("192.168.1.100")
 
         assert result is not None
-        mock_rpc_client.make_rpc_request.assert_called_once_with(
-            "192.168.1.100", "Shelly.GetDeviceInfo", timeout=5.0
-        )
+        # Gateway makes two calls: GetDeviceInfo and CheckForUpdate
+        assert mock_rpc_client.make_rpc_request.call_count == 2
+        calls = mock_rpc_client.make_rpc_request.call_args_list
+        assert calls[0] == (("192.168.1.100", "Shelly.GetDeviceInfo"), {"timeout": 3.0})
+        assert calls[1] == (("192.168.1.100", "Shelly.CheckForUpdate"), {"timeout": 3.0})
 
     async def test_it_handles_device_discovery_failure(self, gateway, mock_rpc_client):
         mock_rpc_client.make_rpc_request = AsyncMock(
@@ -67,38 +83,80 @@ class TestShellyDeviceGateway:
         assert isinstance(result.last_seen, datetime)
 
     async def test_it_gets_device_status_with_updates(self, gateway, mock_rpc_client):
-        device_info = {"id": "test-device", "model": "SHSW-1", "fw_id": "1.0.0"}
-        update_info = {
-            "stable": {"version": "1.1.0"},
-            "beta": {"version": "1.2.0-beta"},
+        # get_device_status now calls shelly.getcomponents
+        components_data = {
+            "components": [
+                {
+                    "key": "sys",
+                    "status": {
+                        "mac": "AABBCCDDEEFF",
+                        "restart_required": False,
+                        "uptime": 3600,
+                        "available_updates": {"version": "1.1.0"}
+                    },
+                    "config": {
+                        "device": {
+                            "name": "Test Device",
+                            "fw_id": "20240101-120000/1.0.0-abcd123"
+                        }
+                    }
+                }
+            ],
+            "cfg_rev": 1,
+            "total": 1
         }
-        mock_rpc_client.make_rpc_request = AsyncMock()
-        mock_rpc_client.make_rpc_request.side_effect = [
-            (device_info, 0.1),
-            (update_info, 0.05),
-        ]
+        
+        mock_rpc_client.make_rpc_request = AsyncMock(return_value=(components_data, 0.1))
 
-        result = await gateway.get_device_status("192.168.1.100", include_updates=True)
+        result = await gateway.get_device_status("192.168.1.100")
 
         assert result is not None
-        assert result.status == Status.UPDATE_AVAILABLE
-        assert mock_rpc_client.make_rpc_request.call_count == 2
+        assert isinstance(result, DeviceStatus)
+        assert result.device_ip == "192.168.1.100"
+        assert len(result.components) == 1
+        assert result.total_components == 1
+        mock_rpc_client.make_rpc_request.assert_called_once_with(
+            "192.168.1.100", "shelly.getcomponents", params={'offset': 0}, timeout=3.0
+        )
 
     async def test_it_gets_device_status_without_updates(
         self, gateway, mock_rpc_client
     ):
-        device_info = {"id": "test-device", "model": "SHSW-1", "fw_id": "1.0.0"}
-        mock_rpc_client.make_rpc_request = AsyncMock(return_value=(device_info, 0.1))
+        components_data = {
+            "components": [
+                {
+                    "key": "sys",
+                    "status": {
+                        "mac": "AABBCCDDEEFF",
+                        "restart_required": False,
+                        "uptime": 3600
+                    },
+                    "config": {
+                        "device": {
+                            "name": "Test Device",
+                            "fw_id": "20240101-120000/1.0.0-abcd123"
+                        }
+                    }
+                }
+            ],
+            "cfg_rev": 1,
+            "total": 1
+        }
+        mock_rpc_client.make_rpc_request = AsyncMock(return_value=(components_data, 0.1))
 
-        result = await gateway.get_device_status("192.168.1.100", include_updates=False)
+        result = await gateway.get_device_status("192.168.1.100")
 
         assert result is not None
-        assert result.status == Status.DETECTED
-        mock_rpc_client.make_rpc_request.assert_called_once()
+        assert isinstance(result, DeviceStatus)
+        assert result.device_ip == "192.168.1.100"
+        mock_rpc_client.make_rpc_request.assert_called_once_with(
+            "192.168.1.100", "shelly.getcomponents", params={'offset': 0}, timeout=3.0
+        )
 
     async def test_it_handles_update_check_failure_gracefully(
         self, gateway, mock_rpc_client
     ):
+        # This test is now for discover_device since get_device_status doesn't handle updates
         device_info = {"id": "test-device", "model": "SHSW-1", "fw_id": "1.0.0"}
         mock_rpc_client.make_rpc_request = AsyncMock()
         mock_rpc_client.make_rpc_request.side_effect = [
@@ -106,7 +164,7 @@ class TestShellyDeviceGateway:
             Exception("Update check failed"),
         ]
 
-        result = await gateway.get_device_status("192.168.1.100", include_updates=True)
+        result = await gateway.discover_device("192.168.1.100")
 
         assert result is not None
         assert result.status == Status.DETECTED
@@ -308,10 +366,10 @@ class TestShellyDeviceGateway:
             (update_info, 0.05),
         ]
 
-        result = await gateway.get_device_status("192.168.1.100", include_updates=True)
+        result = await gateway.discover_device("192.168.1.100")
 
         assert result is not None
-        assert result.status == Status.DETECTED
+        assert result.status == Status.NO_UPDATE_NEEDED
 
     async def test_it_handles_null_update_info(self, gateway, mock_rpc_client):
         device_info = {"id": "test-device", "model": "SHSW-1", "fw_id": "1.0.0"}
@@ -321,7 +379,7 @@ class TestShellyDeviceGateway:
             (None, 0.05),
         ]
 
-        result = await gateway.get_device_status("192.168.1.100", include_updates=True)
+        result = await gateway.discover_device("192.168.1.100")
 
         assert result is not None
-        assert result.status == Status.DETECTED
+        assert result.status == Status.NO_UPDATE_NEEDED

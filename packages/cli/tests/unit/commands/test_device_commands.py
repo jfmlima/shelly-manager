@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 from cli.commands.device_commands import device_commands, scan
 from click.testing import CliRunner
+from core.domain.value_objects.reboot_device_request import RebootDeviceRequest
 
 
 class TestDeviceCommands:
@@ -327,7 +328,9 @@ class TestRebootCommand:
         )
 
         assert result.exit_code == 0
-        mock_reboot_interactor.execute.assert_called_once_with("192.168.1.100")
+        mock_reboot_interactor.execute.assert_called_once_with(
+            RebootDeviceRequest(device_ip="192.168.1.100")
+        )
 
     def test_reboot_user_cancellation(self, cli_context_with_reboot):
         runner = CliRunner()

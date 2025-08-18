@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from core.domain.value_objects.device_configuration_request import DeviceConfigurationRequest
 from core.use_cases.get_configuration import GetConfigurationUseCase
 
 
@@ -18,7 +19,7 @@ class TestGetConfigurationUseCase:
             return_value=sample_device_config
         )
 
-        result = await use_case.execute(device_ip)
+        result = await use_case.execute(DeviceConfigurationRequest(device_ip=device_ip))
 
         assert result == sample_device_config
         assert "wifi" in result
@@ -29,14 +30,14 @@ class TestGetConfigurationUseCase:
     async def test_it_raises_error_when_device_not_found(
         self, use_case, mock_device_gateway
     ):
-        device_ip = "192.168.1.999"
+        device_ip = "192.168.1.200"
         mock_device_gateway.get_device_config = AsyncMock(return_value=None)
 
         with pytest.raises(
             ValueError,
-            match="Could not retrieve configuration for device: 192.168.1.999",
+            match="Could not retrieve configuration for device: 192.168.1.200",
         ):
-            await use_case.execute(device_ip)
+            await use_case.execute(DeviceConfigurationRequest(device_ip=device_ip))
 
         mock_device_gateway.get_device_config.assert_called_once_with(device_ip)
 
@@ -45,7 +46,7 @@ class TestGetConfigurationUseCase:
         empty_config = {}
         mock_device_gateway.get_device_config = AsyncMock(return_value=empty_config)
 
-        result = await use_case.execute(device_ip)
+        result = await use_case.execute(DeviceConfigurationRequest(device_ip=device_ip))
 
         assert result == empty_config
         mock_device_gateway.get_device_config.assert_called_once_with(device_ip)
@@ -102,7 +103,7 @@ class TestGetConfigurationUseCase:
         }
         mock_device_gateway.get_device_config = AsyncMock(return_value=complex_config)
 
-        result = await use_case.execute(device_ip)
+        result = await use_case.execute(DeviceConfigurationRequest(device_ip=device_ip))
 
         assert result == complex_config
         assert result["wifi"]["sta"]["ssid"] == "MyNetwork"
@@ -118,7 +119,7 @@ class TestGetConfigurationUseCase:
         mock_device_gateway.get_device_config = AsyncMock(return_value=None)
 
         with pytest.raises(ValueError, match="Could not retrieve configuration"):
-            await use_case.execute(device_ip)
+            await use_case.execute(DeviceConfigurationRequest(device_ip=device_ip))
 
     async def test_it_propagates_gateway_exceptions(
         self, use_case, mock_device_gateway
@@ -129,7 +130,7 @@ class TestGetConfigurationUseCase:
         )
 
         with pytest.raises(Exception, match="Connection timeout"):
-            await use_case.execute(device_ip)
+            await use_case.execute(DeviceConfigurationRequest(device_ip=device_ip))
 
         mock_device_gateway.get_device_config.assert_called_once_with(device_ip)
 
@@ -140,7 +141,7 @@ class TestGetConfigurationUseCase:
         )
 
         with pytest.raises(ConnectionError, match="Device unreachable"):
-            await use_case.execute(device_ip)
+            await use_case.execute(DeviceConfigurationRequest(device_ip=device_ip))
 
     async def test_it_handles_partial_configuration(
         self, use_case, mock_device_gateway
@@ -149,7 +150,7 @@ class TestGetConfigurationUseCase:
         partial_config = {"name": "Partial Device", "wifi": {"sta": {"enable": True}}}
         mock_device_gateway.get_device_config = AsyncMock(return_value=partial_config)
 
-        result = await use_case.execute(device_ip)
+        result = await use_case.execute(DeviceConfigurationRequest(device_ip=device_ip))
 
         assert result == partial_config
         assert result["name"] == "Partial Device"

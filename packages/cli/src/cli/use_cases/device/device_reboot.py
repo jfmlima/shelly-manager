@@ -4,7 +4,9 @@ Device reboot use case for CLI operations.
 
 from typing import Any
 
-from core.domain.value_objects.reboot_device_request import RebootDeviceRequest as CoreRebootDeviceRequest
+from core.domain.value_objects.reboot_device_request import (
+    RebootDeviceRequest as CoreRebootDeviceRequest,
+)
 
 from rich.console import Console
 

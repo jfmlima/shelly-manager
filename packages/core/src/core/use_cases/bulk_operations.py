@@ -38,7 +38,7 @@ class BulkOperationsUseCase:
 
         try:
             tasks = [
-                self._device_gateway.discover_device(ip, request.timeout)
+                self._device_gateway.discover_device(ip)
                 for ip in request.ips
             ]
 

@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any
 
 from core.domain.value_objects.scan_request import ScanRequest
-from core.domain.value_objects.check_device_status_request import CheckDeviceStatusRequest
+from core.domain.value_objects.check_device_status_request import (
+    CheckDeviceStatusRequest,
+)
 from rich.console import Console
 from rich.table import Table
 
@@ -139,7 +141,9 @@ class DeviceExportUseCase:
 
         for ip in target_ips:
             try:
-                status_request = CheckDeviceStatusRequest(device_ip=ip, include_updates=True)
+                status_request = CheckDeviceStatusRequest(
+                    device_ip=ip, include_updates=True
+                )
                 device = await status_interactor.execute(status_request)
                 devices.append(device)
                 self._console.print(f"[green]✅ {ip}[/green]")
