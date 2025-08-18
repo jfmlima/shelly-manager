@@ -108,6 +108,14 @@ export interface CloudComponent extends Component {
   };
 }
 
+export interface ZigbeeComponent extends Component {
+  type: "zigbee";
+  status: {
+    network_state: string;
+  };
+  config: Record<string, unknown>;
+}
+
 export interface UpdateInfo {
   version: string;
   build_id: string;
@@ -197,7 +205,8 @@ export type ComponentType =
   | InputComponent
   | CoverComponent
   | SystemComponent
-  | CloudComponent;
+  | CloudComponent
+  | ZigbeeComponent;
 
 export function isSwitchComponent(
   component: Component,
@@ -227,4 +236,10 @@ export function isCloudComponent(
   component: Component,
 ): component is CloudComponent {
   return component.type === "cloud";
+}
+
+export function isZigbeeComponent(
+  component: Component,
+): component is ZigbeeComponent {
+  return component.type === "zigbee";
 }

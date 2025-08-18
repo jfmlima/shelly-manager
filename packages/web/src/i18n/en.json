@@ -179,6 +179,13 @@
                 "enabled": "Enabled",
                 "server": "Server"
             },
+            "zigbee": {
+                "joined": "JOINED",
+                "joining": "JOINING",
+                "disconnected": "DISCONNECTED",
+                "description": "Zigbee network connectivity status",
+                "networkState": "Network State"
+            },
             "generic": {
                 "componentType": "Component type"
             }

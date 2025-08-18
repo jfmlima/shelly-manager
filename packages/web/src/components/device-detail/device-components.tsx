@@ -1,5 +1,12 @@
 import { useTranslation } from "react-i18next";
-import { Power, Thermometer, Zap, Activity, Settings } from "lucide-react";
+import {
+  Power,
+  Thermometer,
+  Zap,
+  Activity,
+  Settings,
+  Wifi,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,6 +22,7 @@ import {
   isCoverComponent,
   isSystemComponent,
   isCloudComponent,
+  isZigbeeComponent,
 } from "@/types/api";
 import type { DeviceStatus, Component } from "@/types/api";
 
@@ -241,7 +249,7 @@ export function DeviceComponents({
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center space-x-2 text-base">
               <Settings className="h-4 w-4" />
-              <span>{t("deviceDetail.components.system")}</span>
+              <span>System</span>
             </CardTitle>
             <CardDescription>
               {t("deviceDetail.components.system.description")}
@@ -327,6 +335,59 @@ export function DeviceComponents({
                   </span>
                 </div>
               )}
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (isZigbeeComponent(component)) {
+      const getStatusVariant = (networkState: string) => {
+        switch (networkState.toLowerCase()) {
+          case "joined":
+            return "default";
+          case "joining":
+            return "secondary";
+          default:
+            return "destructive";
+        }
+      };
+
+      const getStatusLabel = (networkState: string) => {
+        switch (networkState.toLowerCase()) {
+          case "joined":
+            return t("deviceDetail.components.zigbee.joined");
+          case "joining":
+            return t("deviceDetail.components.zigbee.joining");
+          default:
+            return t("deviceDetail.components.zigbee.disconnected");
+        }
+      };
+
+      return (
+        <Card key={component.key} className="border-l-4 border-l-orange-500">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-base">
+              <div className="flex items-center space-x-2">
+                <Wifi className="h-4 w-4" />
+                <span>Zigbee</span>
+              </div>
+              <Badge variant={getStatusVariant(component.status.network_state)}>
+                {getStatusLabel(component.status.network_state)}
+              </Badge>
+            </CardTitle>
+            <CardDescription>
+              {t("deviceDetail.components.zigbee.description")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span>{t("deviceDetail.components.zigbee.networkState")}</span>
+                <span className="font-medium">
+                  {component.status.network_state}
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>
