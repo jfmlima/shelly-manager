@@ -1,0 +1,294 @@
+{
+    "common": {
+        "loading": "Loading...",
+        "error": "Error",
+        "success": "Success",
+        "cancel": "Cancel",
+        "save": "Save",
+        "delete": "Delete",
+        "edit": "Edit",
+        "close": "Close",
+        "confirm": "Confirm",
+        "retry": "Retry"
+    },
+    "navigation": {
+        "dashboard": "Dashboard",
+        "settings": "Settings",
+        "deviceDetail": "Device Detail"
+    },
+    "dashboard": {
+        "title": "Shelly Manager Dashboard",
+        "subtitle": "Discover and manage your Shelly devices from this central dashboard",
+        "scanForm": {
+            "title": "Scan for Devices",
+            "description": "Configure scan parameters to discover Shelly devices on your network",
+            "startIp": "Start IP",
+            "endIp": "End IP",
+            "usePredefined": "Use Predefined IPs",
+            "timeout": "Timeout (seconds)",
+            "maxWorkers": "Max Workers",
+            "scanButton": "Scan Devices",
+            "scanning": "Scanning..."
+        },
+        "deviceTable": {
+            "title": "Discovered Devices",
+            "description": "Found {{count}} device(s). Click on any row to view device details.",
+            "ip": "IP Address",
+            "status": "Status",
+            "deviceType": "Device Type",
+            "deviceName": "Device Name",
+            "firmwareVersion": "Firmware Version",
+            "responseTime": "Response Time",
+            "lastSeen": "Last Seen",
+            "noDevices": "No devices found",
+            "bulkActions": "Bulk Actions",
+            "columns": "Columns",
+            "filterDevices": "Filter devices...",
+            "rowsSelected": "{{selected}} of {{total}} row(s) selected.",
+            "previous": "Previous",
+            "next": "Next"
+        },
+        "messages": {
+            "scanSuccess": "Found {{count}} device(s)",
+            "scanError": "Device scan failed"
+        }
+    },
+    "bulkActions": {
+        "title": "Bulk Actions",
+        "description": "Perform actions on {{count}} selected device(s)",
+        "selectedDevices": "Selected Devices",
+        "updateFirmware": "Update Firmware",
+        "rebootDevices": "Reboot Devices",
+        "checkStatus": "Check Status",
+        "exportConfigurations": "Export Configurations",
+        "applyConfiguration": "Apply Configuration",
+        "channel": "Update Channel",
+        "stable": "Stable",
+        "beta": "Beta",
+        "progress": "Progress",
+        "overallProgress": "Overall Progress",
+        "results": "Results",
+        "successful": "Successful",
+        "failed": "Failed",
+        "pending": "Pending",
+        "viewDetails": "View Details",
+        "startNewAction": "Start New Action",
+        "descriptions": {
+            "updateFirmware": "Update firmware on selected devices",
+            "rebootDevices": "Restart selected devices",
+            "checkStatus": "Fetch status for selected devices",
+            "exportConfigurations": "Download device configurations",
+            "applyConfiguration": "Apply configuration template"
+        },
+        "messages": {
+            "updateSuccess": "Successfully updated {{count}} devices",
+            "updatePartial": "Updated {{successful}} devices, {{failed}} failed",
+            "rebootSuccess": "Successfully rebooted {{count}} devices",
+            "rebootPartial": "Rebooted {{successful}} devices, {{failed}} failed",
+            "actionNotImplemented": "Action not implemented yet"
+        }
+    },
+    "deviceDetail": {
+        "title": "Device Details",
+        "subtitle": "{{name}} - {{ip}}",
+        "backToDashboard": "Back to Dashboard",
+        "actions": {
+            "title": "Device Actions",
+            "description": "Manage device firmware, configuration, and power state",
+            "update": "Update Firmware",
+            "reboot": "Reboot Device",
+            "fetchStatus": "Refresh Status",
+            "loadConfig": "Load Configuration",
+            "saveConfig": "Save Configuration",
+            "configure": "Configure"
+        },
+        "status": {
+            "title": "Device Status",
+            "components": "Components",
+            "firmware": "Firmware Information",
+            "uptime": "Uptime",
+            "macAddress": "MAC Address",
+            "cloudConnected": "Cloud Connected",
+            "powerConsumption": "Power Consumption",
+            "hasUpdates": "Updates Available",
+            "restartRequired": "Restart Required"
+        },
+        "configuration": {
+            "title": "Device Configuration",
+            "loading": "Loading configuration...",
+            "error": "Failed to load configuration"
+        },
+        "deviceInfo": {
+            "deviceInformation": "Device Information",
+            "noDeviceData": "No device data available",
+            "unnamedDevice": "Unnamed Device",
+            "unknown": "Unknown",
+            "firmware": "Firmware",
+            "overview": "Device Overview",
+            "overviewDescription": "Component and power information",
+            "switches": "Switches",
+            "inputs": "Inputs",
+            "covers": "Covers",
+            "power": "Power",
+            "cloud": "Cloud",
+            "updates": "Updates",
+            "connected": "Connected",
+            "disconnected": "Disconnected",
+            "available": "Available",
+            "upToDate": "Up to date",
+            "online": "Online",
+            "offline": "Offline"
+        },
+        "components": {
+            "componentsDescription": "Device components and their current status ({{count}} total)",
+            "noComponentData": "No component data available",
+            "switch": {
+                "on": "ON",
+                "off": "OFF",
+                "voltage": "Voltage",
+                "current": "Current",
+                "frequency": "Frequency",
+                "temp": "Temp",
+                "energy": "Energy"
+            },
+            "input": {
+                "active": "ACTIVE",
+                "inactive": "INACTIVE",
+                "type": "Type",
+                "enabled": "Enabled",
+                "inverted": "Inverted",
+                "yes": "Yes",
+                "no": "No"
+            },
+            "cover": {
+                "position": "Position",
+                "direction": "Direction",
+                "temperature": "Temperature"
+            },
+            "system": {
+                "description": "Device system information and configuration",
+                "ramFree": "RAM Free",
+                "ramTotal": "RAM Total",
+                "restartRequired": "Restart Required",
+                "timezone": "Timezone"
+            },
+            "cloud": {
+                "connected": "CONNECTED",
+                "disconnected": "DISCONNECTED",
+                "description": "Shelly Cloud connectivity status",
+                "enabled": "Enabled",
+                "server": "Server"
+            },
+            "generic": {
+                "componentType": "Component type"
+            }
+        },
+        "dialogs": {
+            "updateFirmware": {
+                "title": "Update Firmware",
+                "description": "Select the update channel and confirm to start the firmware update process.",
+                "updateChannel": "Update Channel",
+                "version": "Version",
+                "firmwareUpdate": "Firmware Update",
+                "startingUpdate": "Starting Update...",
+                "startUpdate": "Start Update"
+            },
+            "rebootDevice": {
+                "title": "Reboot Device",
+                "warning": "The device will be temporarily unavailable during the reboot process.",
+                "rebooting": "Rebooting...",
+                "rebootDevice": "Reboot Device"
+            }
+        },
+        "errors": {
+            "invalidDeviceIp": "Invalid Device IP",
+            "noDeviceIpProvided": "No device IP provided in the URL",
+            "errorLoadingDevice": "Error Loading Device",
+            "returnToDashboard": "Return to Dashboard"
+        },
+        "messages": {
+            "firmwareUpdateStarted": "Firmware update started",
+            "updateFailed": "Update failed",
+            "deviceRebootInitiated": "Device reboot initiated",
+            "rebootFailed": "Reboot failed"
+        }
+    },
+    "settings": {
+        "title": "Settings",
+        "subtitle": "Manage your application preferences and configuration",
+        "appearance": {
+            "title": "Appearance",
+            "description": "Customize the visual appearance of the application",
+            "theme": "Theme",
+            "light": "Light",
+            "dark": "Dark",
+            "system": "System",
+            "themeDescription": "Choose your preferred color scheme. System will follow your OS preference."
+        },
+        "api": {
+            "title": "API Configuration",
+            "description": "API endpoint configuration and connection settings",
+            "baseUrl": "Base API URL",
+            "urlDescription": "API URL is configured via environment variables (VITE_BASE_API_URL)",
+            "connectionStatus": "Connection Status",
+            "apiEndpoint": "API endpoint"
+        },
+        "table": {
+            "title": "Table Preferences",
+            "description": "Default table display and pagination settings",
+            "pageSize": "Default Page Size",
+            "density": "Column Density",
+            "compact": "Compact",
+            "normal": "Normal",
+            "comfortable": "Comfortable",
+            "savePreferences": "Save Table Preferences"
+        },
+        "networkPresets": {
+            "title": "Network Presets",
+            "description": "Predefined network ranges for device discovery",
+            "configuration": "Network presets configuration",
+            "comingSoon": "Coming in a future update"
+        },
+        "footer": {
+            "title": "Shelly Manager",
+            "description": "A modern web interface for managing Shelly IoT devices",
+            "builtWith": "Built with React + TypeScript",
+            "poweredBy": "Powered by Vite",
+            "uiBy": "UI by shadcn/ui"
+        },
+        "messages": {
+            "settingsSaved": "Settings saved successfully",
+            "failedToParse": "Failed to parse saved settings"
+        }
+    },
+    "status": {
+        "online": "Online",
+        "offline": "Offline",
+        "updating": "Updating",
+        "unknown": "Unknown",
+        "detected": "Detected",
+        "error": "Error"
+    },
+    "errors": {
+        "networkError": "Network error occurred",
+        "deviceNotFound": "Device not found",
+        "configurationFailed": "Configuration update failed",
+        "scanFailed": "Device scan failed",
+        "unexpectedError": "An unexpected error occurred"
+    },
+    "ui": {
+        "selectAll": "Select all",
+        "selectRow": "Select row",
+        "toggleTheme": "Toggle theme",
+        "close": "Close",
+        "switchToDarkMode": "Switch to dark mode",
+        "switchToSystemMode": "Switch to system mode",
+        "switchToLightMode": "Switch to light mode"
+    },
+    "confirmations": {
+        "rebootDevice": "Are you sure you want to reboot this device?",
+        "bulkReboot": "Are you sure you want to reboot {{count}} devices?",
+        "updateFirmware": "Are you sure you want to update the firmware for this device?",
+        "bulkUpdate": "Are you sure you want to update the firmware for {{count}} devices?"
+    }
+}

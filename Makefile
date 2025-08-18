@@ -80,6 +80,10 @@ lint:
 	mypy packages/api/src/api
 	mypy packages/cli/src/cli
 
+lint-web:
+	@echo "Running web linting..."
+	cd packages/web && npm run lint
+
 # Test commands
 test: test-core test-api test-cli
 	@echo "All tests completed successfully!"

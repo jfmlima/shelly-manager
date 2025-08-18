@@ -11,6 +11,14 @@ repos:
         pass_filenames: false
         description: "Run black, ruff, and mypy linting checks"
 
+      - id: lint-web
+        name: Run web linting
+        entry: make lint-web
+        language: system
+        files: '\.tsx?$'
+        pass_filenames: false
+        description: "Run eslint and prettier checks for web files"
+
       # Test execution
       - id: test
         name: Run tests
