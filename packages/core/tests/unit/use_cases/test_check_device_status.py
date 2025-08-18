@@ -59,7 +59,6 @@ class TestCheckDeviceStatusUseCase:
         self, use_case, mock_device_gateway
     ):
         device_ip = "192.168.1.101"
-        # get_device_status returns None when device is offline
         mock_device_gateway.get_device_status = AsyncMock(return_value=None)
 
         result = await use_case.execute(CheckDeviceStatusRequest(device_ip=device_ip, include_updates=True))
@@ -71,7 +70,6 @@ class TestCheckDeviceStatusUseCase:
         self, use_case, mock_device_gateway
     ):
         device_ip = "192.168.1.102"
-        # get_device_status should return None when auth is required
         mock_device_gateway.get_device_status = AsyncMock(return_value=None)
 
         result = await use_case.execute(CheckDeviceStatusRequest(device_ip=device_ip, include_updates=True))
@@ -99,7 +97,6 @@ class TestCheckDeviceStatusUseCase:
         self, use_case, mock_device_gateway
     ):
         device_ip = "192.168.1.100"
-        # Create a DeviceStatus with a system component containing firmware info
         from core.domain.entities.components import SystemComponent
         
         sys_component = SystemComponent.from_raw_data({

@@ -38,7 +38,6 @@ class ResultFormatter:
         elif devices and isinstance(devices[0], DeviceStatus):
             self._format_device_status_table(devices, title)
         else:
-            # Fallback to legacy format for backward compatibility
             self._format_legacy_device_table(devices, title)
 
     def _format_discovered_devices_table(

@@ -396,7 +396,6 @@ class TestUpdateDeviceFirmwareUseCase:
         assert result.data["new_version"] == "1.14.0"
         assert result.data["update_duration"] == 120
 
-    # Validation tests (merged from DeviceUpdateService tests)
     async def test_it_validates_device_exists_before_update(
         self, use_case, mock_device_gateway
     ):

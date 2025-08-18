@@ -54,7 +54,6 @@ class TestSetConfigurationUseCase:
         device_ip = "192.168.1.100"
         none_config = None
 
-        # Pydantic will raise ValidationError when config is None since it's required
         from pydantic import ValidationError
         with pytest.raises(ValidationError, match="Input should be a valid dictionary"):
             SetConfigurationRequest(device_ip=device_ip, config=none_config)

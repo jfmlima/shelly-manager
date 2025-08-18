@@ -93,7 +93,6 @@ async def devices(
         console.print(f"[red]❌ {e}[/red]")
         raise click.Abort() from None
     except RuntimeError:
-        # User cancelled - already handled by use case
         return
 
 
@@ -158,7 +157,6 @@ async def scan(
         if not success:
             raise click.Abort()
     except RuntimeError:
-        # User cancelled - already handled by use case
         return
 
 

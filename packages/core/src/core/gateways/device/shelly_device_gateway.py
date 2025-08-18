@@ -51,7 +51,6 @@ class ShellyDeviceGateway(DeviceGateway):
                 last_seen=datetime.now(),
             )
 
-            # Check for updates (original get_device_status behavior)
             try:
                 update_info, _ = await self._rpc_client.make_rpc_request(
                     ip, "Shelly.CheckForUpdate", timeout=self.timeout
@@ -66,7 +65,7 @@ class ShellyDeviceGateway(DeviceGateway):
                     device.status = Status.NO_UPDATE_NEEDED
 
             except Exception:
-                # If update check fails, keep device as DETECTED
+                logger.error(f"Error checking for updates: {e}", exc_info=True)
                 pass
 
             return device
@@ -90,12 +89,22 @@ class ShellyDeviceGateway(DeviceGateway):
             DeviceStatus with all component data, or None if unreachable
         """
         try:
-            # Call shelly.getcomponents to get component data
-            response_data, _ = await self._rpc_client.make_rpc_request(
+            components_response, _ = await self._rpc_client.make_rpc_request(
                 ip, "shelly.getcomponents", params={"offset": 0}, timeout=self.timeout
             )
+            
+            # Fetch Zigbee data until GetComponents implements it
+            zigbee_data = None
+            try:
+                zigbee_response, _ = await self._rpc_client.make_rpc_request(
+                    ip, "Zigbee.GetStatus", timeout=self.timeout
+                )
+                zigbee_data = zigbee_response
+            except Exception:
+                logger.error(f"Error getting Zigbee data: {e}", exc_info=True)
+                pass
 
-            return DeviceStatus.from_raw_response(ip, response_data)
+            return DeviceStatus.from_raw_response(ip, components_response, zigbee_data)
 
         except Exception as e:
             logger.error(f"Error getting device status: {e}", exc_info=True)

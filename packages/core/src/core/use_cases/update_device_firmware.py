@@ -42,7 +42,6 @@ class UpdateDeviceFirmwareUseCase:
         Raises:
             DeviceValidationError: If update validation fails
         """
-        # Validate device before update (merged from DeviceUpdateService)
         device = await self._device_gateway.discover_device(request.device_ip)
 
         if not device:
@@ -83,7 +82,6 @@ class UpdateDeviceFirmwareUseCase:
         Returns:
             List of ActionResult objects
         """
-        # Determine effective concurrency: request override via kwargs or settings
         override_workers = kwargs.get("max_workers")
         max_workers = (
             int(override_workers)
@@ -102,7 +100,6 @@ class UpdateDeviceFirmwareUseCase:
                     )
                     return await self.execute(single_request, **kwargs)
                 except DeviceValidationError as e:
-                    # Return failed result instead of raising exception for bulk operations
                     from ..domain.value_objects.action_result import ActionResult
 
                     return ActionResult(

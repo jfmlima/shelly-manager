@@ -51,26 +51,21 @@ class DeviceExportUseCase:
             ValueError: If invalid parameters provided
             RuntimeError: If user cancels operation
         """
-        # Determine output file
         output_file = request.output or f"devices.{request.format}"
         output_path = Path(output_file)
 
-        # Check file overwrite
         if not self._check_file_overwrite(output_path, request.force):
             self._console.print("[yellow]Export cancelled[/yellow]")
             raise RuntimeError("Export cancelled by user")
 
-        # Get devices
         devices = await self._get_devices(request)
 
         if not devices:
             return False
 
-        # Get configurations if requested
         if request.include_config:
             await self._add_device_configurations(devices)
 
-        # Export devices
         return await self._export_devices(devices, output_path, request)
 
     def _check_file_overwrite(self, output_path: Path, force: bool) -> bool:
@@ -262,15 +257,12 @@ class ScanExportUseCase:
 
         output_path = Path(request.output)
 
-        # Check file overwrite
         if not self._check_file_overwrite(output_path, request.force):
             self._console.print("[yellow]Export cancelled[/yellow]")
             raise RuntimeError("Export cancelled by user")
-
-        # Perform scan
+    
         devices = await self._scan_network(request)
 
-        # Export results (even if empty)
         return await self._export_scan_results(devices, output_path, request)
 
     def _check_file_overwrite(self, output_path: Path, force: bool) -> bool:

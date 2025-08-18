@@ -27,7 +27,6 @@ class TestShellyDeviceGateway:
         }
         update_info = {}  # No updates available
         
-        # Mock both GetDeviceInfo and CheckForUpdate calls
         mock_rpc_client.make_rpc_request = AsyncMock(
             side_effect=[(device_info, 0.15), (update_info, 0.05)]
         )
@@ -43,7 +42,6 @@ class TestShellyDeviceGateway:
         assert result.firmware_version == "20230913-114010/v1.14.0-gcb84623"
         assert result.response_time == 0.15
         assert isinstance(result.last_seen, datetime)
-        # Gateway makes two calls: GetDeviceInfo and CheckForUpdate
         assert mock_rpc_client.make_rpc_request.call_count == 2
         calls = mock_rpc_client.make_rpc_request.call_args_list
         assert calls[0] == (("192.168.1.100", "Shelly.GetDeviceInfo"), {"timeout": 3.0})
@@ -55,7 +53,6 @@ class TestShellyDeviceGateway:
         device_info = {"id": "test-device", "model": "SHSW-1", "fw_id": "1.0.0"}
         update_info = {}
         
-        # Gateway now uses internal timeout, test that calls are made with default timeout
         mock_rpc_client.make_rpc_request = AsyncMock(
             side_effect=[(device_info, 0.2), (update_info, 0.05)]
         )
@@ -63,7 +60,6 @@ class TestShellyDeviceGateway:
         result = await gateway.discover_device("192.168.1.100")
 
         assert result is not None
-        # Gateway makes two calls: GetDeviceInfo and CheckForUpdate
         assert mock_rpc_client.make_rpc_request.call_count == 2
         calls = mock_rpc_client.make_rpc_request.call_args_list
         assert calls[0] == (("192.168.1.100", "Shelly.GetDeviceInfo"), {"timeout": 3.0})
@@ -83,7 +79,6 @@ class TestShellyDeviceGateway:
         assert isinstance(result.last_seen, datetime)
 
     async def test_it_gets_device_status_with_updates(self, gateway, mock_rpc_client):
-        # get_device_status now calls shelly.getcomponents
         components_data = {
             "components": [
                 {
@@ -153,10 +148,74 @@ class TestShellyDeviceGateway:
             "192.168.1.100", "shelly.getcomponents", params={'offset': 0}, timeout=3.0
         )
 
+    async def test_it_gets_device_status_with_zigbee_data(self, gateway, mock_rpc_client):
+        """Test get_device_status with Zigbee data available."""
+        components_data = {
+            "components": [
+                {
+                    "key": "switch:0",
+                    "status": {"output": True},
+                    "config": {"name": "Test Switch"},
+                    "attrs": {}
+                }
+            ],
+            "cfg_rev": 1,
+            "total": 1
+        }
+        zigbee_data = {"network_state": "joined"}
+        
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[(components_data, 0.1), (zigbee_data, 0.05)]
+        )
+
+        result = await gateway.get_device_status("192.168.1.100")
+
+        assert result is not None
+        assert isinstance(result, DeviceStatus)
+        assert result.device_ip == "192.168.1.100"
+        assert len(result.components) == 2  # switch + zigbee
+        
+        assert mock_rpc_client.make_rpc_request.call_count == 2
+        calls = mock_rpc_client.make_rpc_request.call_args_list
+        assert calls[0] == (("192.168.1.100", "shelly.getcomponents"), {"params": {'offset': 0}, "timeout": 3.0})
+        assert calls[1] == (("192.168.1.100", "Zigbee.GetStatus"), {"timeout": 3.0})
+
+    async def test_it_gets_device_status_with_zigbee_failure(self, gateway, mock_rpc_client):
+        """Test get_device_status when Zigbee.GetStatus fails (non-Zigbee device)."""
+        components_data = {
+            "components": [
+                {
+                    "key": "switch:0",
+                    "status": {"output": True},
+                    "config": {"name": "Test Switch"},
+                    "attrs": {}
+                }
+            ],
+            "cfg_rev": 1,
+            "total": 1
+        }
+        
+        mock_rpc_client.make_rpc_request = AsyncMock()
+        mock_rpc_client.make_rpc_request.side_effect = [
+            (components_data, 0.1),
+            Exception("Zigbee not available")
+        ]
+
+        result = await gateway.get_device_status("192.168.1.100")
+
+        assert result is not None
+        assert isinstance(result, DeviceStatus)
+        assert result.device_ip == "192.168.1.100"
+        assert len(result.components) == 1  # only switch, no zigbee
+        
+        assert mock_rpc_client.make_rpc_request.call_count == 2
+        calls = mock_rpc_client.make_rpc_request.call_args_list
+        assert calls[0] == (("192.168.1.100", "shelly.getcomponents"), {"params": {'offset': 0}, "timeout": 3.0})
+        assert calls[1] == (("192.168.1.100", "Zigbee.GetStatus"), {"timeout": 3.0})
+
     async def test_it_handles_update_check_failure_gracefully(
         self, gateway, mock_rpc_client
     ):
-        # This test is now for discover_device since get_device_status doesn't handle updates
         device_info = {"id": "test-device", "model": "SHSW-1", "fw_id": "1.0.0"}
         mock_rpc_client.make_rpc_request = AsyncMock()
         mock_rpc_client.make_rpc_request.side_effect = [

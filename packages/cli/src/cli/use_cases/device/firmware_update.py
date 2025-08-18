@@ -40,14 +40,12 @@ class FirmwareUpdateUseCase:
     def _convert_channel_to_enum(self, channel: str) -> Any:
         """Convert string channel to core UpdateChannel enum."""
         try:
-            # Try to import the enum from core
             return (
                 UpdateChannel.STABLE
                 if channel.lower() == "stable"
                 else UpdateChannel.BETA
             )
         except ImportError:
-            # If import fails, create a mock object with the right interface
             class MockChannel:
                 def __init__(self, value: str):
                     self.value = value
@@ -68,11 +66,9 @@ class FirmwareUpdateUseCase:
             ValueError: If no devices are specified
             RuntimeError: If user cancels the operation
         """
-        # Validate input
         if not request.devices and not request.from_config:
             raise ValueError("No devices specified")
 
-        # Get device list
         device_ips = await self._get_device_list(request)
         if not device_ips:
             raise ValueError("No devices found")
@@ -84,7 +80,6 @@ class FirmwareUpdateUseCase:
             )
         )
 
-        # Check for updates
         devices_with_updates = await self._check_for_updates(
             device_ips, request.channel
         )
@@ -110,7 +105,6 @@ class FirmwareUpdateUseCase:
             )
             return devices_with_updates
 
-        # Confirm update if not forced
         if not request.force:
             from cli.commands.common import confirm_action
 
@@ -121,7 +115,6 @@ class FirmwareUpdateUseCase:
                 self._console.print(Messages.warning("Update cancelled"))
                 raise RuntimeError("Update cancelled by user")
 
-        # Perform updates
         return await self._perform_updates(devices_with_updates, request.channel)
 
     async def _get_device_list(self, request: FirmwareUpdateRequest) -> list[str]:
@@ -151,7 +144,6 @@ class FirmwareUpdateUseCase:
         update_interactor = self._container.get_update_interactor()
         devices_with_updates = []
 
-        # Convert channel string to enum
         channel_enum = self._convert_channel_to_enum(channel)
 
         async with self._progress_tracker.track_progress(
@@ -165,7 +157,6 @@ class FirmwareUpdateUseCase:
                     )
                     result = await update_interactor.execute(request)
                     if result.success:
-                        # Parse update information from result
                         update_info = result.data if hasattr(result, "data") else {}
                         if isinstance(update_info, dict) and update_info.get(
                             "update_available"
@@ -218,7 +209,6 @@ class FirmwareUpdateUseCase:
         successful_updates = 0
         results = []
 
-        # Convert channel string to enum
         channel_enum = self._convert_channel_to_enum(channel)
 
         async with self._progress_tracker.track_progress(

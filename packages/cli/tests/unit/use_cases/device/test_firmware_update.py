@@ -20,7 +20,6 @@ class TestFirmwareUpdateUseCase:
     def firmware_update_use_case(self, mock_container, mock_console):
         use_case = FirmwareUpdateUseCase(mock_container, mock_console)
 
-        # Mock the progress tracker with proper async context manager
         mock_progress_task = MagicMock()
         mock_progress_task.advance = MagicMock()
 

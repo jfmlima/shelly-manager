@@ -49,17 +49,14 @@ class DeviceStatusUseCase:
         Raises:
             ValueError: If no devices are specified
         """
-        # Validate input
         if not request.devices and not request.from_config:
             raise ValueError("You must specify either device IPs or use --from-config")
 
-        # Get device IPs
         device_ips = await self._get_device_ips(request)
 
         if not device_ips:
             raise ValueError("No devices found")
 
-        # Check status for all devices
         return await self._check_device_status(device_ips, request)
 
     async def _get_device_ips(self, request: DeviceStatusRequest) -> list[str]:

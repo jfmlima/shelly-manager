@@ -57,11 +57,9 @@ class ConfigUpdateUseCase:
             ValueError: If no devices are specified
             RuntimeError: If user cancels the operation
         """
-        # Validate input
         if not request.devices and not request.from_config:
             raise ValueError("No devices specified")
 
-        # Get device list
         device_ips = await self._get_device_list(request)
         if not device_ips:
             raise ValueError("No devices found")
@@ -72,7 +70,6 @@ class ConfigUpdateUseCase:
             )
         )
 
-        # Load config data from file if provided
         config_data = {}
         if request.config_file:
             self._console.print(
@@ -80,7 +77,6 @@ class ConfigUpdateUseCase:
             )
             config_data = await self._load_config_file(request.config_file)
 
-        # Confirm update if not forced
         if not request.force:
             from cli.commands.common import confirm_action
 
@@ -91,7 +87,6 @@ class ConfigUpdateUseCase:
                 self._console.print(Messages.warning("Configuration update cancelled"))
                 raise RuntimeError("Configuration update cancelled by user")
 
-        # Perform configuration updates
         return await self._perform_config_updates(device_ips, config_data)
 
     async def _get_device_list(self, request: DeviceConfigUpdateRequest) -> list[str]:

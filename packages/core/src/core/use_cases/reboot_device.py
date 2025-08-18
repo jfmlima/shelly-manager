@@ -27,7 +27,6 @@ class RebootDeviceUseCase:
         Returns:
             ActionResult indicating success or failure
         """
-        # Build parameters from request fields
         params = {}
         if request.delay is not None:
             params["delay"] = request.delay
@@ -40,7 +39,6 @@ class RebootDeviceUseCase:
         if request.timeout is not None:
             params["timeout"] = request.timeout
         
-        # Add any additional kwargs
         params.update(kwargs)
         
         return await self._device_gateway.execute_action(

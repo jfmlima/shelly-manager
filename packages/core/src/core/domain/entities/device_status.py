@@ -15,6 +15,7 @@ from .components import (
     InputComponent,
     SwitchComponent,
     SystemComponent,
+    ZigbeeComponent,
 )
 
 
@@ -34,15 +35,25 @@ class DeviceStatus(BaseModel):
 
     @classmethod
     def from_raw_response(
-        cls, device_ip: str, response_data: dict[str, Any]
+        cls, device_ip: str, response_data: dict[str, Any], zigbee_data: dict[str, Any] | None = None
     ) -> "DeviceStatus":
-        """Create DeviceStatus from raw shelly.getcomponents response."""
+        """Create DeviceStatus from raw shelly.getcomponents response and optional Zigbee data."""
         components_data = response_data.get("components", [])
         components = []
 
         for component_data in components_data:
             component = ComponentFactory.create_component(component_data)
             components.append(component)
+
+        if zigbee_data:
+            zigbee_component_data = {
+                "key": "zigbee",
+                "status": zigbee_data,
+                "config": {},
+                "attrs": {}
+            }
+            zigbee_component = ZigbeeComponent.from_raw_data(zigbee_component_data)
+            components.append(zigbee_component)
 
         return cls(
             device_ip=device_ip,
@@ -53,7 +64,6 @@ class DeviceStatus(BaseModel):
             last_updated=datetime.now(),
         )
 
-    # Convenience methods for UI
     def get_switches(self) -> list[SwitchComponent]:
         """Get all switch components."""
         return [comp for comp in self.components if isinstance(comp, SwitchComponent)]
@@ -80,6 +90,13 @@ class DeviceStatus(BaseModel):
                 return comp
         return None
 
+    def get_zigbee_info(self) -> ZigbeeComponent | None:
+        """Get zigbee component (network connectivity information)."""
+        for comp in self.components:
+            if isinstance(comp, ZigbeeComponent):
+                return comp
+        return None
+
     def get_component_by_key(self, key: str) -> ComponentType | None:
         """Get component by its key."""
         for comp in self.components:
@@ -101,12 +118,11 @@ class DeviceStatus(BaseModel):
         """Get a summary of device capabilities for UI."""
         sys_info = self.get_system_info()
         cloud_info = self.get_cloud_info()
+        zigbee_info = self.get_zigbee_info()
 
-        # Determine if updates are available
         has_updates = False
         update_info = {}
         if sys_info and sys_info.available_updates:
-            # Check if there are actual updates available
             for update_type, update_data in sys_info.available_updates.items():
                 if isinstance(update_data, dict) and update_data.get("version"):
                     has_updates = True
@@ -123,6 +139,7 @@ class DeviceStatus(BaseModel):
             "firmware_version": sys_info.firmware_version if sys_info else None,
             "uptime": sys_info.uptime if sys_info else 0,
             "cloud_connected": cloud_info.connected if cloud_info else False,
+            "zigbee_connected": zigbee_info.network_state == "joined" if zigbee_info else False,
             "switch_count": len(self.get_switches()),
             "input_count": len(self.get_inputs()),
             "cover_count": len(self.get_covers()),

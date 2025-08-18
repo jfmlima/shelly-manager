@@ -300,12 +300,10 @@ class TestBulkOperationsUseCase:
         empty_ips = []
         mock_device_gateway.execute_bulk_action = AsyncMock(return_value=[])
 
-        # BulkScanRequest requires at least 1 IP, so this should raise a validation error
         from pydantic import ValidationError
         with pytest.raises(ValidationError, match="List should have at least 1 item"):
             BulkScanRequest(ips=empty_ips)
         
-        # For the other operations, test them directly with empty lists
         update_result = await use_case.execute_bulk_update(empty_ips)
         reboot_result = await use_case.execute_bulk_reboot(empty_ips)
 

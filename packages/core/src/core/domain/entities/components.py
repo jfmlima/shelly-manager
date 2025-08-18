@@ -52,7 +52,6 @@ class Component(BaseModel):
 class SwitchComponent(Component):
     """Switch component with UI-friendly fields."""
 
-    # UI-friendly fields extracted from status
     output: bool = Field(default=False, description="Switch output state")
     power: float = Field(default=0.0, description="Active power in watts")
     voltage: float = Field(default=0.0, description="Voltage in volts")
@@ -68,7 +67,6 @@ class SwitchComponent(Component):
     power_factor: float = Field(default=0.0, description="Power factor")
     source: str = Field(default="unknown", description="Source of the switch state")
 
-    # Config fields
     name: str | None = Field(None, description="Switch name")
     auto_on: bool = Field(default=False, description="Auto-on enabled")
     auto_off: bool = Field(default=False, description="Auto-off enabled")
@@ -82,12 +80,10 @@ class SwitchComponent(Component):
         status = component_data.get("status", {})
         config = component_data.get("config", {})
 
-        # Extract temperature data
         temp_data = status.get("temperature", {})
         temp_c = temp_data.get("tC") if isinstance(temp_data, dict) else None
         temp_f = temp_data.get("tF") if isinstance(temp_data, dict) else None
 
-        # Extract energy data
         energy_data = status.get("aenergy", {})
         energy_total = (
             energy_data.get("total", 0.0) if isinstance(energy_data, dict) else 0.0
@@ -162,7 +158,6 @@ class CoverComponent(Component):
     )
     source: str = Field(default="unknown", description="Source of the cover state")
 
-    # Config fields
     name: str | None = Field(None, description="Cover name")
     maxtime_open: float = Field(default=60.0, description="Maximum time to open")
     maxtime_close: float = Field(default=60.0, description="Maximum time to close")
@@ -175,12 +170,10 @@ class CoverComponent(Component):
         status = component_data.get("status", {})
         config = component_data.get("config", {})
 
-        # Extract temperature data
         temp_data = status.get("temperature", {})
         temp_c = temp_data.get("tC") if isinstance(temp_data, dict) else None
         temp_f = temp_data.get("tF") if isinstance(temp_data, dict) else None
 
-        # Extract energy data
         energy_data = status.get("aenergy", {})
         energy_total = (
             energy_data.get("total", 0.0) if isinstance(energy_data, dict) else 0.0
@@ -230,7 +223,6 @@ class SystemComponent(Component):
         status = component_data.get("status", {})
         config = component_data.get("config", {})
 
-        # Extract device config
         device_config = config.get("device", {})
         location_config = config.get("location", {})
 
@@ -273,7 +265,26 @@ class CloudComponent(Component):
         )
 
 
-# Type alias for all component types
+class ZigbeeComponent(Component):
+    """Zigbee component with network connectivity information."""
+    
+    network_state: str = Field(default="unknown", description="Zigbee network state (joined, left, etc.)")
+    enabled: bool = Field(default=False, description="Zigbee service enabled")
+    
+    @classmethod
+    def from_raw_data(cls, component_data: dict[str, Any]) -> "ZigbeeComponent":
+        """Create Zigbee component from raw JSON data."""
+        base = Component.from_raw_data(component_data)
+        status = component_data.get("status", {})
+        config = component_data.get("config", {})
+
+        return cls(
+            **base.model_dump(),
+            network_state=status.get("network_state", "unknown"),
+            enabled=config.get("enable", False),
+        )
+
+
 ComponentType = (
     Component
     | SwitchComponent
@@ -281,6 +292,7 @@ ComponentType = (
     | CoverComponent
     | SystemComponent
     | CloudComponent
+    | ZigbeeComponent
 )
 
 
@@ -291,10 +303,8 @@ class ComponentFactory:
     def create_component(component_data: dict[str, Any]) -> ComponentType:
         """Create the appropriate component type from raw JSON data."""
         key = component_data.get("key", "")
-        # Extract component type prefix (everything before the colon)
         component_type = key.split(":")[0] if ":" in key else key
 
-        # Map component type prefixes to their respective classes
         if component_type == "switch":
             return SwitchComponent.from_raw_data(component_data)
         elif component_type == "input":
@@ -305,6 +315,7 @@ class ComponentFactory:
             return SystemComponent.from_raw_data(component_data)
         elif component_type == "cloud":
             return CloudComponent.from_raw_data(component_data)
+        elif component_type == "zigbee":
+            return ZigbeeComponent.from_raw_data(component_data)
         else:
-            # For unknown component types, return base Component
             return Component.from_raw_data(component_data)

@@ -69,7 +69,6 @@ class ProgressTracker:
                     result = await operation_func(device_ip)
                     results.append(result)
                 except Exception as e:
-                    # Return error result - let caller handle formatting
                     results.append(
                         {"ip": device_ip, "status": "error", "error": str(e)}
                     )

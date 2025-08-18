@@ -129,7 +129,6 @@ class ScanDevicesUseCase:
                 "ip_format", str(e), f"Invalid IP address format: {e}"
             ) from e
 
-    # Private validation methods (merged from ValidationService)
     def _validate_ip_address(self, ip: str) -> bool:
         """Validate IP address format."""
         try:
@@ -162,7 +161,6 @@ class ScanDevicesUseCase:
         except ipaddress.AddressValueError:
             return False
 
-    # Private device discovery methods (merged from DeviceDiscoveryService)
     async def _discover_device(
         self, ip: str, timeout: float = 3.0
     ) -> DiscoveredDevice | None:

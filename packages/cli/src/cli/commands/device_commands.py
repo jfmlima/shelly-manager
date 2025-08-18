@@ -221,11 +221,9 @@ async def reboot(
         console.print("  shelly-manager device reboot --from-config")
         raise click.Abort() from None
     except RuntimeError:
-        # User cancelled - already handled by use case
         return
 
 
-# Create update subcommand group
 @click.group()
 def update() -> None:
     """Device update operations."""
@@ -272,7 +270,6 @@ async def firmware(
     console = ctx.obj.console
     container = ctx.obj.container
 
-    # Create request (using the new entity name but mapping for backward compatibility)
     request = FirmwareUpdateRequest(
         devices=list(devices),
         from_config=from_config,
@@ -283,7 +280,6 @@ async def firmware(
         workers=workers,
     )
 
-    # Execute firmware update use case
     try:
         firmware_update_use_case = FirmwareUpdateUseCase(container, console)
         await firmware_update_use_case.execute(request)
@@ -291,7 +287,6 @@ async def firmware(
         console.print(Messages.error(str(e)))
         raise click.Abort() from None
     except RuntimeError:
-        # User cancelled operation
         raise click.Abort() from None
 
 
@@ -330,7 +325,6 @@ async def config(
     console = ctx.obj.console
     container = ctx.obj.container
 
-    # Create request
     request = DeviceConfigUpdateRequest(
         devices=list(devices),
         from_config=from_config,
@@ -340,7 +334,6 @@ async def config(
         workers=workers,
     )
 
-    # Execute config update use case
     try:
         config_update_use_case = ConfigUpdateUseCase(container, console)
         await config_update_use_case.execute(request)
@@ -348,11 +341,9 @@ async def config(
         console.print(Messages.error(str(e)))
         raise click.Abort() from None
     except RuntimeError:
-        # User cancelled operation
         raise click.Abort() from None
 
 
-# Add the update subcommand to device_commands
 device_commands.add_command(update)
 
 

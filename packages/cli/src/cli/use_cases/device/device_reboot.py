@@ -51,23 +51,19 @@ class DeviceRebootUseCase:
             ValueError: If no devices are specified
             RuntimeError: If user cancels the operation
         """
-        # Validate input
         if not request.devices and not request.from_config:
             raise ValueError("You must specify either device IPs or use --from-config")
 
-        # Get device IPs
         device_ips = await self._get_device_ips(request)
 
         if not device_ips:
             raise ValueError("No devices found")
 
-        # Confirm action if not forced
         if not request.force:
             if not self._confirm_reboot(len(device_ips)):
                 self._console.print(Messages.warning("Reboot cancelled"))
                 raise RuntimeError("Reboot cancelled by user")
 
-        # Perform reboots
         return await self._perform_reboots(device_ips)
 
     async def _get_device_ips(self, request: DeviceRebootRequest) -> list[str]:

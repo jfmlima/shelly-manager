@@ -51,6 +51,5 @@ def validate_ip_address_list(cls: Any, v: list[str]) -> list[str]:
     return v
 
 
-# Create decorators for easy use in Pydantic models
 ip_validator = field_validator("device_ip", "ip")(validate_ip_address)
 ip_list_validator = field_validator("device_ips", "ips")(validate_ip_address_list)
