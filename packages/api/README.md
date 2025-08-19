@@ -20,7 +20,7 @@ REST API server for Shelly Manager built with **Litestar** - a modern, high-perf
 # Run API server
 docker run -p 8000:8000 \
   -v ./config.json:/app/config.json:ro \
-  ghcr.io/jfmlima/shelly-manager/api:latest
+  ghcr.io/jfmlima/shelly-manager-api:latest
 
 # Visit API documentation
 open http://localhost:8000/docs
@@ -182,7 +182,7 @@ docker run -d \
   -v ./config.json:/app/config.json:ro \
   -e HOST=0.0.0.0 \
   -e PORT=8000 \
-  ghcr.io/jfmlima/shelly-manager/api:latest
+  ghcr.io/jfmlima/shelly-manager-api:latest
 ```
 
 ### Docker Compose
@@ -190,7 +190,7 @@ docker run -d \
 ```yaml
 services:
   api:
-    image: ghcr.io/jfmlima/shelly-manager/api:latest
+    image: ghcr.io/jfmlima/shelly-manager-api:latest
     ports:
       - "8000:8000"
     volumes:
@@ -315,7 +315,7 @@ Enable debug mode for detailed error messages:
 ```bash
 docker run -p 8000:8000 \
   -e DEBUG=true \
-  ghcr.io/jfmlima/shelly-manager/api:latest
+  ghcr.io/jfmlima/shelly-manager-api:latest
 ```
 
 ### Logs

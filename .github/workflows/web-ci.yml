@@ -62,7 +62,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/jfmlima/shelly-manager/web
+          images: ghcr.io/jfmlima/shelly-manager-web
           tags: |
             type=ref,event=branch
             type=ref,event=pr

@@ -27,21 +27,21 @@ jobs:
             ## Docker Images
 
             🐳 **Available Docker Images:**
-            - `${{ env.IMAGE_PREFIX }}/api:${{ github.ref_name }}`
-            - `${{ env.IMAGE_PREFIX }}/cli:${{ github.ref_name }}`
-            - `${{ env.IMAGE_PREFIX }}/web:${{ github.ref_name }}`
+            - `${{ env.IMAGE_PREFIX }}-api:${{ github.ref_name }}`
+            - `${{ env.IMAGE_PREFIX }}-cli:${{ github.ref_name }}`
+            - `${{ env.IMAGE_PREFIX }}-web:${{ github.ref_name }}`
 
             ## Quick Start
 
             ```bash
             # Run API server
-            docker run -p 8000:8000 ${{ env.IMAGE_PREFIX }}/api:${{ github.ref_name }}
+            docker run -p 8000:8000 ${{ env.IMAGE_PREFIX }}-api:${{ github.ref_name }}
 
             # Run CLI tool
-            docker run --rm ${{ env.IMAGE_PREFIX }}/cli:${{ github.ref_name }} --help
+            docker run --rm ${{ env.IMAGE_PREFIX }}-cli:${{ github.ref_name }} --help
 
             # Run Web UI
-            docker run -p 8080:8080 ${{ env.IMAGE_PREFIX }}/web:${{ github.ref_name }}
+            docker run -p 8080:8080 ${{ env.IMAGE_PREFIX }}-web:${{ github.ref_name }}
             ```
 
             ## Changes
@@ -83,7 +83,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_PREFIX }}/${{ matrix.package.name }}
+          images: ${{ env.IMAGE_PREFIX }}-${{ matrix.package.name }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}

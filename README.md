@@ -1,69 +1,39 @@
-# 🏠 Shelly Manager
+# Shelly Manager
 
-**Local management and automation for Shelly IoT devices**
+Local management for Shelly IoT devices without cloud connectivity.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub release](https://img.shields.io/github/release/jfmlima/shelly-manager.svg)](https://github.com/jfmlima/shelly-manager/releases)
-[![Docker Pulls](https://img.shields.io/docker/pulls/ghcr.io/jfmlima/shelly-manager/api)](https://github.com/jfmlima/shelly-manager/pkgs/container/shelly-manager%2Fapi)
+[![API Pulls](https://img.shields.io/docker/pulls/ghcr.io/jfmlima/shelly-manager-api)](https://github.com/jfmlima/shelly-manager/pkgs/container/shelly-manager-api)
+[![CLI Pulls](https://img.shields.io/docker/pulls/ghcr.io/jfmlima/shelly-manager-cli)](https://github.com/jfmlima/shelly-manager/pkgs/container/shelly-manager-cli)
+[![Web Pulls](https://img.shields.io/docker/pulls/ghcr.io/jfmlima/shelly-manager-web)](https://github.com/jfmlima/shelly-manager/pkgs/container/shelly-manager-web)
 
-Shelly Manager is a comprehensive, **privacy-first** solution for managing Shelly IoT devices locally on your network. No cloud dependency, no data sharing - just powerful local control over your smart home devices.
+Manage Shelly devices on your local network without connecting them to the Shelly Cloud. Scan for devices, update firmware, manage configurations, and monitor status - all locally.
 
-## ✨ Why Shelly Manager?
+## Features
 
-- **🔒 Privacy First**: All operations happen locally - no cloud required
-- **🚀 Professional Grade**: Enterprise-ready architecture with comprehensive testing
-- **🎯 Shelly Specialized**: Deep integration with Shelly device features and protocols
-- **🔧 Multiple Interfaces**: Web UI for management, CLI for automation, REST API for integration
-- **📦 Easy Deployment**: Docker containers for quick setup and scalability
-
-## 🎯 Key Features
-
-### 🔍 **Device Discovery & Management**
-
-- Network scanning with IP ranges and CIDR notation
-- Automatic device detection and status monitoring
+- Device discovery by network scanning
+- Firmware update management (stable/beta channels)
+- Device configuration changes
 - Bulk operations across multiple devices
-- Configuration-based device organization
+- Status monitoring
 
-### 🔄 **Firmware Management**
+Available as:
 
-- Automated firmware update checking
-- Safe firmware updates with rollback protection
-- Channel selection (stable/beta)
-- Update progress monitoring
+- Web interface
+- Command line tool
+- REST API
 
-### ⚙️ **Configuration Management**
+## Quick Start
 
-- Complete device configuration control
-- JSON-based configuration templates
-- Bulk configuration deployment
-- Configuration backup and restore
+### Docker
 
-### 📊 **Rich Interfaces**
-
-- **Web UI**: Modern, responsive interface for device management
-- **CLI Tool**: Powerful command-line interface for automation and scripting
-- **REST API**: Full-featured API for custom integrations
-
-### 🏗️ **Enterprise Architecture**
-
-- Clean Architecture principles with Domain-Driven Design
-- Comprehensive test coverage with CI/CD
-- Async/await support for high performance
-- Type safety with full Python typing
-
-## 🚀 Quick Start
-
-Choose your preferred way to run Shelly Manager:
-
-### 🐳 Docker (Recommended)
-
-**Web UI + API Stack** (Complete management interface):
+**Web UI + API Stack**:
 
 ```yaml
 services:
   api:
-    image: ghcr.io/jfmlima/shelly-manager/api:latest
+    image: ghcr.io/jfmlima/shelly-manager-api:latest
     ports:
       - "8000:8000"
     volumes:
@@ -73,7 +43,7 @@ services:
       - PORT=8000
 
   web:
-    image: ghcr.io/jfmlima/shelly-manager/web:latest
+    image: ghcr.io/jfmlima/shelly-manager-web:latest
     ports:
       - "8080:8080"
     environment:
@@ -82,33 +52,33 @@ services:
       - api
 ```
 
-**CLI Only** (For automation and scripting):
+**CLI Only**:
 
 ```bash
 # Interactive device scanning
 docker run --rm -it \
   -v ./config.json:/app/config.json:ro \
-  ghcr.io/jfmlima/shelly-manager/cli:latest \
+  ghcr.io/jfmlima/shelly-manager-cli:latest \
   scan --range 192.168.1.0/24
 
 # Check device status
 docker run --rm -it \
-  ghcr.io/jfmlima/shelly-manager/cli:latest \
+  ghcr.io/jfmlima/shelly-manager-cli:latest \
   device status 192.168.1.100
 
 # Bulk firmware updates
 docker run --rm -it \
   -v ./config.json:/app/config.json:ro \
-  ghcr.io/jfmlima/shelly-manager/cli:latest \
+  ghcr.io/jfmlima/shelly-manager-cli:latest \
   bulk update --from-config
 ```
 
-**API Only** (For custom integrations):
+**API Only**:
 
 ```bash
 docker run -p 8000:8000 \
   -v ./config.json:/app/config.json:ro \
-  ghcr.io/jfmlima/shelly-manager/api:latest
+  ghcr.io/jfmlima/shelly-manager-api:latest
 ```
 
 ### 📋 Configuration
@@ -257,36 +227,6 @@ We welcome contributions! Here's how to get started:
 - 💡 **Feature Requests**: Describe your use case in an issue
 - 💬 **Questions**: Start a discussion for general questions
 
-## 🌟 Why Choose Shelly Manager?
+## License
 
-### For Home Lab Enthusiasts
-
-- **Complete local control** without cloud dependencies
-- **Professional-grade tools** for managing your smart home
-- **Easy Docker deployment** for your home server
-
-### For Network Administrators
-
-- **Bulk device management** for commercial deployments
-- **API integration** for existing management systems
-- **Comprehensive monitoring** and configuration tools
-
-### For Developers
-
-- **Clean, documented APIs** for custom integrations
-- **Modern architecture** with comprehensive testing
-- **Multiple interfaces** (CLI, Web, REST API) for flexibility
-
-### For Privacy-Conscious Users
-
-- **No cloud connectivity** required
-- **Local network operation** only
-- **Open source** for complete transparency
-
-## 📄 License
-
-This project is open source and available under the [MIT License](LICENSE).
-
----
-
-**🏠 Built for local control of your smart home • 🔒 Privacy-first • 🚀 Professional-grade**
+MIT License - see [LICENSE](LICENSE) file.

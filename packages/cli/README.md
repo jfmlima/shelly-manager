@@ -19,18 +19,18 @@ A powerful command-line interface for managing Shelly IoT devices locally. Built
 ```bash
 # Scan for devices
 docker run --rm -it \
-  ghcr.io/jfmlima/shelly-manager/cli:latest \
+  ghcr.io/jfmlima/shelly-manager-cli:latest \
   scan --range 192.168.1.0/24
 
 # Device status check
 docker run --rm -it \
-  ghcr.io/jfmlima/shelly-manager/cli:latest \
+  ghcr.io/jfmlima/shelly-manager-cli:latest \
   device status 192.168.1.100
 
 # Using configuration file
 docker run --rm -it \
   -v ./config.json:/app/config.json:ro \
-  ghcr.io/jfmlima/shelly-manager/cli:latest \
+  ghcr.io/jfmlima/shelly-manager-cli:latest \
   scan --from-config
 ```
 
@@ -275,7 +275,7 @@ ip,status,device_type,device_name,firmware_version,response_time,last_seen
 # Run interactive CLI session
 docker run --rm -it \
   -v ./config.json:/app/config.json:ro \
-  ghcr.io/jfmlima/shelly-manager/cli:latest \
+  ghcr.io/jfmlima/shelly-manager-cli:latest \
   bash
 
 # Then run commands inside container
@@ -291,7 +291,7 @@ root@container:/app# shelly-manager scan --from-config
 docker run --rm \
   -v ./config.json:/app/config.json:ro \
   -v ./reports:/app/reports \
-  ghcr.io/jfmlima/shelly-manager/cli:latest \
+  ghcr.io/jfmlima/shelly-manager-cli:latest \
   device status --from-config --export json --export-file /app/reports/status-$(date +%Y%m%d).json
 ```
 
@@ -300,7 +300,7 @@ docker run --rm \
 ```yaml
 services:
   cli:
-    image: ghcr.io/jfmlima/shelly-manager/cli:latest
+    image: ghcr.io/jfmlima/shelly-manager-cli:latest
     volumes:
       - ./config.json:/app/config.json:ro
       - ./reports:/app/reports
@@ -425,7 +425,7 @@ uv run shelly-manager --verbose scan --range 192.168.1.0/24
 
 # Docker
 docker run --rm -it \
-  ghcr.io/jfmlima/shelly-manager/cli:latest \
+  ghcr.io/jfmlima/shelly-manager-cli:latest \
   --verbose scan --range 192.168.1.0/24
 ```
 
