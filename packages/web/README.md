@@ -5,13 +5,9 @@ A modern, responsive web interface for managing Shelly IoT devices built with Re
 ## ✨ Features
 
 - **🔍 Device Discovery**: Scan and discover Shelly devices on your network
-- **📱 Responsive Design**: Beautiful UI that works on desktop, tablet, and mobile
-- **🌙 Dark Mode**: System, light, and dark theme support
 - **⚡ Real-time Updates**: Live device status and firmware management
 - **📊 Bulk Operations**: Perform actions on multiple devices simultaneously
 - **🔧 Device Management**: Update firmware, reboot devices, and manage configurations
-- **🎨 Modern UI**: Built with shadcn/ui components and Tailwind CSS
-- **🌐 Internationalization**: Multi-language support (currently English)
 
 ## 🛠️ Tech Stack
 

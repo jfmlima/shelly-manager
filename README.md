@@ -1,267 +1,292 @@
-# 🏠 Shelly Manager - Smart Device Management Platform
+# 🏠 Shelly Manager
 
-A production-ready monorepo for managing Shelly IoT devices featuring device discovery, firmware updates, configuration management, and monitoring capabilities.
+**Local management and automation for Shelly IoT devices**
 
-## 🏗️ Project Architecture
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub release](https://img.shields.io/github/release/jfmlima/shelly-manager.svg)](https://github.com/jfmlima/shelly-manager/releases)
+[![Docker Pulls](https://img.shields.io/docker/pulls/ghcr.io/jfmlima/shelly-manager/api)](https://github.com/jfmlima/shelly-manager/pkgs/container/shelly-manager%2Fapi)
+
+Shelly Manager is a comprehensive, **privacy-first** solution for managing Shelly IoT devices locally on your network. No cloud dependency, no data sharing - just powerful local control over your smart home devices.
+
+## ✨ Why Shelly Manager?
+
+- **🔒 Privacy First**: All operations happen locally - no cloud required
+- **🚀 Professional Grade**: Enterprise-ready architecture with comprehensive testing
+- **🎯 Shelly Specialized**: Deep integration with Shelly device features and protocols
+- **🔧 Multiple Interfaces**: Web UI for management, CLI for automation, REST API for integration
+- **📦 Easy Deployment**: Docker containers for quick setup and scalability
+
+## 🎯 Key Features
+
+### 🔍 **Device Discovery & Management**
+
+- Network scanning with IP ranges and CIDR notation
+- Automatic device detection and status monitoring
+- Bulk operations across multiple devices
+- Configuration-based device organization
+
+### 🔄 **Firmware Management**
+
+- Automated firmware update checking
+- Safe firmware updates with rollback protection
+- Channel selection (stable/beta)
+- Update progress monitoring
+
+### ⚙️ **Configuration Management**
+
+- Complete device configuration control
+- JSON-based configuration templates
+- Bulk configuration deployment
+- Configuration backup and restore
+
+### 📊 **Rich Interfaces**
+
+- **Web UI**: Modern, responsive interface for device management
+- **CLI Tool**: Powerful command-line interface for automation and scripting
+- **REST API**: Full-featured API for custom integrations
+
+### 🏗️ **Enterprise Architecture**
+
+- Clean Architecture principles with Domain-Driven Design
+- Comprehensive test coverage with CI/CD
+- Async/await support for high performance
+- Type safety with full Python typing
+
+## 🚀 Quick Start
+
+Choose your preferred way to run Shelly Manager:
+
+### 🐳 Docker (Recommended)
+
+**Web UI + API Stack** (Complete management interface):
+
+```yaml
+services:
+  api:
+    image: ghcr.io/jfmlima/shelly-manager/api:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config.json:/app/config.json:ro
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+
+  web:
+    image: ghcr.io/jfmlima/shelly-manager/web:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - VITE_BASE_API_URL=http://localhost:8000
+    depends_on:
+      - api
+```
+
+**CLI Only** (For automation and scripting):
+
+```bash
+# Interactive device scanning
+docker run --rm -it \
+  -v ./config.json:/app/config.json:ro \
+  ghcr.io/jfmlima/shelly-manager/cli:latest \
+  scan --range 192.168.1.0/24
+
+# Check device status
+docker run --rm -it \
+  ghcr.io/jfmlima/shelly-manager/cli:latest \
+  device status 192.168.1.100
+
+# Bulk firmware updates
+docker run --rm -it \
+  -v ./config.json:/app/config.json:ro \
+  ghcr.io/jfmlima/shelly-manager/cli:latest \
+  bulk update --from-config
+```
+
+**API Only** (For custom integrations):
+
+```bash
+docker run -p 8000:8000 \
+  -v ./config.json:/app/config.json:ro \
+  ghcr.io/jfmlima/shelly-manager/api:latest
+```
+
+### 📋 Configuration
+
+Create a `config.json` file for device management:
+
+```json
+{
+  "device_ips": ["192.168.1.100", "192.168.1.101"],
+  "predefined_ranges": [
+    {
+      "start": "192.168.1.1",
+      "end": "192.168.1.254"
+    }
+  ],
+  "timeout": 3.0,
+  "max_workers": 50
+}
+```
+
+## 🏗️ Architecture
+
+Shelly Manager follows Clean Architecture principles with a modular, package-based design:
 
 ```
 shelly-manager/
 ├── packages/
 │   ├── core/              # 🏛️ Business Logic & Domain Models
 │   ├── api/               # 🌐 HTTP REST API (Litestar)
-│   └── cli/               # 💻 Command Line Interface (Click)
+│   ├── cli/               # 💻 Command Line Interface (Click)
+│   └── web/               # 🖥️ Modern Web UI (React + TypeScript)
 ├── config.json            # Device configuration
-├── Makefile              # Development commands
-└── pyproject.toml        # Workspace configuration
+└── docker-compose.yml     # Development environment
 ```
 
 ### 📦 Package Overview
 
-- **🏛️ Core** - Pure business logic, domain models, and use cases
-- **🌐 API** - HTTP REST API for web applications and integrations
-- **💻 CLI** - Modern command-line interface with rich output
+| Package                       | Purpose                                             | Documentation                          |
+| ----------------------------- | --------------------------------------------------- | -------------------------------------- |
+| **🏛️ [Core](packages/core/)** | Pure business logic, domain models, and use cases   | [Core README](packages/core/README.md) |
+| **🌐 [API](packages/api/)**   | HTTP REST API for web applications and integrations | [API README](packages/api/README.md)   |
+| **💻 [CLI](packages/cli/)**   | Modern command-line interface with rich output      | [CLI README](packages/cli/README.md)   |
+| **🖥️ [Web](packages/web/)**   | Responsive web UI for device management             | [Web README](packages/web/README.md)   |
 
-## 🚀 Quick Start
+## 🌐 API Overview
 
-### Installation
+The REST API provides complete device management capabilities:
 
 ```bash
-# Install core package first (required by both CLI and API)
-cd packages/core
-pip install -e .
+# Health and status
+GET /api/health                    # Service health check
+GET /api/devices/scan              # Discover devices on network
+GET /api/devices/{ip}/status       # Get device status
 
-# Install CLI package
-cd ../cli
-pip install -e .
+# Device operations
+POST /api/devices/{ip}/update      # Update device firmware
+POST /api/devices/{ip}/reboot      # Reboot device
+POST /api/devices/bulk/update      # Bulk firmware updates
 
-# Install API package (optional)
-cd ../api
-pip install -e .
+# Configuration management
+GET /api/devices/{ip}/config       # Get device configuration
+POST /api/devices/{ip}/config      # Update device configuration
 ```
 
-### Alternative: Development Setup with Virtual Environment
+**API Documentation**: Start the API server and visit `http://localhost:8000/docs` for interactive OpenAPI documentation.
+
+## 💻 CLI Overview
+
+The CLI provides powerful automation capabilities:
 
 ```bash
-# For CLI development
-cd packages/cli
-python -m venv venv
-source venv/bin/activate
-pip install -e ../core
-pip install -e ".[dev]"
-
-# For API development
-cd packages/api
-python -m venv venv
-source venv/bin/activate
-pip install -e ../core
-pip install -e ".[dev]"
-```
-
-### CLI Usage
-
-```bash
-# Scan for devices
+# Device discovery
 shelly-manager scan --range 192.168.1.0/24
-
-# List devices from configuration
 shelly-manager device list --from-config
 
-# Check device status
+# Device operations
 shelly-manager device status 192.168.1.100
-
-# Update firmware
+shelly-manager device reboot 192.168.1.100
 shelly-manager update check --all
 
 # Bulk operations
 shelly-manager bulk reboot --scan
-```
-
-### API Usage
-
-```bash
-# Start the API server
-cd packages/api
-python -m api
-
-# API will be available at http://localhost:8000
-curl http://localhost:8000/health
-```
-
-
-## 💻 CLI Commands
-
-### Device Management
-```bash
-# Scan for devices
-shelly-manager scan --range 192.168.1.0/24
-shelly-manager device scan --from-config
-
-# List devices with details
-shelly-manager device list --from-config
-
-# Check device status
-shelly-manager device status 192.168.1.100 192.168.1.101
-shelly-manager device status --from-config
-
-# Reboot devices
-shelly-manager device reboot 192.168.1.100 --force
-```
-
-### Firmware Updates
-```bash
-# Check for updates
-shelly-manager update check --all
-
-# Update specific devices
-shelly-manager update apply 192.168.1.100
-
-# Check update status
-shelly-manager update status
-```
-
-### Bulk Operations
-```bash
-# Bulk reboot with device discovery
-shelly-manager bulk reboot --scan
-
-# Bulk operations on configured devices
 shelly-manager bulk update --from-config
 ```
 
-### Configuration Management
-```bash
-# Get device configuration
-shelly-manager config get --ip 192.168.1.100
+**CLI Documentation**: See [CLI README](packages/cli/README.md) for complete command reference.
 
-# Set device configuration
-shelly-manager config set --ip 192.168.1.100 --key wifi.ssid --value "MyNetwork"
+## 🖥️ Web UI Overview
 
-# Manage predefined IPs
-shelly-manager config ips add 192.168.1.100
-shelly-manager config ips list
-```
+The web interface provides an intuitive management experience:
 
-## 🌐 API Endpoints
+- **Device Discovery**: Network scanning with visual results
+- **Bulk Operations**: Select multiple devices for batch operations
+- **Real-time Status**: Live device status monitoring
+- **Configuration Management**: Easy device configuration editing
+- **Dark Mode**: System-aware theme switching
 
-When running the API server (`cd packages/api && python -m api`):
-
-```bash
-# Health check
-GET /health
-
-# Device operations
-GET /api/devices/scan
-GET /api/devices/{ip}/status
-POST /api/devices/{ip}/update
-POST /api/devices/{ip}/reboot
-
-# Configuration
-GET /api/config
-PUT /api/config
-GET /api/config/predefined-ips
-PUT /api/config/predefined-ips
-
-# Monitoring
-GET /api/actions
-GET /api/devices/updates
-```
-
-## 🛠️ Development
-
-### Available Commands
-```bash
-make help           # Show all available commands
-make install        # Install all packages
-make install-dev    # Install with dev dependencies
-make clean         # Clean build artifacts
-make lint          # Run linting
-make test          # Run tests
-make run-cli       # Test CLI
-make run-api       # Start API server
-```
-
-### Pre-commit Hooks
-Pre-commit hooks are configured to run linting and tests automatically before each commit:
-
-```bash
-# Install pre-commit hooks (one-time setup)
-pre-commit install
-
-# Run hooks manually on all files
-pre-commit run --all-files
-
-# Run hooks on specific files
-pre-commit run --files path/to/file.py
-```
-
-The hooks will automatically:
-- Run `make lint` (black, ruff, mypy)
-- Run `make test` (all package tests)
-- Fix trailing whitespace and file endings
-- Check YAML, TOML, and JSON syntax
-
-### Package Development
-```bash
-# Install specific packages
-make install-core   # Core business logic only
-make install-api    # Core + API
-make install-cli    # Core + CLI
-```
-
-## ✨ Features
-
-### 🔍 **Device Discovery**
-- Network scanning with IP ranges and CIDR notation
-- Configuration-based device lists
-- Async scanning with configurable workers
-
-### 🔄 **Firmware Management**
-- Automatic update checking
-- Safe firmware updates
-- Update status monitoring
-
-### ⚙️ **Configuration Management**
-- Get/set device configurations
-- JSON configuration support
-- Bulk configuration operations
-
-### 📊 **Rich Output**
-- Beautiful table formatting
-- Progress indicators
-- Colored status messages
-- Export to JSON/CSV
-
-### 🏗️ **Architecture**
-- Clean Architecture principles
-- Domain-Driven Design
-- Async/await support
-- Type safety with Pydantic
+**Web Documentation**: See [Web README](packages/web/README.md) for setup and features.
 
 ## 📋 Requirements
 
-- **Python 3.11+**
-- **Network access** to Shelly devices
+- **Docker** (recommended) or **Python 3.11+**
+- **Network access** to Shelly devices on your local network
 - **Optional**: Device credentials for authenticated devices
+
+## 🛠️ Development
+
+For local development and contributing to Shelly Manager:
+
+```bash
+# Clone and setup development environment
+git clone https://github.com/jfmlima/shelly-manager.git
+cd shelly-manager
+
+# Start development stack
+docker-compose up -d
+
+# Or install locally with uv
+uv sync --extra dev
+```
+
+**Development Guide**: See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed setup instructions, testing, and contribution guidelines.
 
 ## 🤝 Contributing
 
+We welcome contributions! Here's how to get started:
+
 1. **Fork** the repository
-2. **Create** a feature branch
-3. **Make** your changes following the architecture principles
-4. **Add** tests for new functionality
-5. **Submit** a pull request
+2. **Clone** your fork locally
+3. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+4. **Make** your changes following our [development guidelines](DEVELOPMENT.md)
+5. **Add** tests for new functionality
+6. **Submit** a pull request
 
-### Development Guidelines
+### Development Principles
 
-- Follow **Clean Architecture** principles
-- Keep **domain logic** in the core package
-- Use **dependency injection** for external dependencies
-- Write **comprehensive tests**
-- Maintain **type safety** with type hints
+- **Clean Architecture**: Keep domain logic in the core package
+- **Type Safety**: Use comprehensive type hints throughout
+- **Testing**: Write tests for all new functionality
+- **Documentation**: Update relevant documentation for changes
+
+### Getting Help
+
+- 📖 **Documentation**: Check package-specific READMEs
+- 🐛 **Bug Reports**: Open an issue with reproduction steps
+- 💡 **Feature Requests**: Describe your use case in an issue
+- 💬 **Questions**: Start a discussion for general questions
+
+## 🌟 Why Choose Shelly Manager?
+
+### For Home Lab Enthusiasts
+
+- **Complete local control** without cloud dependencies
+- **Professional-grade tools** for managing your smart home
+- **Easy Docker deployment** for your home server
+
+### For Network Administrators
+
+- **Bulk device management** for commercial deployments
+- **API integration** for existing management systems
+- **Comprehensive monitoring** and configuration tools
+
+### For Developers
+
+- **Clean, documented APIs** for custom integrations
+- **Modern architecture** with comprehensive testing
+- **Multiple interfaces** (CLI, Web, REST API) for flexibility
+
+### For Privacy-Conscious Users
+
+- **No cloud connectivity** required
+- **Local network operation** only
+- **Open source** for complete transparency
 
 ## 📄 License
 
 This project is open source and available under the [MIT License](LICENSE).
+
 ---
 
-**Made with ❤️ for the smart home community**
+**🏠 Built for local control of your smart home • 🔒 Privacy-first • 🚀 Professional-grade**
