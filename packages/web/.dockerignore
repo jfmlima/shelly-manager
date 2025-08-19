@@ -1,23 +1,14 @@
-# Dependencies
+# Dependencies (these will be installed via package.json)
 node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Development files
-src
-public
-*.md
+# Environment files (should be passed as build args)
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-
-# Build tools
-vite.config.ts
-tsconfig.json
-tsconfig.app.json
-tsconfig.node.json
 
 # IDE and editor files
 .vscode
@@ -38,7 +29,10 @@ Thumbs.db
 .git
 .gitignore
 
-# Misc
-*.log
+# Development artifacts
 coverage
 .nyc_output
+dist
+
+# Documentation (not needed for build)
+README.md
