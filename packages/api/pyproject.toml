@@ -10,9 +10,10 @@ authors = [{name = "Jorge Lima", email = "jorgefilipemlima@gmail.com"}]
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "shelly-manager-core",  # Local package dependency
     "litestar[standard]==2.16.0",
     "uvicorn[standard]==0.35.0",
-    "pydantic==2.11.7",
+    "pydantic==2.11.7",     # Explicit version for consistency
 ]
 
 [project.optional-dependencies]
@@ -22,8 +23,11 @@ dev = [
     "pytest-cov==6.2.1",
     "black==25.1.0",
     "ruff==0.12.8",
-    "mypy==1.17.0",
+    "mypy==1.17.1",
 ]
+
+[tool.uv.sources]
+shelly-manager-core = { workspace = true }
 
 [tool.setuptools.packages.find]
 where = ["src"]

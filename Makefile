@@ -1,15 +1,12 @@
-.PHONY: help install install-dev install-core install-api install-cli clean lint format test test-core test-api test-cli test-unit test-unit-core test-unit-api test-unit-cli test-integration test-coverage test-coverage-core test-coverage-api test-coverage-cli build build-core build-api build-cli run-api run-cli setup ci-test docker-build docker-run
+.PHONY: help install install-dev clean lint format test test-core test-api test-cli test-web test-coverage run-api run-cli setup ci-test
 
 # Default target
 help:
-	@echo "Shelly Manager - Development Commands"
+	@echo "Shelly Manager - Development Commands (uv-powered)"
 	@echo ""
 	@echo "Installation:"
-	@echo "  install       Install all packages in development mode"
+	@echo "  install       Install all packages with uv"
 	@echo "  install-dev   Install all packages with dev dependencies"
-	@echo "  install-core  Install only core package"
-	@echo "  install-api   Install core + api packages"
-	@echo "  install-cli   Install core + cli packages"
 	@echo ""
 	@echo "Development:"
 	@echo "  clean         Clean build artifacts and caches"
@@ -21,40 +18,19 @@ help:
 	@echo "  test-core     Run tests for core package only"
 	@echo "  test-api      Run tests for api package only"
 	@echo "  test-cli      Run tests for cli package only"
-	@echo "  test-unit     Run unit tests for all packages"
-	@echo "  test-integration Run integration tests for all packages"
-	@echo "  test-coverage Run all tests with coverage reports"
-	@echo ""
-	@echo "Build:"
-	@echo "  build         Build all packages"
-	@echo "  build-core    Build core package"
-	@echo "  build-api     Build api package"
-	@echo "  build-cli     Build cli package"
+	@echo "  test-web      Run tests for web package only"
+	@echo "  test-coverage Run all tests with coverage"
 	@echo ""
 	@echo "Run:"
 	@echo "  run-api       Start the API server"
-	@echo "  run-cli       Run CLI with sample scan"
+	@echo "  run-cli       Run CLI with help"
 
-# Installation commands
+# Installation commands using uv
 install:
-	pip install -e packages/core
-	pip install -e packages/api
-	pip install -e packages/cli
+	uv sync --no-dev
 
-install-dev: install
-	pip install -e "packages/core[dev]"
-	pip install -e "packages/api[dev]"
-	pip install -e "packages/cli[dev]"
-	pip install -e ".[dev]"
-
-install-core:
-	pip install -e packages/core
-
-install-api: install-core
-	pip install -e packages/api
-
-install-cli: install-core
-	pip install -e packages/cli
+install-dev:
+	uv sync
 
 # Development commands
 clean:
@@ -64,109 +40,60 @@ clean:
 	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -name "*.pyc" -delete 2>/dev/null || true
-	rm -rf build/ dist/ htmlcov/ .coverage coverage.xml
-	rm -rf packages/core/build/ packages/core/dist/ packages/core/htmlcov-core/ packages/core/.coverage
-	rm -rf packages/api/build/ packages/api/dist/ packages/api/htmlcov-api/ packages/api/.coverage
-	rm -rf packages/cli/build/ packages/cli/dist/ packages/cli/htmlcov-cli/ packages/cli/.coverage
+	rm -rf build/ dist/ htmlcov/ .coverage coverage.xml uv.lock
+	rm -rf packages/*/build/ packages/*/dist/ packages/*/htmlcov*/
 
 format:
-	black packages/
-	ruff check --fix packages/
+	uv run black packages/
+	uv run ruff check --fix packages/
 
 lint:
-	black --check packages/
-	ruff check packages/
-	mypy packages/core/src/core
-	mypy packages/api/src/api
-	mypy packages/cli/src/cli
+	uv run black --check packages/
+	uv run ruff check packages/
+	uv run mypy packages/core/src/core
+	uv run mypy packages/api/src/api
+	uv run mypy packages/cli/src/cli
 
 lint-web:
 	@echo "Running web linting..."
 	cd packages/web && npm run lint
 
-# Test commands
+# Test commands using uv
 test: test-core test-api test-cli
 	@echo "All tests completed successfully!"
 
 test-core:
 	@echo "Running Core package tests..."
-	cd packages/core && python -m pytest -v
+	uv run --package shelly-manager-core pytest packages/core/tests/ -v
 
 test-api:
 	@echo "Running API package tests..."
-	cd packages/api && python -m pytest -v
+	uv run --package shelly-manager-api pytest packages/api/tests/ -v
 
 test-cli:
 	@echo "Running CLI package tests..."
-	cd packages/cli && python -m pytest -v
+	uv run --package shelly-manager-cli pytest packages/cli/tests/ -v
 
-test-unit: test-unit-core test-unit-api test-unit-cli
-	@echo "All unit tests completed successfully!"
+test-web:
+	@echo "Running Web package tests..."
+	cd packages/web && npm test
 
-test-unit-core:
-	@echo "Running Core unit tests..."
-	cd packages/core && python -m pytest -v -m "unit" 2>/dev/null || python -m pytest -v
-
-test-unit-api:
-	@echo "Running API unit tests..."
-	cd packages/api && python -m pytest -v -m "unit" 2>/dev/null || python -m pytest -v
-
-test-unit-cli:
-	@echo "Running CLI unit tests..."
-	cd packages/cli && python -m pytest -v -m "unit" 2>/dev/null || python -m pytest -v
-
-test-integration:
-	@echo "Running integration tests..."
-	cd packages/core && python -m pytest -v -m "integration" 2>/dev/null || echo "No integration tests in core"
-	cd packages/api && python -m pytest -v -m "integration" 2>/dev/null || echo "No integration tests in api"
-	cd packages/cli && python -m pytest -v -m "integration" 2>/dev/null || echo "No integration tests in cli"
-
-test-coverage: test-coverage-core test-coverage-api test-coverage-cli
-	@echo "All coverage reports generated!"
-
-test-coverage-core:
-	@echo "Running Core tests with coverage..."
-	cd packages/core && python -m pytest --cov=core --cov-report=html:htmlcov-core --cov-report=term-missing
-
-test-coverage-api:
-	@echo "Running API tests with coverage..."
-	cd packages/api && python -m pytest --cov=api --cov-report=html:htmlcov-api --cov-report=term-missing
-
-test-coverage-cli:
-	@echo "Running CLI tests with coverage..."
-	cd packages/cli && python -m pytest --cov=cli --cov-report=html:htmlcov-cli --cov-report=term-missing
-
-# Build commands
-build: build-core build-api build-cli
-
-build-core:
-	cd packages/core && python -m build
-
-build-api:
-	cd packages/api && python -m build
-
-build-cli:
-	cd packages/cli && python -m build
+test-coverage:
+	@echo "Running all tests with coverage..."
+	uv run pytest --cov=packages --cov-report=html --cov-report=term-missing
 
 # Run commands
 run-api:
-	cd packages/api && python -m api.main
+	uv run --package shelly-manager-api python -m api.main
 
 run-cli:
-	shelly-manager --help
+	uv run shelly-manager --help
 
 # Development workflow
 setup: clean install-dev
-	@echo "Development environment setup complete!"
+	@echo "Development environment setup complete with uv!"
 	@echo "Run 'make run-cli' to test the CLI"
 	@echo "Run 'make run-api' to start the API server"
 
 # CI commands
 ci-test: lint test-coverage
-
-# Docker commands (future)
-docker-build:
-	docker build -t shelly-manager:latest .
-
-docker-run:
-	docker run -p 8000:8000 shelly-manager:latest

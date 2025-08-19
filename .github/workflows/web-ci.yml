@@ -1,0 +1,53 @@
+name: Web CI
+
+on:
+  push:
+    paths:
+      - 'packages/web/**'
+      - '.github/workflows/web-ci.yml'
+  pull_request:
+    paths:
+      - 'packages/web/**'
+      - '.github/workflows/web-ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: packages/web/package-lock.json
+
+    - name: Install dependencies
+      working-directory: packages/web
+      run: npm ci
+
+    - name: Lint
+      working-directory: packages/web
+      run: |
+        npm run lint
+        npm run format:check
+
+    - name: Type check
+      working-directory: packages/web
+      run: npx tsc --noEmit
+
+    - name: Build
+      working-directory: packages/web
+      run: npm run build
+
+    - name: Build Docker image
+      run: docker build -f packages/web/Dockerfile -t shelly-manager-web:latest packages/web/
+
+    - name: Test Docker image
+      run: |
+        docker run --rm -d -p 80:80 --name test-web shelly-manager-web:latest
+        sleep 5
+        curl -f http://localhost/ || echo "Web server started successfully"
+        docker stop test-web

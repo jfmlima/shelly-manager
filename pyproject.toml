@@ -9,9 +9,11 @@ description = "Shelly IoT device management tool with clean architecture"
 authors = [{name = "Jorge Lima", email = "jorgefilipemlima@gmail.com"}]
 readme = "README.md"
 requires-python = ">=3.11"
-
-# This is a workspace project that doesn't install anything itself
-dependencies = []
+dependencies = [
+    "shelly-manager-core",
+    "shelly-manager-api",
+    "shelly-manager-cli",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -24,12 +26,15 @@ dev = [
     "pre-commit==4.2.0",
 ]
 
-# All packages for complete development setup
-all = [
-    "shelly-manager-core",
-    "shelly-manager-api",
-    "shelly-manager-cli",
-]
+# Workspace configuration
+[tool.uv.workspace]
+members = ["packages/core", "packages/api", "packages/cli"]
+
+# Workspace root sources - shared across all members unless overridden
+[tool.uv.sources]
+shelly-manager-core = { workspace = true }
+shelly-manager-api = { workspace = true }
+shelly-manager-cli = { workspace = true }
 
 [tool.black]
 line-length = 88

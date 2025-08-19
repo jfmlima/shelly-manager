@@ -2,116 +2,96 @@
 
 ## Quick Start
 
-1. **Install dependencies:**
+1. **Install uv:**
+
    ```bash
-   # Install core package first (required by CLI and API)
-   cd packages/core
-   pip install -e .
-
-   # Install CLI package
-   cd ../cli
-   pip install -e .
-
-   # Install API package (optional)
-   cd ../api
-   pip install -e .
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   # or
+   pip install uv
    ```
 
-2. **Test the core package:**
+2. **Install dependencies:**
+
    ```bash
-   cd packages/core
-   python -c "from core.domain.entities.shelly_device import ShellyDevice; print('Core package working!')"
+   # Install all workspace packages with dev dependencies
+   uv sync --extra dev
    ```
 
-3. **Test CLI and API:**
-   ```bash
-   # CLI
-   cd packages/cli && python -m cli --help
+3. **Test packages:**
 
-   # API
-   cd packages/api && python -m api
+   ```bash
+   # Test everything
+   make test
+
+   # Test specific packages
+   make test-core
+   make test-api
+   make test-cli
    ```
 
 ## Development Installation
 
-### Local Package Dependencies
-Since the core package is not published to PyPI, install packages in this order:
+### Workspace Setup
+
+The project uses uv workspace dependencies for consistent version management:
 
 ```bash
-# 1. Install core package first (required by CLI and API)
-cd packages/core
-pip install -e .
+# Install everything
+uv sync --extra dev
 
-# 2. Install CLI package
-cd ../cli
-pip install -e .
+# Install without dev dependencies
+uv sync --no-dev
 
-# 3. Install API package (optional)
-cd ../api
-pip install -e .
+# Install specific package
+uv sync --package shelly-manager-core
 ```
 
-### Virtual Environment Setup (Recommended)
-```bash
-# For CLI development
-cd packages/cli
-python -m venv venv
-source venv/bin/activate
-pip install -e ../core
-pip install -e ".[dev]"
+### Running Applications
 
-# For API development
-cd packages/api
-python -m venv venv
-source venv/bin/activate
-pip install -e ../core
-pip install -e ".[dev]"
+```bash
+# CLI
+uv run shelly-manager --help
+
+# API server
+uv run --package shelly-manager-api python -m api.main
 ```
 
 ## Development Workflow
 
 ### Code formatting and linting
+
 ```bash
-# Format code with black
-black .
+# Format code
+make format
 
-# Check with ruff
-ruff check .
-
-# Type checking
-mypy .
+# Check linting
+make lint
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
-pytest
+make test
 
 # Run with coverage
-pytest --cov=core --cov=app
+make test-coverage
 
-# Run specific test types
-pytest tests/unit/
-pytest tests/integration/
+# Run specific package tests
+uv run --package shelly-manager-core pytest packages/core/tests/
 ```
 
 ### Running the Application
+
 ```bash
-# Core functionality (verified working)
-cd packages/core
-python -c "from core.settings import settings; print(f'✅ Settings: {settings.api.host}:{settings.api.port}')"
+# Core functionality
+uv run --package shelly-manager-core python -c "from core.domain.entities.shelly_device import ShellyDevice; print('✅ Core package working!')"
 
-# CLI usage (may require additional setup)
-cd packages/cli
-python -m cli scan 192.168.1.0/24
-python -m cli status 192.168.1.100
-python -m cli update 192.168.1.100
+# CLI usage
+uv run shelly-manager scan --help
+uv run shelly-manager device status --help
 
-# API server (may require additional setup)
-cd packages/api
-python -m api.run_server
+# API server
+uv run --package shelly-manager-api python -m api.main
 # Then visit http://localhost:8000/docs
 ```
-
-> **Note**: CLI and API packages may need additional dependency resolution.
-> All core business logic and domain functionality is working correctly.

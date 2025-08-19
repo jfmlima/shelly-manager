@@ -2,30 +2,36 @@
 
 ARG PYTHON_VERSION=3.11-slim
 
-# Build wheels for core and cli
-FROM python:${PYTHON_VERSION} AS wheelbuilder
-ENV PIP_NO_CACHE_DIR=1
-WORKDIR /build
-RUN pip install --upgrade pip build
+# Build stage with uv
+FROM python:${PYTHON_VERSION} AS builder
 
-# Core
-COPY packages/core/pyproject.toml packages/core/README.md /build/core/
-COPY packages/core/src /build/core/src
-RUN cd /build/core && python -m build
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-# CLI
-COPY packages/cli/pyproject.toml packages/cli/README.md /build/cli/
-COPY packages/cli/src /build/cli/src
-RUN cd /build/cli && python -m build
+ENV UV_CACHE_DIR=/tmp/uv-cache
 
-# Runtime
-FROM python:${PYTHON_VERSION} AS runtime
-ENV PIP_NO_CACHE_DIR=1 PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
+
+# Copy workspace files
+COPY pyproject.toml uv.lock ./
+COPY packages/core/ packages/core/
+COPY packages/cli/ packages/cli/
+
+# Install dependencies with uv
+RUN uv sync --frozen --no-dev --package shelly-manager-cli
+
+# Runtime stage
+FROM python:${PYTHON_VERSION} AS runtime
+
+# Copy uv and installed packages
+COPY --from=builder /app/.venv /app/.venv
+
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
 RUN useradd -u 10001 -m appuser
-COPY --from=wheelbuilder /build/core/dist/*.whl /wheels/
-COPY --from=wheelbuilder /build/cli/dist/*.whl /wheels/
-RUN pip install --no-cache-dir /wheels/*.whl && rm -rf /wheels
 USER appuser
 
 ENTRYPOINT ["shelly-manager"]

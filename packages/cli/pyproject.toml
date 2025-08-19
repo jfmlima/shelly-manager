@@ -10,6 +10,7 @@ authors = [{name = "Jorge Lima", email = "jorgefilipemlima@gmail.com"}]
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "shelly-manager-core",  # Local package dependency
     "click==8.2.1",
     "rich==14.1.0",
 ]
@@ -21,12 +22,15 @@ dev = [
     "pytest-cov==6.2.1",
     "black==25.1.0",
     "ruff==0.12.8",
-    "mypy==1.17.0",
+    "mypy==1.17.1",
     "types-PyYAML==6.0.12.20250516",
 ]
 
 [project.scripts]
 shelly-manager = "cli.main:cli"
+
+[tool.uv.sources]
+shelly-manager-core = { workspace = true }
 
 [tool.setuptools.packages.find]
 where = ["src"]
