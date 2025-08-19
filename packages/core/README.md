@@ -1,53 +1,45 @@
-# 🏛️ Shelly Manager Core
+# Shelly Manager Core
 
-The foundational business logic package for Shelly Manager
+The business logic package for Shelly Manager.
 
-## ✨ What is Core?
+## What is Core?
 
-The Core package contains the **pure business logic** that defines how Shelly Manager works. It's framework-agnostic and can be used by any interface (CLI, API, Web, etc.).
+Contains the core business logic that defines how Shelly Manager works. Framework-agnostic and can be used by any interface (CLI, API, Web).
 
-### 🎯 Purpose
+### Purpose
 
-- **Domain Models**: Define what a Shelly device is and how it behaves
-- **Business Rules**: Implement the rules for device operations
-- **Use Cases**: Orchestrate business operations (scan, update, reboot)
-- **Gateways**: Define contracts for external dependencies
-- **Independence**: No dependencies on frameworks, databases, or UI
+- Domain models for Shelly devices and operations
+- Business rules for device management
+- Use cases that orchestrate operations (scan, update, reboot)
+- Gateway contracts for external dependencies
+- No dependencies on frameworks, databases, or UI
 
-## 🏗️ Architecture
+## Architecture
 
-This package follows **Clean Architecture** principles with clear separation of concerns:
+Follows Clean Architecture principles:
 
 ```
 packages/core/src/core/
-├── domain/                    # 🏛️ Core business logic (innermost layer)
+├── domain/                    # Core business logic
 │   ├── entities/             # Business objects (ShellyDevice)
 │   ├── value_objects/        # Immutable data objects
 │   ├── services/             # Domain business logic
 │   └── enums/               # Domain enumerations
-├── use_cases/                # 🔄 Application business logic
-│   ├── scan_devices.py      # Device discovery use case
+├── use_cases/                # Application business logic
+│   ├── scan_devices.py      # Device discovery
 │   ├── update_device_firmware.py
 │   ├── reboot_device.py
 │   └── ...
-├── gateways/                 # 🌐 External interfaces (abstract)
+├── gateways/                 # External interfaces (abstract)
 │   ├── device/              # Device communication contracts
 │   ├── configuration/       # Configuration management contracts
 │   └── network/             # Network communication contracts
-└── settings.py              # Configuration and shared utilities
+└── settings.py              # Configuration and utilities
 ```
 
-### 🔄 Dependency Flow
+Dependencies point inward - the domain layer knows nothing about external concerns.
 
-```
-External Interfaces → Use Cases → Domain Services → Entities
-     (CLI/API)         ↑              ↑              ↑
-                   Gateways      Value Objects    Enums
-```
-
-**Key Principle**: Dependencies point **inward**. The domain knows nothing about external concerns.
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -85,13 +77,9 @@ scan_request = ScanRequest(
 print(f"Scanning {scan_request.get_ip_count()} IP addresses")
 ```
 
-## 📚 Additional Resources
+## Additional Resources
 
 - **Main Documentation**: [../../README.md](../../README.md)
 - **Development Guide**: [../../DEVELOPMENT.md](../../DEVELOPMENT.md)
 - **API Package**: [../api/README.md](../api/README.md) (implements Core interfaces)
 - **CLI Package**: [../cli/README.md](../cli/README.md) (uses Core use cases)
-
----
-
-**🏛️ Built with Clean Architecture for maximum flexibility and testability**

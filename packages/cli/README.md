@@ -1,20 +1,20 @@
-# 💻 Shelly Manager CLI
+# Shelly Manager CLI
 
-A powerful command-line interface for managing Shelly IoT devices locally. Built with **Click** framework for rich, user-friendly terminal interactions.
+Command-line interface for managing Shelly devices locally. Built with Click.
 
-## ✨ Features
+## Features
 
-- **🔍 Network Discovery**: Scan for Shelly devices on your network
-- **⚡ Bulk Operations**: Perform actions on multiple devices simultaneously
-- **🔄 Firmware Management**: Check and apply firmware updates
-- **⚙️ Configuration Control**: Get and set device configurations
-- **📤 Export Support**: Export results to JSON or CSV formats
-- **📊 Rich Output**: Beautiful tables, progress bars, and colored status messages
-- **🐳 Docker Ready**: Run CLI commands in containerized environments
+- Network discovery to find Shelly devices
+- Bulk operations across multiple devices
+- Firmware update management
+- Device configuration control
+- Export results to JSON or CSV
+- Rich terminal output with tables and progress bars
+- Docker support
 
-## 🚀 Quick Start
+## Quick Start
 
-### Docker (Recommended)
+### Docker
 
 ```bash
 # Scan for devices
@@ -45,7 +45,7 @@ uv run shelly-manager --help
 uv run shelly-manager scan --range 192.168.1.0/24
 ```
 
-## 📋 Command Reference
+## Commands
 
 ### Global Options
 
@@ -186,7 +186,7 @@ shelly-manager bulk update --ips 192.168.1.100,192.168.1.101 --channel beta
 - `--force`: Skip confirmation prompts
 - `--workers`: Concurrent operations (default: 10)
 
-## ⚙️ Configuration
+## Configuration
 
 ### Configuration File
 
@@ -229,7 +229,7 @@ export SHELLY_CONFIG_FILE=/path/to/config.json
 shelly-manager scan --from-config
 ```
 
-## 📤 Export Formats
+## Export Formats
 
 ### JSON Export
 
@@ -267,7 +267,7 @@ ip,status,device_type,device_name,firmware_version,response_time,last_seen
 192.168.1.101,offline,unknown,,,,
 ```
 
-## 🐳 Docker Usage
+## Docker Usage
 
 ### Interactive Shell
 
@@ -313,7 +313,7 @@ services:
       - daily-scan
 ```
 
-## 🛠️ Development
+## Development
 
 ### Local Development Setup
 
@@ -378,7 +378,7 @@ uv run --package shelly-manager-cli pytest packages/cli/tests/ --cov=cli --cov-r
 
 Detailed testing documentation: [tests/README.md](tests/README.md)
 
-## 🏗️ Architecture
+## Architecture
 
 The CLI follows Clean Architecture principles:
 
@@ -406,7 +406,7 @@ packages/cli/src/cli/
 - **Pydantic**: Data validation and serialization
 - **Core Package**: Business logic and domain models
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -439,14 +439,10 @@ shelly-manager scan --range 192.168.0.0/16 --workers 100 --timeout 1.0
 shelly-manager scan --range 192.168.1.0/24 --workers 10 --timeout 10.0
 ```
 
-## 📚 Additional Resources
+## Additional Resources
 
 - **Main Documentation**: [../../README.md](../../README.md)
 - **Development Guide**: [../../DEVELOPMENT.md](../../DEVELOPMENT.md)
 - **Core Package**: [../core/README.md](../core/README.md)
 - **API Package**: [../api/README.md](../api/README.md)
 - **Testing Guide**: [tests/README.md](tests/README.md)
-
----
-
-**💻 Built with Click for powerful command-line automation**

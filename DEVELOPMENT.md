@@ -1,8 +1,8 @@
 # Development Guide
 
-This guide covers setting up a development environment for Shelly Manager, including backend (Core/API/CLI) and web development.
+Development setup guide for Shelly Manager, covering backend (Core/API/CLI) and web development.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -55,7 +55,7 @@ docker-compose up -d
    make test-cli
    ```
 
-## 🔧 Backend Development (Core/API/CLI)
+## Backend Development (Core/API/CLI)
 
 Shelly Manager follows Clean Architecture principles with three main backend packages:
 
@@ -180,7 +180,7 @@ packages/cli/src/cli/commands/
 packages/cli/src/cli/use_cases/
 ```
 
-## 🖥️ Web Development
+## Web Development
 
 The web interface is built with React, TypeScript, and modern tooling:
 
@@ -301,7 +301,7 @@ packages/web/src/types/api.ts
 - **API Types**: Shared type definitions with backend
 - **Form Validation**: Zod schemas for runtime validation
 
-## 🔄 Contribution Workflow
+## Contribution Workflow
 
 ### Git Workflow
 
@@ -433,7 +433,7 @@ npx tsc --noEmit --incremental
 3. **uv sync issues**: Clear cache with `uv cache clean`
 4. **Node modules**: Clear with `rm -rf node_modules && npm install`
 
-## 📚 Additional Resources
+## Additional Resources
 
 - **Architecture Documentation**: See `packages/core/README.md`
 - **API Documentation**: Visit `http://localhost:8000/docs` when API is running
@@ -441,13 +441,9 @@ npx tsc --noEmit --incremental
 - **Web UI Documentation**: See `packages/web/README.md`
 - **Testing Documentation**: See `packages/cli/tests/README.md`
 
-## 🤝 Getting Help
+## Getting Help
 
 - **Documentation Issues**: Check package-specific READMEs first
 - **Bug Reports**: Open an issue with reproduction steps
 - **Feature Ideas**: Start a discussion to validate the idea
 - **Development Questions**: Check existing issues or start a discussion
-
----
-
-**Happy coding! 🚀**

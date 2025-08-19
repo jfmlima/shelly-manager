@@ -1,20 +1,19 @@
-# 🌐 Shelly Manager API
+# Shelly Manager API
 
-REST API server for Shelly Manager built with **Litestar** - a modern, high-performance async Python framework.
+REST API server for Shelly Manager built with Litestar.
 
-## ✨ Features
+## Features
 
-- **🚀 High Performance**: Async/await with Litestar framework
-- **📖 OpenAPI Documentation**: Auto-generated interactive docs
-- **🔒 Type Safety**: Request/response validation with Pydantic
-- **🛡️ Error Handling**: Comprehensive error handling middleware
-- **📊 Health Monitoring**: Built-in health checks and monitoring
-- **🔧 CORS Support**: Configurable CORS for web UI integration
-- **🐳 Docker Ready**: Production-ready Docker containers
+- HTTP REST API for device management
+- OpenAPI documentation at `/docs`
+- Request/response validation
+- Health monitoring endpoint
+- CORS support for web integration
+- Docker deployment ready
 
-## 🚀 Quick Start
+## Quick Start
 
-### Docker (Recommended)
+### Docker
 
 ```bash
 # Run API server
@@ -39,7 +38,7 @@ uv run --package shelly-manager-api python -m api.main
 # Docs available at http://localhost:8000/docs
 ```
 
-## 🌐 API Endpoints
+## API Endpoints
 
 ### Health & Status
 
@@ -91,7 +90,7 @@ GET /api/actions                   # Get action history (coming soon)
 GET /api/devices/updates           # Get update status (coming soon)
 ```
 
-## 📋 Request/Response Examples
+## Examples
 
 ### Device Scan
 
@@ -142,7 +141,7 @@ curl -X POST "http://localhost:8000/api/devices/192.168.1.100/update?channel=sta
 }
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -171,7 +170,7 @@ Create a `config.json` file:
 }
 ```
 
-## 🐳 Docker Deployment
+## Docker Deployment
 
 ### Basic Deployment
 
@@ -213,7 +212,7 @@ healthcheck:
   start_period: 40s
 ```
 
-## 🛠️ Development
+## Development
 
 ### Local Development Setup
 
@@ -278,7 +277,7 @@ uv run --package shelly-manager-api pytest packages/api/tests/unit/controllers/ 
 uv run --package shelly-manager-api pytest packages/api/tests/ --cov=api --cov-report=html
 ```
 
-## 🏗️ Architecture
+## Architecture
 
 The API follows Clean Architecture principles:
 
@@ -299,7 +298,7 @@ packages/api/src/api/
 - **uvicorn**: ASGI server
 - **Core Package**: Business logic and domain models
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -328,13 +327,9 @@ docker logs shelly-manager-api
 docker logs -f shelly-manager-api
 ```
 
-## 📚 Additional Resources
+## Additional Resources
 
 - **Main Documentation**: [../../README.md](../../README.md)
 - **Development Guide**: [../../DEVELOPMENT.md](../../DEVELOPMENT.md)
 - **Core Package**: [../core/README.md](../core/README.md)
 - **CLI Package**: [../cli/README.md](../cli/README.md)
-
----
-
-**🌐 Built with Litestar for high-performance async API serving**
