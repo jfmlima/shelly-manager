@@ -20,13 +20,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest==8.4.1",
-    "pytest-asyncio==1.1.0",
-    "pytest-cov==6.2.1",
-    "black==25.1.0",
-    "ruff==0.12.8",
-    "mypy==1.17.1",
-    "types-requests==2.32.4.20250611",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "black",
+    "ruff",
+    "mypy",
+    "types-requests",
 ]
 
 [tool.setuptools.packages.find]
