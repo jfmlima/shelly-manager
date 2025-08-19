@@ -3,47 +3,47 @@ name: CLI CI
 on:
   push:
     paths:
-      - 'packages/cli/**'
-      - 'packages/core/**'
-      - 'pyproject.toml'
-      - 'uv.lock'
-      - '.github/workflows/cli-ci.yml'
+      - "packages/cli/**"
+      - "packages/core/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/cli-ci.yml"
   pull_request:
     paths:
-      - 'packages/cli/**'
-      - 'packages/core/**'
-      - 'pyproject.toml'
-      - 'uv.lock'
-      - '.github/workflows/cli-ci.yml'
+      - "packages/cli/**"
+      - "packages/core/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/cli-ci.yml"
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
 
-    - name: Set up Python
-      run: uv python install 3.11
+      - name: Set up Python
+        run: uv python install 3.11
 
-    - name: Install dependencies
-      run: uv sync
+      - name: Install dependencies
+        run: uv sync --extra dev
 
-    - name: Lint
-      run: |
-        uv run black --check packages/cli/
-        uv run ruff check packages/cli/
-        uv run mypy packages/cli/src/cli
+      - name: Lint
+        run: |
+          uv run black --check packages/cli/
+          uv run ruff check packages/cli/
+          uv run mypy packages/cli/src/cli
 
-    - name: Test
-      run: uv run --package shelly-manager-cli pytest packages/cli/tests/ -v --cov=cli
+      - name: Test
+        run: uv run --package shelly-manager-cli pytest packages/cli/tests/ -v --cov=cli
 
-    - name: Build Docker image
-      run: docker build -f packages/cli/Dockerfile -t shelly-manager-cli:latest .
+      - name: Build Docker image
+        run: docker build -f packages/cli/Dockerfile -t shelly-manager-cli:latest .
 
-    - name: Test Docker image
-      run: |
-        docker run --rm shelly-manager-cli:latest --help
+      - name: Test Docker image
+        run: |
+          docker run --rm shelly-manager-cli:latest --help

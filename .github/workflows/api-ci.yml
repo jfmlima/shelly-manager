@@ -3,50 +3,50 @@ name: API CI
 on:
   push:
     paths:
-      - 'packages/api/**'
-      - 'packages/core/**'
-      - 'pyproject.toml'
-      - 'uv.lock'
-      - '.github/workflows/api-ci.yml'
+      - "packages/api/**"
+      - "packages/core/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/api-ci.yml"
   pull_request:
     paths:
-      - 'packages/api/**'
-      - 'packages/core/**'
-      - 'pyproject.toml'
-      - 'uv.lock'
-      - '.github/workflows/api-ci.yml'
+      - "packages/api/**"
+      - "packages/core/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/api-ci.yml"
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
 
-    - name: Set up Python
-      run: uv python install 3.11
+      - name: Set up Python
+        run: uv python install 3.11
 
-    - name: Install dependencies
-      run: uv sync
+      - name: Install dependencies
+        run: uv sync --extra dev
 
-    - name: Lint
-      run: |
-        uv run black --check packages/api/
-        uv run ruff check packages/api/
-        uv run mypy packages/api/src/api
+      - name: Lint
+        run: |
+          uv run black --check packages/api/
+          uv run ruff check packages/api/
+          uv run mypy packages/api/src/api
 
-    - name: Test
-      run: uv run --package shelly-manager-api pytest packages/api/tests/ -v --cov=api
+      - name: Test
+        run: uv run --package shelly-manager-api pytest packages/api/tests/ -v --cov=api
 
-    - name: Build Docker image
-      run: docker build -f packages/api/Dockerfile -t shelly-manager-api:latest .
+      - name: Build Docker image
+        run: docker build -f packages/api/Dockerfile -t shelly-manager-api:latest .
 
-    - name: Test Docker image
-      run: |
-        docker run --rm -d -p 8000:8000 --name test-api shelly-manager-api:latest
-        sleep 10
-        curl -f http://localhost:8000/health || echo "Health check endpoint may not exist yet"
-        docker stop test-api
+      - name: Test Docker image
+        run: |
+          docker run --rm -d -p 8000:8000 --name test-api shelly-manager-api:latest
+          sleep 10
+          curl -f http://localhost:8000/health || echo "Health check endpoint may not exist yet"
+          docker stop test-api
