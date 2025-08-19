@@ -1024,11 +1024,6 @@ wheels = [
 name = "shelly-manager"
 version = "0.1.0"
 source = { editable = "." }
-dependencies = [
-    { name = "shelly-manager-api" },
-    { name = "shelly-manager-cli" },
-    { name = "shelly-manager-core" },
-]
 
 [package.optional-dependencies]
 dev = [
@@ -1052,9 +1047,6 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = "==1.1.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = "==6.2.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.12.9" },
-    { name = "shelly-manager-api", editable = "packages/api" },
-    { name = "shelly-manager-cli", editable = "packages/cli" },
-    { name = "shelly-manager-core", editable = "packages/core" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = "==6.0.12.20250516" },
     { name = "types-requests", marker = "extra == 'dev'", specifier = "==2.32.4.20250809" },
 ]

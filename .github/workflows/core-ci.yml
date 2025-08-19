@@ -15,6 +15,30 @@ on:
       - ".github/workflows/core-ci.yml"
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install core package with dev dependencies
+        run: uv sync --package shelly-manager-core --extra dev
+
+      - name: Run black
+        run: uv run black --check packages/core/
+
+      - name: Run ruff
+        run: uv run ruff check packages/core/
+
+      - name: Run mypy
+        run: uv run mypy packages/core/src/core
+
   test:
     runs-on: ubuntu-latest
 
@@ -27,17 +51,27 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
 
-      - name: Install dependencies
-        run: uv sync --extra dev
+      - name: Install core package with dev dependencies
+        run: uv sync --package shelly-manager-core --extra dev
 
-      - name: Lint
-        run: |
-          uv run black --check packages/core/
-          uv run ruff check packages/core/
-          uv run mypy packages/core/src/core
-
-      - name: Test
+      - name: Run tests
         run: uv run --package shelly-manager-core pytest packages/core/tests/ -v --cov=core
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install core package
+        run: uv sync --package shelly-manager-core --no-dev
 
       - name: Build package
         run: uv build --package shelly-manager-core

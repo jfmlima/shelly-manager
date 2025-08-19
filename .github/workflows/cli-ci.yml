@@ -17,6 +17,30 @@ on:
       - ".github/workflows/cli-ci.yml"
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install CLI package with dev dependencies
+        run: uv sync --package shelly-manager-cli --extra dev
+
+      - name: Run black
+        run: uv run black --check packages/cli/
+
+      - name: Run ruff
+        run: uv run ruff check packages/cli/
+
+      - name: Run mypy
+        run: uv run mypy packages/cli/src/cli
+
   test:
     runs-on: ubuntu-latest
 
@@ -29,21 +53,51 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
 
-      - name: Install dependencies
-        run: uv sync --extra dev
+      - name: Install CLI package with dev dependencies
+        run: uv sync --package shelly-manager-cli --extra dev
 
-      - name: Lint
-        run: |
-          uv run black --check packages/cli/
-          uv run ruff check packages/cli/
-          uv run mypy packages/cli/src/cli
-
-      - name: Test
+      - name: Run tests
         run: uv run --package shelly-manager-cli pytest packages/cli/tests/ -v --cov=cli
 
-      - name: Build Docker image
-        run: docker build -f packages/cli/Dockerfile -t shelly-manager-cli:latest .
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
 
-      - name: Test Docker image
-        run: |
-          docker run --rm shelly-manager-cli:latest --help
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/jfmlima/shelly-manager/cli
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/cli/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
