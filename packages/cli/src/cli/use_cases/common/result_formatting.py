@@ -8,6 +8,7 @@ from core.domain.entities import DeviceStatus, DiscoveredDevice
 from rich.console import Console
 from rich.table import Table
 
+from cli.entities.bulk import BulkOperationResult
 from cli.presentation.styles import format_device_status
 
 
@@ -232,4 +233,55 @@ class ResultFormatter:
 
             self._console.print(
                 f"\n{Messages.warning(f'{operation_name} completed: {successful}/{total} successful')}"
+            )
+
+    def display_bulk_operation_result(self, result: BulkOperationResult) -> None:
+        """Display bulk operation results in a formatted table."""
+        from rich.table import Table
+
+        table = Table(
+            title=f"Bulk {result.operation_type.replace('_', ' ').title()} Results"
+        )
+        table.add_column("Device IP", style="cyan")
+        table.add_column("Status", style="bold")
+        table.add_column("Message", style="dim")
+
+        for device_ip, device_result in result.device_results.items():
+            status = (
+                "[green]✓ Success[/green]"
+                if device_result.status == "success"
+                else "[red]✗ Failed[/red]"
+            )
+            message = device_result.message or device_result.error or "No details"
+            table.add_row(device_ip, status, message)
+
+        self._console.print(table)
+        self._console.print()
+
+        if result.time_taken_seconds:
+            self._console.print(
+                f"[dim]Time taken: {result.time_taken_seconds:.2f} seconds[/dim]"
+            )
+
+        self._console.print(
+            f"[bold blue]Summary:[/bold blue] {result.successful_operations}/{result.total_devices} operations successful"
+        )
+
+        if result.failed_operations > 0:
+            self._console.print(
+                f"[yellow]{result.failed_operations} operations failed[/yellow]"
+            )
+
+            if result.errors_by_device:
+                self._console.print("\n[bold red]Error Details:[/bold red]")
+                for device_ip, error in result.errors_by_device.items():
+                    self._console.print(f"  [red]{device_ip}:[/red] {error}")
+
+        if result.status == "success":
+            self._console.print(
+                f"[green]✓ Bulk {result.operation_type.replace('_', ' ')} completed successfully[/green]"
+            )
+        else:
+            self._console.print(
+                f"[red]✗ Bulk {result.operation_type.replace('_', ' ')} failed[/red]"
             )

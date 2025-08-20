@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from api.controllers.devices import (
+    execute_bulk_operations,
     execute_component_action,
     get_component_actions,
     get_device_config,
@@ -320,3 +321,150 @@ class TestDevicesController:
             assert data["ip"] == "192.168.1.100"
             assert data["success"] is False
             assert data["error"] == "Permission denied"
+
+    def test_bulk_operations_update_successfully(self):
+        from core.use_cases.bulk_operations import BulkOperationsUseCase
+
+        class MockBulkOperationsUseCase(BulkOperationsUseCase):
+            def __init__(self):
+                pass  # Skip parent constructor
+
+            async def execute_bulk_update(self, device_ips, channel="stable"):
+                return [
+                    ActionResult(
+                        device_ip=ip,
+                        success=True,
+                        message="Update initiated",
+                        action_type="Update",
+                    )
+                    for ip in device_ips
+                ]
+
+        with create_test_client(
+            route_handlers=[execute_bulk_operations],
+            dependencies={
+                "bulk_operations_use_case": Provide(
+                    lambda: MockBulkOperationsUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.post(
+                "/bulk",
+                json={
+                    "device_ips": ["192.168.1.100", "192.168.1.101"],
+                    "operation": "update",
+                    "channel": "beta",
+                },
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data) == 2
+            assert all(result["success"] for result in data)
+            assert all(result["operation"] == "update" for result in data)
+            assert all(result["channel"] == "beta" for result in data)
+
+    def test_bulk_operations_reboot_successfully(self):
+        from core.use_cases.bulk_operations import BulkOperationsUseCase
+
+        class MockBulkOperationsUseCase(BulkOperationsUseCase):
+            def __init__(self):
+                pass  # Skip parent constructor
+
+            async def execute_bulk_reboot(self, device_ips):
+                return [
+                    ActionResult(
+                        device_ip="192.168.1.100",
+                        success=True,
+                        message="Reboot initiated",
+                        action_type="Reboot",
+                    )
+                ]
+
+        with create_test_client(
+            route_handlers=[execute_bulk_operations],
+            dependencies={
+                "bulk_operations_use_case": Provide(
+                    lambda: MockBulkOperationsUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.post(
+                "/bulk", json={"device_ips": ["192.168.1.100"], "operation": "reboot"}
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data) == 1
+            assert data[0]["success"]
+            assert data[0]["action_type"] == "Reboot"
+            assert data[0]["operation"] == "reboot"
+
+    def test_bulk_operations_factory_reset_successfully(self):
+        from core.use_cases.bulk_operations import BulkOperationsUseCase
+
+        class MockBulkOperationsUseCase(BulkOperationsUseCase):
+            def __init__(self):
+                pass  # Skip parent constructor
+
+            async def execute_bulk_factory_reset(self, device_ips):
+                return [
+                    ActionResult(
+                        device_ip="192.168.1.100",
+                        success=True,
+                        message="Factory reset initiated",
+                        action_type="FactoryReset",
+                    )
+                ]
+
+        with create_test_client(
+            route_handlers=[execute_bulk_operations],
+            dependencies={
+                "bulk_operations_use_case": Provide(
+                    lambda: MockBulkOperationsUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.post(
+                "/bulk",
+                json={"device_ips": ["192.168.1.100"], "operation": "factory_reset"},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data) == 1
+            assert data[0]["success"]
+            assert data[0]["action_type"] == "FactoryReset"
+            assert data[0]["operation"] == "factory_reset"
+
+    def test_bulk_operations_validation_errors(self):
+        from core.use_cases.bulk_operations import BulkOperationsUseCase
+
+        class MockBulkOperationsUseCase(BulkOperationsUseCase):
+            def __init__(self):
+                pass
+
+        with create_test_client(
+            route_handlers=[execute_bulk_operations],
+            dependencies={
+                "bulk_operations_use_case": Provide(
+                    lambda: MockBulkOperationsUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            # Test missing device_ips
+            response = client.post("/bulk", json={"operation": "update"})
+            assert response.status_code == 400
+            assert "device_ips is required" in response.json()["detail"]
+
+            # Test missing operation
+            response = client.post("/bulk", json={"device_ips": ["192.168.1.100"]})
+            assert response.status_code == 400
+            assert "operation is required" in response.json()["detail"]
+
+            # Test invalid operation
+            response = client.post(
+                "/bulk", json={"device_ips": ["192.168.1.100"], "operation": "invalid"}
+            )
+            assert response.status_code == 400
+            assert "Unsupported operation: invalid" in response.json()["detail"]

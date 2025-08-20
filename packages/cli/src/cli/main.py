@@ -8,6 +8,7 @@ import click
 from rich.console import Console
 
 from .commands import (
+    bulk_commands,
     device_commands,
     export_commands,
 )
@@ -64,6 +65,7 @@ def cli(ctx: click.Context, verbose: bool, config: str | None, version: bool) ->
         cli_ctx.console.print(ctx.get_help())
 
 
+cli.add_command(bulk_commands, name="bulk")
 cli.add_command(device_commands, name="device")
 cli.add_command(export_commands, name="export")
 

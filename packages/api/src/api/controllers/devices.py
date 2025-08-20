@@ -16,6 +16,7 @@ from core.domain.value_objects.get_component_actions_request import (
 )
 from core.domain.value_objects.scan_request import ScanRequest
 from core.domain.value_objects.set_configuration_request import SetConfigurationRequest
+from core.use_cases.bulk_operations import BulkOperationsUseCase
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
 from core.use_cases.get_component_actions import GetComponentActionsUseCase
@@ -197,6 +198,122 @@ async def set_device_config(
         return {"ip": ip, "success": False, "error": str(e)}
 
 
+@post("/{ip:str}/update", status_code=200)
+async def update_device(
+    ip: str,
+    data: dict = Body(),
+    action_interactor: ExecuteComponentActionUseCase | None = None,
+) -> dict:
+    """Convenience endpoint for firmware updates (shortcut for component action)."""
+    action_interactor = _require("action_interactor", action_interactor)
+
+    channel = data.get("channel", "stable")
+    parameters = {"channel": channel} if channel != "stable" else {}
+
+    request = ComponentActionRequest(
+        device_ip=ip,
+        component_key="shelly",
+        action="Update",
+        parameters=parameters,
+    )
+
+    result = await action_interactor.execute(request)
+
+    return {
+        "ip": result.device_ip,
+        "success": result.success,
+        "message": result.message,
+        "error": result.error,
+        "action_type": result.action_type,
+        "channel": channel,
+    }
+
+
+@post("/{ip:str}/reboot", status_code=200)
+async def reboot_device(
+    ip: str,
+    action_interactor: ExecuteComponentActionUseCase | None = None,
+) -> dict:
+    """Convenience endpoint for device reboot (shortcut for component action)."""
+    action_interactor = _require("action_interactor", action_interactor)
+
+    request = ComponentActionRequest(
+        device_ip=ip,
+        component_key="shelly",
+        action="Reboot",
+        parameters={},
+    )
+
+    result = await action_interactor.execute(request)
+
+    return {
+        "ip": result.device_ip,
+        "success": result.success,
+        "message": result.message,
+        "error": result.error,
+        "action_type": result.action_type,
+    }
+
+
+@post("/bulk", status_code=200)
+async def execute_bulk_operations(
+    data: dict = Body(),
+    bulk_operations_use_case: BulkOperationsUseCase | None = None,
+) -> list[dict]:
+    """Unified bulk operations endpoint."""
+
+    bulk_operations_use_case = _require(
+        "bulk_operations_use_case", bulk_operations_use_case
+    )
+
+    device_ips = data.get("device_ips", [])
+    operation = data.get("operation")
+
+    if not device_ips:
+        raise HTTPException(status_code=400, detail="device_ips is required")
+
+    if not operation:
+        raise HTTPException(status_code=400, detail="operation is required")
+
+    if operation not in ["update", "reboot", "factory_reset"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported operation: {operation}. Supported: update, reboot, factory_reset",
+        )
+
+    try:
+        if operation == "update":
+            channel = data.get("channel", "stable")
+            results = await bulk_operations_use_case.execute_bulk_update(
+                device_ips, channel
+            )
+        elif operation == "reboot":
+            results = await bulk_operations_use_case.execute_bulk_reboot(device_ips)
+        elif operation == "factory_reset":
+            results = await bulk_operations_use_case.execute_bulk_factory_reset(
+                device_ips
+            )
+
+        parameters = {
+            k: v for k, v in data.items() if k not in ["device_ips", "operation"]
+        }
+
+        return [
+            {
+                "ip": result.device_ip,
+                "success": result.success,
+                "message": result.message,
+                "error": result.error,
+                "action_type": result.action_type,
+                "operation": operation,
+                **parameters,
+            }
+            for result in results
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 devices_router = Router(
     path="/devices",
     route_handlers=[
@@ -206,5 +323,8 @@ devices_router = Router(
         get_device_status,
         get_device_config,
         set_device_config,
+        update_device,
+        reboot_device,
+        execute_bulk_operations,
     ],
 )

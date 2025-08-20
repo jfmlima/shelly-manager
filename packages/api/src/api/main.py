@@ -124,6 +124,10 @@ def create_app(config_file_path: str | None = None) -> Litestar:
                 lambda: _container.get_device_config_set_interactor(),
                 sync_to_thread=False,
             ),
+            "bulk_operations_use_case": Provide(
+                lambda: _container.get_bulk_operations_interactor(),
+                sync_to_thread=False,
+            ),
         },
         debug=os.getenv("DEBUG", "false").lower() == "true",
         lifespan=[lifespan],

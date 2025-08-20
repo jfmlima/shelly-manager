@@ -3,6 +3,7 @@
 from typing import Any
 
 from core.gateways.device.shelly_device_gateway import ShellyDeviceGateway
+from core.use_cases.bulk_operations import BulkOperationsUseCase
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
 from core.use_cases.get_component_actions import GetComponentActionsUseCase
@@ -22,6 +23,7 @@ class BaseContainer:
         self._status_interactor: CheckDeviceStatusUseCase | None = None
         self._device_config_interactor: GetConfigurationUseCase | None = None
         self._device_config_set_interactor: SetConfigurationUseCase | None = None
+        self._bulk_operations_interactor: BulkOperationsUseCase | None = None
 
     def get_rpc_client(self) -> Any:
         raise NotImplementedError
@@ -76,3 +78,10 @@ class BaseContainer:
                 device_gateway=self.get_device_gateway()
             )
         return self._device_config_set_interactor
+
+    def get_bulk_operations_interactor(self) -> BulkOperationsUseCase:
+        if self._bulk_operations_interactor is None:
+            self._bulk_operations_interactor = BulkOperationsUseCase(
+                device_gateway=self.get_device_gateway()
+            )
+        return self._bulk_operations_interactor

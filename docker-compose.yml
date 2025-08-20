@@ -7,7 +7,7 @@ services:
     build:
       context: .
       dockerfile: packages/api/Dockerfile
-      target: development # Use development stage if available
+      target: development
     environment:
       HOST: "0.0.0.0"
       PORT: "8000"
@@ -19,12 +19,11 @@ services:
       - ./packages/api/src:/app/src:ro
       - ./packages/core/src:/app/src_core:ro
     command: >
-      sh -lc 'uvicorn api.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8000}
-      --reload --reload-dir /app/src --reload-dir /app/src_core --log-level info'
+      sh -lc 'uvicorn api.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8000} --reload --reload-dir /app/src --reload-dir /app/src_core --log-level info'
     ports:
       - "8000:8000"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1" ]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -35,7 +34,7 @@ services:
     build:
       context: packages/web
       dockerfile: Dockerfile
-      target: development # Use development stage if available
+      target: development
     environment:
       - VITE_BASE_API_URL=http://localhost:8000
     volumes:
@@ -50,12 +49,11 @@ services:
       - api
     restart: unless-stopped
 
-  # CLI development container (useful for testing CLI commands)
   cli:
     build:
       context: .
       dockerfile: packages/cli/Dockerfile
-      target: development # Use development stage if available
+      target: development
     environment:
       SHELLY_CONFIG_FILE: "/app/config.json"
       PYTHONPATH: "/app/src:/app/src_core"
@@ -65,5 +63,5 @@ services:
       - ./packages/core/src:/app/src_core:ro
     profiles:
       - cli # Optional service, start with: docker-compose --profile cli up
-    command: tail -f /dev/null # Keep container running for interactive use
+    command: tail -f /dev/null
     restart: unless-stopped

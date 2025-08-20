@@ -77,6 +77,32 @@ class ProgressTracker:
 
         yield results
 
+    @asynccontextmanager
+    async def track_bulk_operation(
+        self, description: str, total_devices: int
+    ) -> AsyncGenerator[None, None]:
+        """
+        Context manager for tracking bulk operations.
+
+        Args:
+            description: Description of the bulk operation
+            total_devices: Total number of devices being processed
+
+        Yields:
+            None (just tracks progress)
+        """
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=self._console,
+            transient=True,
+        ) as progress:
+            task = progress.add_task(f"{description}...", total=total_devices)
+            try:
+                yield
+            finally:
+                progress.update(task, completed=total_devices)
+
 
 class ProgressTask:
     """Wrapper for progress task operations."""
