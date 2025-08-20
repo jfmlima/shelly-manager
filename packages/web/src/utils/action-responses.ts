@@ -161,3 +161,62 @@ export function isDestructiveAction(action: string): boolean {
     action.includes(destructiveType),
   );
 }
+
+/**
+ * Extracts the correct component key from an action name and component info
+ * @param action - Action name like "Switch.Toggle" or "Sys.Reboot"
+ * @param component - Component object with key, type, and id
+ * @param availableMethods - Optional list of available methods from device status
+ * @returns The correct component key to use for the API call
+ */
+export function getComponentKeyForAction(
+  action: string,
+  component: {
+    key: string;
+    type: string;
+    id: number | null;
+    available_actions: string[];
+  },
+): string {
+  // Extract component type from action (e.g., "Switch.Toggle" -> "switch")
+  const actionParts = action.split(".");
+  if (actionParts.length < 2) {
+    // If no dot, fallback to component.key
+    return component.key;
+  }
+
+  const componentTypeFromAction = actionParts[0];
+  const availableMethods = component?.available_actions;
+
+  // For components that need ID (switch, input, cover, etc.)
+  if (component.id !== null && component.id !== undefined) {
+    const keyWithId = `${componentTypeFromAction}:${component.id}`;
+
+    // If we have available methods, verify the key exists
+    if (availableMethods) {
+      const methodExists = availableMethods.some(
+        (method) => method.startsWith(keyWithId + ".") || method === keyWithId,
+      );
+      if (methodExists) {
+        return keyWithId;
+      }
+    }
+
+    return keyWithId;
+  }
+
+  // For components without ID (sys, cloud, zigbee, etc.)
+  if (availableMethods) {
+    const methodExists = availableMethods.some(
+      (method) =>
+        method.startsWith(componentTypeFromAction + ".") ||
+        method === componentTypeFromAction,
+    );
+    if (methodExists) {
+      return componentTypeFromAction;
+    }
+  }
+
+  // Fallback to original component.key
+  return component.key;
+}

@@ -51,6 +51,7 @@ import {
 import {
   shouldShowResponseData,
   hasResponseData,
+  getComponentKeyForAction,
 } from "@/utils/action-responses";
 import { ActionResponseModal } from "./action-response-modal";
 import type { Component } from "@/types/api";
@@ -133,10 +134,13 @@ export function ComponentActions({
     action: string,
     parameters: Record<string, unknown>,
   ) => {
+    // Get the correct component key from the action name
+    const correctComponentKey = getComponentKeyForAction(action, component);
+
     executeAction.mutate(
       {
         deviceIp,
-        componentKey: component.key,
+        componentKey: correctComponentKey,
         action,
         parameters,
       },
