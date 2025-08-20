@@ -92,6 +92,11 @@ export const deviceApi = {
     return response.data;
   },
 
+  factoryResetDevice: async (ip: string): Promise<ActionResult> => {
+    const results = await deviceApi.bulkExecuteOperation([ip], "factory_reset");
+    return results[0]; // Return the single result
+  },
+
   getDeviceConfig: async (ip: string): Promise<ConfigResponse> => {
     const response = await apiClient.get(`/devices/${ip}/config`);
     return response.data;

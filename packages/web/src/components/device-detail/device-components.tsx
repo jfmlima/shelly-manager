@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 import {
   SwitchComponent,
@@ -7,6 +9,7 @@ import {
   SystemComponent,
   CloudComponent,
   ZigbeeComponent,
+  BleComponent,
   GenericComponent,
 } from "./components";
 
@@ -17,6 +20,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import {
   isSwitchComponent,
   isInputComponent,
@@ -24,6 +29,7 @@ import {
   isSystemComponent,
   isCloudComponent,
   isZigbeeComponent,
+  isBleComponent,
 } from "@/types/api";
 import type { DeviceStatus, Component } from "@/types/api";
 
@@ -33,12 +39,22 @@ interface DeviceComponentsProps {
   onRefresh?: () => void;
 }
 
+const PRIORITY_COMPONENT_TYPES = [
+  "cloud",
+  "cover",
+  "switch",
+  "sys",
+  "zigbee",
+  "ble",
+];
+
 export function DeviceComponents({
   deviceStatus,
   isLoading,
   onRefresh,
 }: DeviceComponentsProps) {
   const { t } = useTranslation();
+  const [showAllComponents, setShowAllComponents] = useState(false);
 
   if (isLoading) {
     return (
@@ -141,6 +157,17 @@ export function DeviceComponents({
       );
     }
 
+    if (isBleComponent(component)) {
+      return (
+        <BleComponent
+          key={component.key}
+          component={component}
+          deviceIp={deviceIp}
+          onRefresh={onRefresh}
+        />
+      );
+    }
+
     // Generic component fallback
     return (
       <GenericComponent
@@ -151,6 +178,15 @@ export function DeviceComponents({
       />
     );
   };
+
+  const priorityComponents = deviceStatus.components.filter((component) =>
+    PRIORITY_COMPONENT_TYPES.includes(component.type),
+  );
+  const additionalComponents = deviceStatus.components.filter(
+    (component) => !PRIORITY_COMPONENT_TYPES.includes(component.type),
+  );
+
+  const hasAdditionalComponents = additionalComponents.length > 0;
 
   return (
     <Card>
@@ -163,8 +199,47 @@ export function DeviceComponents({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {deviceStatus.components.map(renderComponent)}
+        <div className="space-y-4">
+          {/* Always visible priority components */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {priorityComponents.map(renderComponent)}
+          </div>
+
+          {/* Collapsible additional components */}
+          {hasAdditionalComponents && (
+            <Collapsible
+              open={showAllComponents}
+              onOpenChange={setShowAllComponents}
+            >
+              <CollapsibleContent>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-4">
+                  {additionalComponents.map(renderComponent)}
+                </div>
+              </CollapsibleContent>
+
+              <div className="flex justify-center pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAllComponents(!showAllComponents)}
+                  className="text-sm"
+                >
+                  {showAllComponents ? (
+                    <>
+                      <ChevronUp className="mr-2 h-4 w-4" />
+                      {t("deviceDetail.components.showLess")}
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="mr-2 h-4 w-4" />
+                      {t("deviceDetail.components.showMore", {
+                        count: additionalComponents.length,
+                      })}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </Collapsible>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -117,6 +117,17 @@ export interface ZigbeeComponent extends Component {
   config: Record<string, unknown>;
 }
 
+export interface BleComponent extends Component {
+  type: "ble";
+  status: Record<string, unknown>;
+  config: {
+    enable: boolean;
+    rpc: {
+      enable: boolean;
+    };
+  };
+}
+
 export interface UpdateInfo {
   version: string;
   build_id: string;
@@ -225,7 +236,8 @@ export type ComponentType =
   | CoverComponent
   | SystemComponent
   | CloudComponent
-  | ZigbeeComponent;
+  | ZigbeeComponent
+  | BleComponent;
 
 export function isSwitchComponent(
   component: Component,
@@ -261,4 +273,10 @@ export function isZigbeeComponent(
   component: Component,
 ): component is ZigbeeComponent {
   return component.type === "zigbee";
+}
+
+export function isBleComponent(
+  component: Component,
+): component is BleComponent {
+  return component.type === "ble";
 }

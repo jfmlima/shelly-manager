@@ -102,6 +102,41 @@ export function useExecuteComponentAction(
   });
 }
 
+function formatActionName(action: string): string {
+  const specialCases: Record<string, string> = {
+    WiFi: "WiFi",
+    AP: "AP",
+    API: "API",
+    HTTP: "HTTP",
+    HTTPS: "HTTPS",
+    URL: "URL",
+    ID: "ID",
+    UI: "UI",
+    TLS: "TLS",
+    CA: "CA",
+    OTA: "OTA",
+    KVS: "KVS",
+    KNX: "KNX",
+    WS: "WS",
+    BLE: "BLE",
+    MQTT: "MQTT",
+  };
+
+  return (
+    action
+      // Insert space before capital letters following lowercase letters
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      // Handle consecutive capitals followed by lowercase (e.g., "HTTPRequest" → "HTTP Request")
+      .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2")
+      // Split by spaces and handle special cases
+      .split(" ")
+      .map((word) => specialCases[word] || word)
+      .join(" ")
+      // Ensure first letter is capitalized
+      .replace(/^./, (str) => str.toUpperCase())
+  );
+}
+
 export function getActionDisplayName(action: string): string {
   const cleanAction = action.includes(".")
     ? action.split(".").pop() || action
@@ -118,7 +153,6 @@ export function getActionDisplayName(action: string): string {
     Toggle: "Toggle",
     Set: "Set State",
     ResetCounters: "Reset Counters",
-    GetStatus: "Get Status",
 
     // Cover actions
     Open: "Open",
@@ -130,15 +164,37 @@ export function getActionDisplayName(action: string): string {
     StartNetworkSteering: "Start Pairing",
     ClearNetwork: "Clear Network",
 
-    // Input actions
-    SetConfig: "Update Config",
-
     // Cloud actions
     Connect: "Connect",
     Disconnect: "Disconnect",
+
+    // Common actions from the API
+    GetStatus: "Get Status",
+    GetConfig: "Get Config",
+    SetConfig: "Set Config",
+    SetAuth: "Set Auth",
+    GetDeviceInfo: "Get Device Info",
+    ListMethods: "List Methods",
+    CheckForUpdate: "Check for Update",
+    ResetWiFiConfig: "Reset WiFi Config",
+    DetectLocation: "Detect Location",
+    ListTimezones: "List Timezones",
+    GetComponents: "Get Components",
+    ListAPClients: "List AP Clients",
+    CheckExpression: "Check Expression",
+    DeleteAll: "Delete All",
+    ListSupported: "List Supported",
+    PutCode: "Put Code",
+    GetCode: "Get Code",
+    GetMany: "Get Many",
+    PutTLSClientKey: "Put TLS Client Key",
+    PutTLSClientCert: "Put TLS Client Cert",
+    PutUserCA: "Put User CA",
+    InstallAlt: "Install Alternative",
   };
 
-  return actionMap[cleanAction] || cleanAction;
+  // Check custom mappings first, then fall back to automatic formatting
+  return actionMap[cleanAction] || formatActionName(cleanAction);
 }
 
 export function getActionIcon(action: string): string {

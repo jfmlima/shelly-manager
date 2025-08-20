@@ -57,15 +57,10 @@ export function DeviceHeader({ deviceStatus, isLoading }: DeviceHeaderProps) {
   const { summary, ip } = deviceStatus;
 
   const getStatusBadge = () => {
-    if (summary.cloud_connected) {
-      return (
-        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-          {t("deviceDetail.deviceInfo.online")}
-        </Badge>
-      );
-    }
     return (
-      <Badge variant="outline">{t("deviceDetail.deviceInfo.offline")}</Badge>
+      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+        {t("deviceDetail.deviceInfo.online")}
+      </Badge>
     );
   };
 

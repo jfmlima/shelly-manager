@@ -9,7 +9,9 @@
     "edit": "Edit",
     "close": "Close",
     "confirm": "Confirm",
-    "retry": "Retry"
+    "retry": "Retry",
+    "yes": "Yes",
+    "no": "No"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -109,7 +111,7 @@
       "fetchStatus": "Refresh Status",
       "loadConfig": "Load Configuration",
       "saveConfig": "Save Configuration",
-      "configure": "Configure"
+      "factoryReset": "Factory Reset"
     },
     "status": {
       "title": "Device Status",
@@ -151,6 +153,8 @@
     "components": {
       "componentsDescription": "Device components and their current status ({{count}} total)",
       "noComponentData": "No component data available",
+      "showMore": "Show {{count}} more component(s)",
+      "showLess": "Show less",
       "switch": {
         "on": "ON",
         "off": "OFF",
@@ -195,6 +199,12 @@
         "description": "Zigbee network connectivity status",
         "networkState": "Network State"
       },
+      "ble": {
+        "enabled": "ENABLED",
+        "disabled": "DISABLED",
+        "description": "Bluetooth Low Energy connectivity status",
+        "rpcEnabled": "RPC Enabled"
+      },
       "generic": {
         "componentType": "Component type"
       }
@@ -214,6 +224,12 @@
         "warning": "The device will be temporarily unavailable during the reboot process.",
         "rebooting": "Rebooting...",
         "rebootDevice": "Reboot Device"
+      },
+      "factoryReset": {
+        "title": "Factory Reset Device",
+        "warning": "This will permanently erase all device settings, WiFi credentials, and configurations. The device will need to be reconfigured from scratch.",
+        "resetting": "Resetting...",
+        "factoryReset": "Factory Reset"
       }
     },
     "errors": {
@@ -226,7 +242,9 @@
       "firmwareUpdateStarted": "Firmware update started",
       "updateFailed": "Update failed",
       "deviceRebootInitiated": "Device reboot initiated",
-      "rebootFailed": "Reboot failed"
+      "rebootFailed": "Reboot failed",
+      "factoryResetInitiated": "Factory reset initiated",
+      "factoryResetFailed": "Factory reset failed"
     }
   },
   "settings": {
@@ -305,7 +323,8 @@
     "rebootDevice": "Are you sure you want to reboot this device?",
     "bulkReboot": "Are you sure you want to reboot {{count}} devices?",
     "updateFirmware": "Are you sure you want to update the firmware for this device?",
-    "bulkUpdate": "Are you sure you want to update the firmware for {{count}} devices?"
+    "bulkUpdate": "Are you sure you want to update the firmware for {{count}} devices?",
+    "factoryReset": "Are you sure you want to factory reset this device? This action cannot be undone."
   },
   "componentActions": {
     "title": "Component Actions",
@@ -320,6 +339,8 @@
     "destructiveWarning": "This is a destructive action and cannot be undone.",
     "executing": "Executing...",
     "confirm": "Confirm",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "showMoreActions": "Show {{count}} more action(s)",
+    "showFewerActions": "Show fewer actions"
   }
 }

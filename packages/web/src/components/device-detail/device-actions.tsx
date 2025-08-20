@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Download, Power, RefreshCw, AlertTriangle } from "lucide-react";
+import {
+  Download,
+  Power,
+  RefreshCw,
+  AlertTriangle,
+  AlertCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -50,6 +56,7 @@ export function DeviceActions({
   );
   const [rebootDialogOpen, setRebootDialogOpen] = useState(false);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const [factoryResetDialogOpen, setFactoryResetDialogOpen] = useState(false);
 
   const updateMutation = useMutation({
     mutationFn: (channel: "stable" | "beta") =>
@@ -79,6 +86,25 @@ export function DeviceActions({
         setRebootDialogOpen(false);
       } else {
         toast.error(result.error || t("deviceDetail.messages.rebootFailed"));
+      }
+    },
+    onError: (error) => {
+      toast.error(handleApiError(error));
+    },
+  });
+
+  const factoryResetMutation = useMutation({
+    mutationFn: () => deviceApi.factoryResetDevice(ip),
+    onSuccess: (result) => {
+      if (result.success) {
+        toast.success(
+          result.message || t("deviceDetail.messages.factoryResetInitiated"),
+        );
+        setFactoryResetDialogOpen(false);
+      } else {
+        toast.error(
+          result.error || t("deviceDetail.messages.factoryResetFailed"),
+        );
       }
     },
     onError: (error) => {
@@ -219,7 +245,10 @@ export function DeviceActions({
           {/* Reboot Device */}
           <Dialog open={rebootDialogOpen} onOpenChange={setRebootDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="flex items-center space-x-2">
+              <Button
+                variant="destructive"
+                className="flex items-center space-x-2"
+              >
                 <Power className="h-4 w-4" />
                 <span>{t("deviceDetail.actions.reboot")}</span>
               </Button>
@@ -264,14 +293,59 @@ export function DeviceActions({
             </DialogContent>
           </Dialog>
 
-          {/* Configuration Management - Placeholder */}
-          <Button
-            variant="outline"
-            disabled
-            className="flex items-center space-x-2"
+          {/* Factory Reset Device */}
+          <Dialog
+            open={factoryResetDialogOpen}
+            onOpenChange={setFactoryResetDialogOpen}
           >
-            <span>{t("deviceDetail.actions.configure")}</span>
-          </Button>
+            <DialogTrigger asChild>
+              <Button
+                variant="destructive"
+                className="flex items-center space-x-2"
+              >
+                <AlertCircle className="h-4 w-4" />
+                <span>{t("deviceDetail.actions.factoryReset")}</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center space-x-2">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                  <span>{t("deviceDetail.dialogs.factoryReset.title")}</span>
+                </DialogTitle>
+                <DialogDescription>
+                  {t("confirmations.factoryReset")}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg">
+                <div className="flex items-center space-x-2 text-red-800 dark:text-red-200">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="text-sm">
+                    {t("deviceDetail.dialogs.factoryReset.warning")}
+                  </span>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setFactoryResetDialogOpen(false)}
+                >
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => factoryResetMutation.mutate()}
+                  disabled={factoryResetMutation.isPending}
+                >
+                  {factoryResetMutation.isPending
+                    ? t("deviceDetail.dialogs.factoryReset.resetting")
+                    : t("deviceDetail.dialogs.factoryReset.factoryReset")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </CardContent>
     </Card>

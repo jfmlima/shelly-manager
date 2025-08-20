@@ -23,6 +23,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -62,6 +63,21 @@ interface ComponentActionsProps {
   onActionExecuted?: () => void;
 }
 
+const PRIORITY_ACTION_PATTERNS = [
+  /^(.*\.)?Get/,
+  /^(.*\.)?Set/,
+  /^(.*\.)?Reboot$/,
+  /^(.*\.)?FactoryReset$/,
+  /^(.*\.)?Toggle$/,
+  /^(.*\.)?Connect$/,
+  /^(.*\.)?Disconnect$/,
+  /^(.*\.)?Update$/,
+  /^(.*\.)?Open$/,
+  /^(.*\.)?Close$/,
+];
+
+const MAX_VISIBLE_ACTIONS = 10;
+
 const iconComponents = {
   Power,
   Download,
@@ -82,6 +98,28 @@ const iconComponents = {
   Play,
 };
 
+function getActionPriorityScore(action: string): number {
+  for (let i = 0; i < PRIORITY_ACTION_PATTERNS.length; i++) {
+    if (PRIORITY_ACTION_PATTERNS[i].test(action)) {
+      return i;
+    }
+  }
+  return PRIORITY_ACTION_PATTERNS.length;
+}
+
+function sortActionsByPriority(actions: string[]): string[] {
+  return [...actions].sort((a, b) => {
+    const scoreA = getActionPriorityScore(a);
+    const scoreB = getActionPriorityScore(b);
+
+    if (scoreA !== scoreB) {
+      return scoreA - scoreB;
+    }
+
+    return a.localeCompare(b);
+  });
+}
+
 export function ComponentActions({
   component,
   deviceIp,
@@ -93,6 +131,7 @@ export function ComponentActions({
     Record<string, unknown>
   >({});
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showAllActions, setShowAllActions] = useState(false);
 
   const { responseModalState, openResponseModal, closeResponseModal } =
     useActionResponseModal();
@@ -119,6 +158,11 @@ export function ComponentActions({
     );
   }
 
+  const sortedActions = sortActionsByPriority(component.available_actions);
+  const priorityActions = sortedActions.slice(0, MAX_VISIBLE_ACTIONS);
+  const additionalActions = sortedActions.slice(MAX_VISIBLE_ACTIONS);
+  const hasAdditionalActions = additionalActions.length > 0;
+
   const handleActionClick = (action: string) => {
     setSelectedAction(action);
     setActionParameters({});
@@ -134,7 +178,6 @@ export function ComponentActions({
     action: string,
     parameters: Record<string, unknown>,
   ) => {
-    // Get the correct component key from the action name
     const correctComponentKey = getComponentKeyForAction(action, component);
 
     executeAction.mutate(
@@ -272,9 +315,44 @@ export function ComponentActions({
         </Badge>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {component.available_actions.map((action) =>
-          renderActionButton(action),
+      <div className="space-y-3">
+        {/* Always visible priority actions */}
+        <div className="flex flex-wrap gap-2">
+          {priorityActions.map((action) => renderActionButton(action))}
+        </div>
+
+        {/* Collapsible additional actions */}
+        {hasAdditionalActions && (
+          <Collapsible open={showAllActions} onOpenChange={setShowAllActions}>
+            <CollapsibleContent>
+              <div className="flex flex-wrap gap-2 pt-2">
+                {additionalActions.map((action) => renderActionButton(action))}
+              </div>
+            </CollapsibleContent>
+
+            <div className="flex justify-center pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAllActions(!showAllActions)}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                {showAllActions ? (
+                  <>
+                    <ChevronUp className="mr-1 h-3 w-3" />
+                    {t("componentActions.showFewerActions")}
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="mr-1 h-3 w-3" />
+                    {t("componentActions.showMoreActions", {
+                      count: additionalActions.length,
+                    })}
+                  </>
+                )}
+              </Button>
+            </div>
+          </Collapsible>
         )}
       </div>
 
