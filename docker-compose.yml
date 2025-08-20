@@ -6,23 +6,20 @@ services:
   api:
     build:
       context: .
-      dockerfile: packages/api/Dockerfile
+      dockerfile: packages/api/dev.Dockerfile
     environment:
       HOST: "0.0.0.0"
       PORT: "8000"
       DEBUG: "true"
       SHELLY_CONFIG_FILE: "/app/config.json"
-      PYTHONPATH: "/app/src:/app/src_core"
     volumes:
       - ./config.json:/app/config.json:ro
-      - ./packages/api/src:/app/src:ro
-      - ./packages/core/src:/app/src_core:ro
-    command: >
-      sh -lc '/app/.venv/bin/uvicorn api.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8000} --reload --reload-dir /app/src --reload-dir /app/src_core --log-level info'
+      - ./packages/api/src:/app/packages/api/src:rw
+      - ./packages/core/src:/app/packages/core/src:rw
     ports:
       - "8000:8000"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1" ]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -33,6 +30,7 @@ services:
     build:
       context: packages/web
       dockerfile: Dockerfile
+      target: builder
     environment:
       - VITE_BASE_API_URL=http://localhost:8000
     volumes:
@@ -41,8 +39,9 @@ services:
       - ./packages/web/package.json:/app/package.json:ro
       - ./packages/web/vite.config.ts:/app/vite.config.ts:ro
       - ./packages/web/tsconfig.json:/app/tsconfig.json:ro
+    command: npm run dev -- --host 0.0.0.0 --port 5173
     ports:
-      - "5173:5173" # Vite dev server port
+      - "5173:5173"
     depends_on:
       - api
     restart: unless-stopped
@@ -50,15 +49,14 @@ services:
   cli:
     build:
       context: .
-      dockerfile: packages/cli/Dockerfile
+      dockerfile: packages/cli/dev.Dockerfile
     environment:
       SHELLY_CONFIG_FILE: "/app/config.json"
-      PYTHONPATH: "/app/src:/app/src_core"
     volumes:
       - ./config.json:/app/config.json:ro
-      - ./packages/cli/src:/app/src:ro
-      - ./packages/core/src:/app/src_core:ro
+      - ./packages/cli/src:/app/packages/cli/src:rw
+      - ./packages/core/src:/app/packages/core/src:rw
     profiles:
-      - cli # Optional service, start with: docker-compose --profile cli up
-    command: tail -f /dev/null
+      - cli
+    entrypoint: [ "tail", "-f", "/dev/null" ]
     restart: unless-stopped

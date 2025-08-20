@@ -1,44 +1,35 @@
-# syntax=docker/dockerfile:1
-
 ARG PYTHON_VERSION=3.11-slim
 
-# Build stage with uv
-FROM python:${PYTHON_VERSION} AS builder
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS builder
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
-
-# Set environment for uv
-ENV UV_CACHE_DIR=/tmp/uv-cache
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+ENV UV_PYTHON_DOWNLOADS=0
 
 WORKDIR /app
 
-# Copy workspace files
 COPY pyproject.toml uv.lock ./
 COPY packages/core/ packages/core/
 COPY packages/api/ packages/api/
 
-# Install dependencies with uv
-RUN uv sync --frozen --no-dev --package shelly-manager-api
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --package shelly-manager-api
 
-# Runtime stage
 FROM python:${PYTHON_VERSION} AS runtime
 
-# Copy uv and installed packages
-COPY --from=builder /app/.venv /app/.venv
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Set environment
+RUN useradd -u 10001 -m app
+
+COPY --from=builder --chown=app:app /app/.venv /app/.venv
+COPY --from=builder --chown=app:app /app/packages/core /app/packages/core
+COPY --from=builder --chown=app:app /app/packages/api /app/packages/api
+
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 ENV HOST=0.0.0.0 PORT=8000 DEBUG=false
 
 WORKDIR /app
-
-# Non-root user
-RUN useradd -u 10001 -m appuser
-USER appuser
-
+USER app
 EXPOSE 8000
 
-# Run with uvicorn
 CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
