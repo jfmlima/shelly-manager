@@ -111,6 +111,7 @@ export function DeviceDetail() {
       <DeviceComponents
         deviceStatus={deviceStatus || null}
         isLoading={isLoading}
+        onRefresh={() => refetch()}
       />
     </div>
   );

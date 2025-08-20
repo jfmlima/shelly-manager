@@ -59,6 +59,7 @@
     "selectedDevices": "Selected Devices",
     "updateFirmware": "Update Firmware",
     "rebootDevices": "Reboot Devices",
+    "factoryReset": "Factory Reset",
     "checkStatus": "Check Status",
     "exportConfigurations": "Export Configurations",
     "applyConfiguration": "Apply Configuration",
@@ -73,18 +74,26 @@
     "pending": "Pending",
     "viewDetails": "View Details",
     "startNewAction": "Start New Action",
+    "confirmFactoryReset": "I understand this will erase all device settings",
     "descriptions": {
       "updateFirmware": "Update firmware on selected devices",
       "rebootDevices": "Restart selected devices",
+      "factoryReset": "Reset devices to factory defaults (WARNING: Erases all settings)",
       "checkStatus": "Fetch status for selected devices",
       "exportConfigurations": "Download device configurations",
       "applyConfiguration": "Apply configuration template"
+    },
+    "warnings": {
+      "factoryReset": "⚠️ Destructive Action",
+      "factoryResetDescription": "This will permanently erase all device settings, WiFi credentials, and configurations. Devices will need to be reconfigured from scratch."
     },
     "messages": {
       "updateSuccess": "Successfully updated {{count}} devices",
       "updatePartial": "Updated {{successful}} devices, {{failed}} failed",
       "rebootSuccess": "Successfully rebooted {{count}} devices",
       "rebootPartial": "Rebooted {{successful}} devices, {{failed}} failed",
+      "factoryResetSuccess": "Successfully reset {{count}} devices",
+      "factoryResetPartial": "Reset {{successful}} devices, {{failed}} failed",
       "actionNotImplemented": "Action not implemented yet"
     }
   },
@@ -297,5 +306,20 @@
     "bulkReboot": "Are you sure you want to reboot {{count}} devices?",
     "updateFirmware": "Are you sure you want to update the firmware for this device?",
     "bulkUpdate": "Are you sure you want to update the firmware for {{count}} devices?"
+  },
+  "componentActions": {
+    "title": "Component Actions",
+    "description": "Available actions for this component",
+    "available": "available",
+    "noActionsAvailable": "No actions available for this component",
+    "executingAction": "Executing {{action}}...",
+    "actionExecuted": "{{action}} executed successfully",
+    "actionFailed": "{{action}} failed: {{error}}",
+    "confirmAction": "Confirm Action",
+    "confirmDescription": "Are you sure you want to execute this action?",
+    "destructiveWarning": "This is a destructive action and cannot be undone.",
+    "executing": "Executing...",
+    "confirm": "Confirm",
+    "cancel": "Cancel"
   }
 }

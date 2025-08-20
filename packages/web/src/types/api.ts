@@ -15,6 +15,7 @@ export interface Component {
   id: number | null;
   status: Record<string, unknown>;
   config: Record<string, unknown>;
+  available_actions: string[];
 }
 
 export interface SwitchComponent extends Component {
@@ -153,6 +154,7 @@ export interface DeviceStatus {
   firmware: FirmwareInfo;
   last_updated: string;
   total_components: number;
+  available_methods: string[];
 }
 
 export interface DeviceStatusError {
@@ -197,6 +199,23 @@ export interface ScanRequest {
   use_predefined?: boolean;
   timeout?: number;
   max_workers?: number;
+}
+
+export interface ComponentActionResult {
+  ip: string;
+  component_key: string;
+  action: string;
+  success: boolean;
+  message?: string;
+  error?: string;
+  data?: unknown;
+}
+
+export interface BulkOperationRequest {
+  device_ips: string[];
+  operation: "update" | "reboot" | "factory_reset";
+  channel?: string;
+  [key: string]: unknown;
 }
 
 // Type guards for components

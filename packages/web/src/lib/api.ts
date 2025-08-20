@@ -7,6 +7,7 @@ import type {
   BulkUpdateRequest,
   ConfigUpdateRequest,
   ScanRequest,
+  ComponentActionResult,
 } from "@/types/api";
 
 const baseURL = import.meta.env.VITE_BASE_API_URL || "http://localhost:8000";
@@ -42,13 +43,11 @@ apiClient.interceptors.response.use(
 );
 
 export const deviceApi = {
-  // Scan for devices
   scanDevices: async (params: ScanRequest): Promise<Device[]> => {
     const response = await apiClient.get("/devices/scan", { params });
     return response.data;
   },
 
-  // Get device status
   getDeviceStatus: async (
     ip: string,
     includeUpdates = true,
@@ -59,38 +58,45 @@ export const deviceApi = {
     return response.data;
   },
 
-  // Update device firmware
   updateDevice: async (
     ip: string,
     channel: "stable" | "beta" = "stable",
   ): Promise<ActionResult> => {
-    const response = await apiClient.post(`/devices/${ip}/update`, null, {
-      params: { channel },
+    const response = await apiClient.post(`/devices/${ip}/update`, { channel });
+    return response.data;
+  },
+
+  bulkExecuteOperation: async (
+    deviceIps: string[],
+    operation: "update" | "reboot" | "factory_reset",
+    parameters: Record<string, unknown> = {},
+  ): Promise<ActionResult[]> => {
+    const response = await apiClient.post("/devices/bulk", {
+      device_ips: deviceIps,
+      operation,
+      ...parameters,
     });
     return response.data;
   },
 
-  // Bulk update devices
   bulkUpdateDevices: async (
     request: BulkUpdateRequest,
   ): Promise<ActionResult[]> => {
-    const response = await apiClient.post("/devices/bulk/update", request);
-    return response.data;
+    return deviceApi.bulkExecuteOperation(request.device_ips, "update", {
+      channel: request.channel || "stable",
+    });
   },
 
-  // Reboot device
   rebootDevice: async (ip: string): Promise<ActionResult> => {
     const response = await apiClient.post(`/devices/${ip}/reboot`);
     return response.data;
   },
 
-  // Get device configuration
   getDeviceConfig: async (ip: string): Promise<ConfigResponse> => {
     const response = await apiClient.get(`/devices/${ip}/config`);
     return response.data;
   },
 
-  // Update device configuration
   updateDeviceConfig: async (
     ip: string,
     request: ConfigUpdateRequest,
@@ -98,9 +104,21 @@ export const deviceApi = {
     const response = await apiClient.post(`/devices/${ip}/config`, request);
     return response.data;
   },
+
+  executeComponentAction: async (
+    ip: string,
+    componentKey: string,
+    action: string,
+    parameters: Record<string, unknown> = {},
+  ): Promise<ComponentActionResult> => {
+    const response = await apiClient.post(
+      `/devices/${ip}/components/${componentKey}/actions/${action}`,
+      { parameters },
+    );
+    return response.data;
+  },
 };
 
-// Error handling utility
 export const handleApiError = (error: unknown): string => {
   if (typeof error === "object" && error !== null) {
     const errorObj = error as Record<string, unknown>;

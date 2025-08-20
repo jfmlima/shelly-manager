@@ -43,6 +43,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
 import { deviceApi, handleApiError } from "@/lib/api";
 import type { Device, ActionResult } from "@/types/api";
 
@@ -53,7 +54,13 @@ interface BulkActionsDialogProps {
   onComplete?: () => void;
 }
 
-type BulkActionType = "update" | "reboot" | "status" | "export" | "config";
+type BulkActionType =
+  | "update"
+  | "reboot"
+  | "factory_reset"
+  | "status"
+  | "export"
+  | "config";
 
 interface BulkProgress {
   total: number;
@@ -78,11 +85,13 @@ export function BulkActionsDialog({
   );
   const [progress, setProgress] = useState<BulkProgress | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [confirmFactoryReset, setConfirmFactoryReset] = useState(false);
 
   const resetDialog = () => {
     setSelectedAction(null);
     setProgress(null);
     setShowDetails(false);
+    setConfirmFactoryReset(false);
   };
 
   const handleClose = () => {
@@ -95,8 +104,7 @@ export function BulkActionsDialog({
   const bulkUpdateMutation = useMutation({
     mutationFn: async () => {
       const deviceIps = selectedDevices.map((device) => device.ip);
-      return deviceApi.bulkUpdateDevices({
-        device_ips: deviceIps,
+      return deviceApi.bulkExecuteOperation(deviceIps, "update", {
         channel: updateChannel,
       });
     },
@@ -132,56 +140,20 @@ export function BulkActionsDialog({
 
   const bulkRebootMutation = useMutation({
     mutationFn: async () => {
-      const results: ActionResult[] = [];
-      setProgress({
-        total: selectedDevices.length,
-        completed: 0,
-        failed: 0,
-        results: [],
-        isRunning: true,
-      });
-
-      for (const device of selectedDevices) {
-        try {
-          const result = await deviceApi.rebootDevice(device.ip);
-          results.push(result);
-          setProgress((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  completed: prev.completed + (result.success ? 1 : 0),
-                  failed: prev.failed + (result.success ? 0 : 1),
-                  results,
-                }
-              : null,
-          );
-        } catch (error) {
-          const errorResult: ActionResult = {
-            ip: device.ip,
-            success: false,
-            error: handleApiError(error),
-            action_type: "reboot",
-          };
-          results.push(errorResult);
-          setProgress((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  failed: prev.failed + 1,
-                  results,
-                }
-              : null,
-          );
-        }
-      }
-
-      return results;
+      const deviceIps = selectedDevices.map((device) => device.ip);
+      return deviceApi.bulkExecuteOperation(deviceIps, "reboot");
     },
     onSuccess: (results) => {
       const successful = results.filter((r) => r.success).length;
       const failed = results.filter((r) => !r.success).length;
 
-      setProgress((prev) => (prev ? { ...prev, isRunning: false } : null));
+      setProgress({
+        total: results.length,
+        completed: successful,
+        failed,
+        results,
+        isRunning: false,
+      });
 
       if (failed === 0) {
         toast.success(
@@ -194,6 +166,45 @@ export function BulkActionsDialog({
       }
 
       onComplete?.();
+    },
+    onError: (error) => {
+      toast.error(handleApiError(error));
+      setProgress((prev) => (prev ? { ...prev, isRunning: false } : null));
+    },
+  });
+
+  const bulkFactoryResetMutation = useMutation({
+    mutationFn: async () => {
+      const deviceIps = selectedDevices.map((device) => device.ip);
+      return deviceApi.bulkExecuteOperation(deviceIps, "factory_reset");
+    },
+    onSuccess: (results) => {
+      const successful = results.filter((r) => r.success).length;
+      const failed = results.filter((r) => !r.success).length;
+
+      setProgress({
+        total: results.length,
+        completed: successful,
+        failed,
+        results,
+        isRunning: false,
+      });
+
+      if (failed === 0) {
+        toast.success(
+          t("bulkActions.messages.factoryResetSuccess", { count: successful }),
+        );
+      } else {
+        toast.warning(
+          t("bulkActions.messages.factoryResetPartial", { successful, failed }),
+        );
+      }
+
+      onComplete?.();
+    },
+    onError: (error) => {
+      toast.error(handleApiError(error));
+      setProgress((prev) => (prev ? { ...prev, isRunning: false } : null));
     },
   });
 
@@ -215,6 +226,9 @@ export function BulkActionsDialog({
       case "reboot":
         bulkRebootMutation.mutate();
         break;
+      case "factory_reset":
+        bulkFactoryResetMutation.mutate();
+        break;
       default:
         toast.error(t("bulkActions.messages.actionNotImplemented"));
         setProgress((prev) => (prev ? { ...prev, isRunning: false } : null));
@@ -227,6 +241,8 @@ export function BulkActionsDialog({
         return <Download className="h-4 w-4" />;
       case "reboot":
         return <Power className="h-4 w-4" />;
+      case "factory_reset":
+        return <AlertCircle className="h-4 w-4" />;
       case "status":
         return <RefreshCw className="h-4 w-4" />;
       case "export":
@@ -256,6 +272,12 @@ export function BulkActionsDialog({
       title: t("bulkActions.rebootDevices"),
       description: t("bulkActions.descriptions.rebootDevices"),
       icon: <Power className="h-6 w-6" />,
+    },
+    {
+      id: "factory_reset" as BulkActionType,
+      title: t("bulkActions.factoryReset"),
+      description: t("bulkActions.descriptions.factoryReset"),
+      icon: <AlertCircle className="h-6 w-6" />,
     },
     {
       id: "status" as BulkActionType,
@@ -315,7 +337,11 @@ export function BulkActionsDialog({
               {actionCards.map((action) => (
                 <Card
                   key={action.id}
-                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  className={`cursor-pointer hover:shadow-md transition-shadow ${
+                    action.id === "factory_reset"
+                      ? "border-destructive/20 hover:border-destructive/40"
+                      : ""
+                  }`}
                   onClick={() => setSelectedAction(action.id)}
                 >
                   <CardHeader>
@@ -368,8 +394,44 @@ export function BulkActionsDialog({
                   </div>
                 )}
 
+                {selectedAction === "factory_reset" && (
+                  <div className="space-y-4 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <AlertCircle className="h-5 w-5 text-destructive" />
+                      <span className="font-medium text-destructive">
+                        {t("bulkActions.warnings.factoryReset")}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {t("bulkActions.warnings.factoryResetDescription")}
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="confirm-factory-reset"
+                        checked={confirmFactoryReset}
+                        onCheckedChange={(checked) =>
+                          setConfirmFactoryReset(checked === true)
+                        }
+                      />
+                      <label
+                        htmlFor="confirm-factory-reset"
+                        className="text-sm font-medium"
+                      >
+                        {t("bulkActions.confirmFactoryReset")}
+                      </label>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex space-x-2">
-                  <Button onClick={executeAction}>{t("common.confirm")}</Button>
+                  <Button
+                    onClick={executeAction}
+                    disabled={
+                      selectedAction === "factory_reset" && !confirmFactoryReset
+                    }
+                  >
+                    {t("common.confirm")}
+                  </Button>
                   <Button
                     variant="outline"
                     onClick={() => setSelectedAction(null)}
