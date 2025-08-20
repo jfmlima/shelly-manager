@@ -376,7 +376,7 @@ uv run --package shelly-manager-cli pytest packages/cli/tests/unit/use_cases/ -v
 uv run --package shelly-manager-cli pytest packages/cli/tests/ --cov=cli --cov-report=html
 ```
 
-Detailed testing documentation: [tests/README.md](tests/README.md)
+**Testing Documentation**: Tests are located in `packages/cli/tests/` with unit tests for commands and use cases.
 
 ## Architecture
 

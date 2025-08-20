@@ -17,6 +17,9 @@ Manage Shelly devices on your local network without connecting them to the Shell
 - Device configuration changes
 - Bulk operations across multiple devices
 - Status monitoring
+- Component action discovery and execution
+- Dynamic device capability detection  
+- Component-specific controls (switches, covers, lights, etc.)
 
 Available as:
 
@@ -133,13 +136,17 @@ GET /api/health                    # Service health check
 GET /api/devices/scan              # Discover devices on network
 GET /api/devices/{ip}/status       # Get device status
 
-# Device operations
+# Device operations  
 POST /api/devices/{ip}/update      # Update device firmware
 POST /api/devices/{ip}/reboot      # Reboot device
 POST /api/devices/bulk/update      # Bulk firmware updates
 
+# Component Actions
+GET /api/devices/{ip}/components/actions           # Discover available actions
+POST /api/devices/{ip}/components/{id}/action      # Execute component action
+
 # Configuration management
-GET /api/devices/{ip}/config       # Get device configuration
+GET /api/devices/{ip}/config       # Get device configuration  
 POST /api/devices/{ip}/config      # Update device configuration
 ```
 

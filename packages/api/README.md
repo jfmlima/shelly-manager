@@ -63,13 +63,17 @@ GET /api/devices/scan              # Scan network for devices
 GET /api/devices/{ip}/status       # Get device status
   ?include_updates=true            # Include update information
 
-POST /api/devices/{ip}/update      # Update device firmware
+POST /api/devices/{ip}/update      # Update device firmware  
   ?channel=stable                  # Update channel (stable/beta)
 
 POST /api/devices/{ip}/reboot      # Reboot device
 
 POST /api/devices/bulk/update      # Bulk firmware updates
   # Body: {"device_ips": ["192.168.1.100", "192.168.1.101"], "channel": "stable"}
+
+# Component Actions
+GET /api/devices/{ip}/components/actions           # Discover available actions
+POST /api/devices/{ip}/components/{id}/action      # Execute component action
 ```
 
 ### Configuration Management
@@ -81,6 +85,21 @@ POST /api/devices/{ip}/config      # Update device configuration
 
 GET /api/config                    # Get global configuration
 PUT /api/config                    # Update global configuration
+```
+
+### Component Actions
+
+The Component Actions system provides dynamic action discovery and execution for individual device components.
+
+#### Discovery
+```bash
+GET /api/devices/{ip}/components/actions    # Get all available actions for device
+```
+
+
+#### Execute Component Action
+```bash
+POST /api/devices/{ip}/components/{component_id}/action
 ```
 
 ### Monitoring (Future)
@@ -129,6 +148,73 @@ curl -X POST "http://localhost:8000/api/devices/192.168.1.100/update?channel=sta
   "message": "Firmware update initiated",
   "action_type": "firmware_update"
 }
+```
+
+### Component Actions Examples
+
+#### Discover Device Actions
+```bash
+curl "http://localhost:8000/api/devices/192.168.1.100/components/actions"
+```
+
+**Response Example:**
+```json
+{
+  "device_ip": "192.168.1.100",
+  "components": [
+    {
+      "component_id": "switch:0",
+      "component_type": "switch", 
+      "available_actions": [
+        {
+          "action": "toggle",
+          "description": "Toggle switch state",
+          "parameters": {}
+        },
+        {
+          "action": "turn_on", 
+          "description": "Turn switch on",
+          "parameters": {}
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### Toggle a Switch
+```bash
+curl -X POST "http://localhost:8000/api/devices/192.168.1.100/components/switch:0/action" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "toggle", "params": {}}'
+```
+
+**Request Body:**
+```json
+{
+  "action": "toggle",
+  "params": {}
+}
+```
+
+**Response:**
+```json
+{
+  "ip": "192.168.1.100",
+  "component_id": "switch:0", 
+  "action": "toggle",
+  "success": true,
+  "result": {
+    "new_state": "on"
+  }
+}
+```
+
+#### Open a Cover
+```bash
+curl -X POST "http://localhost:8000/api/devices/192.168.1.100/components/cover:0/action" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "open", "params": {}}'
 ```
 
 ### Error Response

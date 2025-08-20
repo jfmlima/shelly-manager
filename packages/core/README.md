@@ -11,6 +11,7 @@ Contains the core business logic that defines how Shelly Manager works. Framewor
 - Domain models for Shelly devices and operations
 - Business rules for device management
 - Use cases that orchestrate operations (scan, update, reboot)
+- Component action discovery and execution use cases
 - Gateway contracts for external dependencies
 - No dependencies on frameworks, databases, or UI
 
@@ -29,6 +30,8 @@ packages/core/src/core/
 │   ├── scan_devices.py      # Device discovery
 │   ├── update_device_firmware.py
 │   ├── reboot_device.py
+│   ├── execute_component_action.py    # Component action execution
+│   ├── get_component_actions.py       # Component action discovery
 │   └── ...
 ├── gateways/                 # External interfaces (abstract)
 │   ├── device/              # Device communication contracts
