@@ -9,22 +9,26 @@ from ..gateways.device import DeviceGateway
 
 
 class SetConfigurationUseCase:
+    """Use case for setting device configuration."""
 
-    def __init__(self, device_gateway: DeviceGateway):
+    def __init__(self, device_gateway: DeviceGateway) -> None:
         self._device_gateway = device_gateway
 
-    async def execute(self, request: SetConfigurationRequest) -> dict[str, Any]:
-        """
-        Set device configuration.
+    async def execute(
+        self, request: SetConfigurationRequest, **kwargs: Any
+    ) -> dict[str, Any]:
+        """Set device configuration.
 
         Args:
-            request: SetConfigurationRequest with validated IP and config
+            request: Set configuration request containing device IP and configuration
+            **kwargs: Additional keyword arguments (unused but kept for compatibility)
 
         Returns:
-            Result dictionary with success status and message
+            Dictionary with success status and message
 
         Raises:
-            ValueError: If configuration data is invalid
+            ValueError: If configuration data is empty
+            Exception: Gateway exceptions are propagated (ConnectionError, etc.)
         """
         if not request.config:
             raise ValueError("Configuration data required")
@@ -32,6 +36,7 @@ class SetConfigurationUseCase:
         success = await self._device_gateway.set_device_config(
             request.device_ip, request.config
         )
+
         return {
             "success": success,
             "message": (

@@ -1,23 +1,23 @@
 from datetime import datetime
 
 from api.controllers.devices import (
+    execute_component_action,
+    get_component_actions,
     get_device_config,
     get_device_status,
-    reboot_device,
     scan_devices,
     set_device_config,
-    update_device,
 )
-from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.entities.device_status import DeviceStatus
+from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.enums.enums import Status
 from core.domain.value_objects.action_result import ActionResult
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
+from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
+from core.use_cases.get_component_actions import GetComponentActionsUseCase
 from core.use_cases.get_configuration import GetConfigurationUseCase
-from core.use_cases.reboot_device import RebootDeviceUseCase
 from core.use_cases.scan_devices import ScanDevicesUseCase
 from core.use_cases.set_configuration import SetConfigurationUseCase
-from core.use_cases.update_device_firmware import UpdateDeviceFirmwareUseCase
 from litestar.di import Provide
 from litestar.testing import create_test_client
 
@@ -58,7 +58,7 @@ class TestDevicesController:
             assert data[0]["status"] == "detected"
 
     def test_update_device_successfully(self):
-        class MockUpdateDeviceUseCase(UpdateDeviceFirmwareUseCase):
+        class MockExecuteComponentActionUseCase(ExecuteComponentActionUseCase):
             def __init__(self):
                 pass
 
@@ -67,27 +67,31 @@ class TestDevicesController:
                     device_ip=request.device_ip,
                     success=True,
                     message="Update started",
-                    action_type="firmware_update",
+                    action_type="OTA",
                 )
 
         with create_test_client(
-            route_handlers=[update_device],
+            route_handlers=[execute_component_action],
             dependencies={
-                "update_interactor": Provide(
-                    lambda: MockUpdateDeviceUseCase(), sync_to_thread=False
+                "action_interactor": Provide(
+                    lambda: MockExecuteComponentActionUseCase(), sync_to_thread=False
                 )
             },
         ) as client:
-            response = client.post("/192.168.1.100/update")
+            response = client.post(
+                "/192.168.1.100/components/sys/actions/OTA", json={"channel": "beta"}
+            )
 
             assert response.status_code == 200
             data = response.json()
             assert data["ip"] == "192.168.1.100"
             assert data["success"] is True
             assert data["message"] == "Update started"
+            assert data["component_key"] == "sys"
+            assert data["action"] == "OTA"
 
     def test_reboot_device_successfully(self):
-        class MockRebootDeviceUseCase(RebootDeviceUseCase):
+        class MockExecuteComponentActionUseCase(ExecuteComponentActionUseCase):
             def __init__(self):
                 pass
 
@@ -96,24 +100,95 @@ class TestDevicesController:
                     device_ip=request.device_ip,
                     success=True,
                     message="Reboot initiated",
-                    action_type="reboot",
+                    action_type="Reboot",
                 )
 
         with create_test_client(
-            route_handlers=[reboot_device],
+            route_handlers=[execute_component_action],
             dependencies={
-                "reboot_interactor": Provide(
-                    lambda: MockRebootDeviceUseCase(), sync_to_thread=False
+                "action_interactor": Provide(
+                    lambda: MockExecuteComponentActionUseCase(), sync_to_thread=False
                 )
             },
         ) as client:
-            response = client.post("/192.168.1.100/reboot")
+            response = client.post(
+                "/192.168.1.100/components/sys/actions/Reboot", json={}
+            )
 
             assert response.status_code == 200
             data = response.json()
             assert data["ip"] == "192.168.1.100"
             assert data["success"] is True
             assert data["message"] == "Reboot initiated"
+            assert data["component_key"] == "sys"
+            assert data["action"] == "Reboot"
+
+    def test_get_component_actions_successfully(self):
+        class MockGetComponentActionsUseCase(GetComponentActionsUseCase):
+            def __init__(self):
+                pass
+
+            async def execute(self, request):
+                return {
+                    "sys": ["Reboot", "OTA"],
+                    "switch:0": ["Toggle", "On", "Off"],
+                    "input:0": [],
+                }
+
+        with create_test_client(
+            route_handlers=[get_component_actions],
+            dependencies={
+                "actions_interactor": Provide(
+                    lambda: MockGetComponentActionsUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.get("/192.168.1.100/components/actions")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["ip"] == "192.168.1.100"
+            assert "component_actions" in data
+            assert "sys" in data["component_actions"]
+            assert "Reboot" in data["component_actions"]["sys"]
+            assert "OTA" in data["component_actions"]["sys"]
+            assert "switch:0" in data["component_actions"]
+            assert "Toggle" in data["component_actions"]["switch:0"]
+
+    def test_execute_component_action_failure(self):
+        class MockExecuteComponentActionUseCase(ExecuteComponentActionUseCase):
+            def __init__(self):
+                pass
+
+            async def execute(self, request):
+                return ActionResult(
+                    device_ip=request.device_ip,
+                    success=False,
+                    message="Action failed",
+                    error="Device not responding",
+                    action_type="Toggle",
+                )
+
+        with create_test_client(
+            route_handlers=[execute_component_action],
+            dependencies={
+                "action_interactor": Provide(
+                    lambda: MockExecuteComponentActionUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.post(
+                "/192.168.1.100/components/switch:0/actions/Toggle", json={}
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["ip"] == "192.168.1.100"
+            assert data["success"] is False
+            assert data["message"] == "Action failed"
+            assert data["error"] == "Device not responding"
+            assert data["component_key"] == "switch:0"
+            assert data["action"] == "Toggle"
 
     def test_get_device_status_successfully(self):
         class MockCheckDeviceStatusUseCase(CheckDeviceStatusUseCase):

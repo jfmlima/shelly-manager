@@ -1,8 +1,3 @@
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "src"))
-
 from api.controllers.monitoring import (
     get_action_history,
     health_check,
@@ -32,5 +27,3 @@ class TestMonitoringController:
             assert data["success"] is True
             assert data["actions"] == []
             assert data["message"] == "Action history not yet implemented"
-
-

@@ -1,7 +1,9 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from core.domain.value_objects.device_configuration_request import DeviceConfigurationRequest
+from core.domain.value_objects.device_configuration_request import (
+    DeviceConfigurationRequest,
+)
 from core.use_cases.get_configuration import GetConfigurationUseCase
 
 

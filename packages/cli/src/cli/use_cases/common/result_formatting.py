@@ -4,9 +4,9 @@ Result formatting utilities for CLI operations.
 
 from typing import Any
 
+from core.domain.entities import DeviceStatus, DiscoveredDevice
 from rich.console import Console
 from rich.table import Table
-from core.domain.entities import DiscoveredDevice, DeviceStatus
 
 from cli.presentation.styles import format_device_status
 
@@ -32,11 +32,10 @@ class ResultFormatter:
         if not devices:
             return
 
-        # Check what type of devices we're displaying
         if devices and isinstance(devices[0], DiscoveredDevice):
             self._format_discovered_devices_table(devices, title)
         elif devices and isinstance(devices[0], DeviceStatus):
-            self._format_device_status_table(devices, title)
+            self._format_device_status_table(devices)
         else:
             self._format_legacy_device_table(devices, title)
 
@@ -67,54 +66,11 @@ class ResultFormatter:
 
         self._console.print(table)
 
-    def _format_device_status_table(
-        self, devices: list[DeviceStatus], title: str
-    ) -> None:
+    def _format_device_status_table(self, devices: list[DeviceStatus]) -> None:
         """Format table for DeviceStatus entities."""
-        table = Table(title=title)
-        table.add_column("IP Address", style="cyan")
-        table.add_column("Components", style="green")
-        table.add_column("Device Name", style="blue")
-        table.add_column("Firmware", style="magenta")
-        table.add_column("Status", style="yellow")
-        table.add_column("Updates", style="red")
-        table.add_column("Last Updated", style="dim")
 
         for device_status in devices:
-            # Get system info for device details
-            system_info = device_status.get_system_info()
-            device_name = system_info.device_name if system_info else "Unknown"
-            firmware = system_info.firmware_version if system_info else "Unknown"
-
-            # Count components by type
-            switches = len(device_status.get_switches())
-            inputs = len(device_status.get_inputs())
-            covers = len(device_status.get_covers())
-            updates = system_info.available_updates if system_info else None
-
-            components_info = []
-            if switches:
-                components_info.append(f"{switches}x Switch")
-            if inputs:
-                components_info.append(f"{inputs}x Input")
-            if covers:
-                components_info.append(f"{covers}x Cover")
-
-            components_str = (
-                ", ".join(components_info) if components_info else "System only"
-            )
-
-            table.add_row(
-                device_status.device_ip,
-                components_str,
-                device_name,
-                firmware,
-                "Online",  # DeviceStatus implies device is reachable
-                str(updates),
-                device_status.last_updated.strftime("%H:%M:%S"),
-            )
-
-        self._console.print(table)
+            self.format_detailed_device_status(device_status)
 
     def _format_legacy_device_table(self, devices: list[Any], title: str) -> None:
         """Legacy format for backward compatibility."""
@@ -145,8 +101,8 @@ class ResultFormatter:
 
     def format_detailed_device_status(self, device_status: DeviceStatus) -> None:
         """Format detailed component information for a single device."""
-        from rich.panel import Panel
         from rich.columns import Columns
+        from rich.panel import Panel
 
         # Device header
         system_info = device_status.get_system_info()
@@ -161,14 +117,26 @@ class ResultFormatter:
             system_content.append(
                 f"[green]Firmware:[/green] {system_info.firmware_version}"
             )
-            system_content.append(f"[green]MAC:[/green] {system_info.mac}")
+            system_content.append(f"[green]MAC:[/green] {system_info.mac_address}")
             system_content.append(
                 f"[green]Restart Required:[/green] {'Yes' if system_info.restart_required else 'No'}"
             )
+
+            # Show available firmware updates with version information
             if system_info.available_updates:
-                system_content.append(
-                    f"[yellow]Updates Available:[/yellow] {len(system_info.available_updates)}"
-                )
+                device_summary = device_status.get_device_summary()
+                available_updates = device_summary.get("available_updates", {})
+
+                if available_updates:
+                    system_content.append("[yellow]Updates Available:[/yellow]")
+                    for update_type, update_info in available_updates.items():
+                        version = update_info.get("version", "Unknown")
+                        name = update_info.get("name", update_type) or update_type
+                        system_content.append(f"  [cyan]• {name}:[/cyan] {version}")
+                else:
+                    system_content.append(
+                        f"[yellow]Updates Available:[/yellow] {len(system_info.available_updates)}"
+                    )
 
             system_panel = Panel(
                 "\n".join(system_content),
@@ -221,9 +189,7 @@ class ResultFormatter:
             cover_content = []
             for cover in covers:
                 position = (
-                    f"{cover.current_pos}%"
-                    if cover.current_pos is not None
-                    else "Unknown"
+                    f"{cover.position}%" if cover.position is not None else "Unknown"
                 )
                 cover_content.append(
                     f"[green]{cover.name}:[/green] {cover.state} ({position})"

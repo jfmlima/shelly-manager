@@ -12,7 +12,7 @@ from ..dependencies.container import APIContainer
 _container = APIContainer()
 
 
-@get("/health")  # type: ignore[misc]
+@get("/health")
 async def health_check() -> dict[str, Any]:
     return {
         "status": "healthy",
@@ -22,7 +22,7 @@ async def health_check() -> dict[str, Any]:
     }
 
 
-@get("/actions")  # type: ignore[misc]
+@get("/actions")
 async def get_action_history() -> dict[str, Any]:
     return {
         "success": True,

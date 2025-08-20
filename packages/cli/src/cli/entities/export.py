@@ -34,7 +34,6 @@ class ExportRequest(BaseModel):
     overwrite: bool = Field(
         default=False, description="Overwrite existing export files"
     )
-    # Additional fields for CLI compatibility
     output: str | None = Field(default=None, description="Output file path")
     force: bool = Field(default=False, description="Force overwrite without prompt")
     include_config: bool = Field(

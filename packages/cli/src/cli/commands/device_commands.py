@@ -5,17 +5,14 @@ Device-related Click commands.
 import click
 
 from ..entities import (
-    DeviceConfigUpdateRequest,
-    DeviceRebootRequest,
+    ComponentActionRequest,
+    ComponentActionsListRequest,
     DeviceScanRequest,
     DeviceStatusRequest,
-    FirmwareUpdateRequest,
 )
 from ..presentation.styles import Messages
-from ..use_cases.device.config_update import ConfigUpdateUseCase
-from ..use_cases.device.device_reboot import DeviceRebootUseCase
+from ..use_cases.device.component_actions import ComponentActionsUseCase
 from ..use_cases.device.device_status import DeviceStatusUseCase
-from ..use_cases.device.firmware_update import FirmwareUpdateUseCase
 from ..use_cases.device.scan_devices import DeviceScanUseCase
 from .common import (
     async_command,
@@ -173,178 +170,271 @@ async def status(
         raise click.Abort() from None
 
 
-@device_commands.command()
-@click.argument("devices", nargs=-1, required=False)
+@click.group()
+def actions() -> None:
+    """🎯 Component actions - execute actions on device components."""
+    pass
+
+
+@actions.command("list")
 @device_targeting_options
-@click.option("--force", is_flag=True, help="Skip confirmation prompt")
+@click.option("--component-type", help="Filter by component type")
 @common_options
 @click.pass_context
 @async_command
-async def reboot(
+async def list_component_actions(
     ctx: click.Context,
+    from_config: bool,
+    devices: tuple[str, ...],
+    component_type: str | None,
+    timeout: int,
+    workers: int,
+) -> None:
+    """📋 List available actions for device components.
+
+    Show all available actions that can be performed on device components.
+
+    Examples:
+      shelly-manager device actions list --devices 192.168.1.100
+      shelly-manager device actions list --from-config
+      shelly-manager device actions list --component-type switch
+    """
+    console = ctx.obj.console
+    container = ctx.obj.container
+
+    actions_use_case = ComponentActionsUseCase(container, console)
+
+    request = ComponentActionsListRequest(
+        devices=list(devices),
+        from_config=from_config,
+        timeout=timeout,
+        workers=workers,
+        component_type=component_type,
+    )
+
+    try:
+        results = await actions_use_case.list_actions(request)
+        actions_use_case.display_actions_list(results)
+    except ValueError as e:
+        console.print(Messages.error(str(e)))
+        console.print("\nExamples:")
+        console.print("  shelly-manager device actions list --devices 192.168.1.100")
+        console.print("  shelly-manager device actions list --from-config")
+        raise click.Abort() from None
+
+
+@actions.command("execute")
+@click.argument("component_key")
+@click.argument("action")
+@device_targeting_options
+@click.option("--force", is_flag=True, help="Skip confirmation")
+@common_options
+@click.pass_context
+@async_command
+async def execute_component_action(
+    ctx: click.Context,
+    component_key: str,
+    action: str,
     devices: tuple[str, ...],
     from_config: bool,
     force: bool,
     timeout: int,
     workers: int,
 ) -> None:
-    """
-    🔄 Reboot Shelly devices.
+    """🎯 Execute action on device components.
 
-    Safely reboot one or more Shelly devices. Shows confirmation prompt
-    unless --force is used.
+    Execute any available action on device components.
 
     Examples:
-      shelly-manager reboot 192.168.1.100
-      shelly-manager reboot --from-config --force
+      shelly-manager device actions execute shelly Reboot --devices 192.168.1.100
+      shelly-manager device actions execute switch:0 Toggle --from-config
     """
     console = ctx.obj.console
     container = ctx.obj.container
 
-    reboot_use_case = DeviceRebootUseCase(container, console)
+    actions_use_case = ComponentActionsUseCase(container, console)
 
-    request = DeviceRebootRequest(
+    request = ComponentActionRequest(
         devices=list(devices),
         from_config=from_config,
-        force=force,
+        component_key=component_key,
+        action=action,
         timeout=timeout,
         workers=workers,
+        force=force,
     )
 
     try:
-        results = await reboot_use_case.execute(request)
-        reboot_use_case.display_results(results)
+        results = await actions_use_case.execute_action(request)
+        actions_use_case.display_action_results(results)
     except ValueError as e:
         console.print(Messages.error(str(e)))
         console.print("\nExamples:")
-        console.print("  shelly-manager device reboot 192.168.1.100 192.168.1.101")
-        console.print("  shelly-manager device reboot --from-config")
+        console.print(
+            "  shelly-manager device actions execute shelly Reboot --devices 192.168.1.100"
+        )
+        console.print(
+            "  shelly-manager device actions execute switch:0 Toggle --from-config"
+        )
         raise click.Abort() from None
     except RuntimeError:
         return
 
 
-@click.group()
-def update() -> None:
-    """Device update operations."""
-    pass
+device_commands.add_command(actions)
 
 
-@update.command()
-@click.argument("devices", nargs=-1)
+@device_commands.command("reboot")
 @device_targeting_options
-@click.option(
-    "--channel",
-    type=click.Choice(["stable", "beta"], case_sensitive=False),
-    default="stable",
-    help="Firmware update channel",
-)
-@click.option("--force", is_flag=True, help="Skip confirmation prompt")
-@click.option(
-    "--check-only", is_flag=True, help="Only check for updates, do not install"
-)
+@click.option("--force", is_flag=True)
 @common_options
 @click.pass_context
 @async_command
-async def firmware(
+async def reboot_devices(
     ctx: click.Context,
-    devices: tuple[str, ...],
     from_config: bool,
+    devices: tuple[str, ...],
+    force: bool,
+    timeout: int,
+    workers: int,
+) -> None:
+    """🔄 Reboot devices (shortcut for: actions execute shelly Reboot).
+
+    Examples:
+      shelly-manager device reboot --devices 192.168.1.100
+      shelly-manager device reboot --from-config --force
+    """
+    console = ctx.obj.console
+    container = ctx.obj.container
+
+    actions_use_case = ComponentActionsUseCase(container, console)
+
+    request = ComponentActionRequest(
+        devices=list(devices),
+        from_config=from_config,
+        component_key="shelly",
+        action="Reboot",
+        timeout=timeout,
+        workers=workers,
+        force=force,
+    )
+
+    try:
+        results = await actions_use_case.execute_action(request)
+        actions_use_case.display_action_results(results)
+    except ValueError as e:
+        console.print(Messages.error(str(e)))
+        console.print("\nExamples:")
+        console.print("  shelly-manager device reboot --devices 192.168.1.100")
+        console.print("  shelly-manager device reboot --from-config --force")
+        raise click.Abort() from None
+    except RuntimeError:
+        return
+
+
+@device_commands.command("update")
+@device_targeting_options
+@click.option("--channel", type=click.Choice(["stable", "beta"]), default="stable")
+@click.option("--force", is_flag=True)
+@common_options
+@click.pass_context
+@async_command
+async def update_firmware(
+    ctx: click.Context,
+    from_config: bool,
+    devices: tuple[str, ...],
     channel: str,
     force: bool,
-    check_only: bool,
     timeout: int,
     workers: int,
 ) -> None:
-    """
-    🚀 Update Shelly device firmware.
-
-    Update device firmware to the latest version from the specified channel.
-    Supports both individual devices and batch operations.
+    """🚀 Update device firmware (shortcut for: actions execute shelly Update).
 
     Examples:
-      shelly-manager device update firmware 192.168.1.100
-      shelly-manager device update firmware --from-config --channel beta
-      shelly-manager device update firmware 192.168.1.100 192.168.1.101 --check-only
+      shelly-manager device update --devices 192.168.1.100
+      shelly-manager device update --from-config --channel beta
     """
     console = ctx.obj.console
     container = ctx.obj.container
 
-    request = FirmwareUpdateRequest(
+    actions_use_case = ComponentActionsUseCase(container, console)
+
+    update_parameters = {}
+    if channel != "stable":
+        update_parameters["channel"] = channel
+
+    request = ComponentActionRequest(
         devices=list(devices),
         from_config=from_config,
-        channel=channel,
-        force=force,
-        check_only=check_only,
+        component_key="shelly",
+        action="Update",
+        parameters=update_parameters,
         timeout=timeout,
         workers=workers,
+        force=force,
     )
 
     try:
-        firmware_update_use_case = FirmwareUpdateUseCase(container, console)
-        await firmware_update_use_case.execute(request)
+        results = await actions_use_case.execute_action(request)
+        actions_use_case.display_action_results(results)
     except ValueError as e:
         console.print(Messages.error(str(e)))
+        console.print("\nExamples:")
+        console.print("  shelly-manager device update --devices 192.168.1.100")
+        console.print("  shelly-manager device update --from-config --channel beta")
         raise click.Abort() from None
     except RuntimeError:
-        raise click.Abort() from None
+        return
 
 
-@update.command()
-@click.argument("devices", nargs=-1)
+@device_commands.command("toggle")
+@click.argument("component_key")
 @device_targeting_options
-@click.option(
-    "--config-file",
-    type=click.Path(exists=True),
-    help="Configuration file to apply to devices",
-)
-@click.option("--force", is_flag=True, help="Skip confirmation prompt")
+@click.option("--force", is_flag=True)
 @common_options
 @click.pass_context
 @async_command
-async def config(
+async def toggle_component(
     ctx: click.Context,
-    devices: tuple[str, ...],
+    component_key: str,
     from_config: bool,
-    config_file: str,
+    devices: tuple[str, ...],
     force: bool,
     timeout: int,
     workers: int,
 ) -> None:
-    """
-    ⚙️ Update Shelly device configuration.
-
-    Apply configuration changes to devices. Can use a specific config file
-    or apply predefined configurations.
+    """🔄 Toggle switch component (shortcut for: actions execute switch:X Toggle).
 
     Examples:
-      shelly-manager device update config 192.168.1.100 --config-file my-config.json
-      shelly-manager device update config --from-config
-      shelly-manager device update config 192.168.1.100 192.168.1.101
+      shelly-manager device toggle switch:0 --devices 192.168.1.100
+      shelly-manager device toggle switch:1 --from-config
     """
     console = ctx.obj.console
     container = ctx.obj.container
 
-    request = DeviceConfigUpdateRequest(
+    actions_use_case = ComponentActionsUseCase(container, console)
+
+    request = ComponentActionRequest(
         devices=list(devices),
         from_config=from_config,
-        config_file=config_file,
-        force=force,
+        component_key=component_key,
+        action="Toggle",
         timeout=timeout,
         workers=workers,
+        force=force,
     )
 
     try:
-        config_update_use_case = ConfigUpdateUseCase(container, console)
-        await config_update_use_case.execute(request)
+        results = await actions_use_case.execute_action(request)
+        actions_use_case.display_action_results(results)
     except ValueError as e:
         console.print(Messages.error(str(e)))
+        console.print("\nExamples:")
+        console.print("  shelly-manager device toggle switch:0 --devices 192.168.1.100")
+        console.print("  shelly-manager device toggle switch:1 --from-config")
         raise click.Abort() from None
     except RuntimeError:
-        raise click.Abort() from None
-
-
-device_commands.add_command(update)
+        return
 
 
 __all__ = ["device_commands", "scan"]

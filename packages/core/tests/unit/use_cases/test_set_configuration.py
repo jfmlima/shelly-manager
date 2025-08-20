@@ -17,7 +17,9 @@ class TestSetConfigurationUseCase:
         device_ip = "192.168.1.100"
         mock_device_gateway.set_device_config = AsyncMock(return_value=True)
 
-        result = await use_case.execute(SetConfigurationRequest(device_ip=device_ip, config=sample_device_config))
+        result = await use_case.execute(
+            SetConfigurationRequest(device_ip=device_ip, config=sample_device_config)
+        )
 
         assert result["success"] is True
         assert result["message"] == "Configuration updated successfully"
@@ -31,7 +33,9 @@ class TestSetConfigurationUseCase:
         device_ip = "192.168.1.100"
         mock_device_gateway.set_device_config = AsyncMock(return_value=False)
 
-        result = await use_case.execute(SetConfigurationRequest(device_ip=device_ip, config=sample_device_config))
+        result = await use_case.execute(
+            SetConfigurationRequest(device_ip=device_ip, config=sample_device_config)
+        )
 
         assert result["success"] is False
         assert result["message"] == "Failed to update configuration"
@@ -46,7 +50,9 @@ class TestSetConfigurationUseCase:
         empty_config = {}
 
         with pytest.raises(ValueError, match="Configuration data required"):
-            await use_case.execute(SetConfigurationRequest(device_ip=device_ip, config=empty_config))
+            await use_case.execute(
+                SetConfigurationRequest(device_ip=device_ip, config=empty_config)
+            )
 
         mock_device_gateway.set_device_config.assert_not_called()
 
@@ -55,6 +61,7 @@ class TestSetConfigurationUseCase:
         none_config = None
 
         from pydantic import ValidationError
+
         with pytest.raises(ValidationError, match="Input should be a valid dictionary"):
             SetConfigurationRequest(device_ip=device_ip, config=none_config)
 
@@ -78,7 +85,9 @@ class TestSetConfigurationUseCase:
         }
         mock_device_gateway.set_device_config = AsyncMock(return_value=True)
 
-        result = await use_case.execute(SetConfigurationRequest(device_ip=device_ip, config=wifi_config))
+        result = await use_case.execute(
+            SetConfigurationRequest(device_ip=device_ip, config=wifi_config)
+        )
 
         assert result["success"] is True
         assert result["message"] == "Configuration updated successfully"
@@ -104,7 +113,9 @@ class TestSetConfigurationUseCase:
         }
         mock_device_gateway.set_device_config = AsyncMock(return_value=True)
 
-        result = await use_case.execute(SetConfigurationRequest(device_ip=device_ip, config=mqtt_config))
+        result = await use_case.execute(
+            SetConfigurationRequest(device_ip=device_ip, config=mqtt_config)
+        )
 
         assert result["success"] is True
         mock_device_gateway.set_device_config.assert_called_once_with(
@@ -116,7 +127,9 @@ class TestSetConfigurationUseCase:
         name_config = {"name": "Living Room Light Switch"}
         mock_device_gateway.set_device_config = AsyncMock(return_value=True)
 
-        result = await use_case.execute(SetConfigurationRequest(device_ip=device_ip, config=name_config))
+        result = await use_case.execute(
+            SetConfigurationRequest(device_ip=device_ip, config=name_config)
+        )
 
         assert result["success"] is True
         mock_device_gateway.set_device_config.assert_called_once_with(
@@ -136,7 +149,9 @@ class TestSetConfigurationUseCase:
         }
         mock_device_gateway.set_device_config = AsyncMock(return_value=True)
 
-        result = await use_case.execute(SetConfigurationRequest(device_ip=device_ip, config=complex_config))
+        result = await use_case.execute(
+            SetConfigurationRequest(device_ip=device_ip, config=complex_config)
+        )
 
         assert result["success"] is True
         mock_device_gateway.set_device_config.assert_called_once_with(
@@ -152,7 +167,11 @@ class TestSetConfigurationUseCase:
         )
 
         with pytest.raises(Exception, match="Device unreachable"):
-            await use_case.execute(SetConfigurationRequest(device_ip=device_ip, config=sample_device_config))
+            await use_case.execute(
+                SetConfigurationRequest(
+                    device_ip=device_ip, config=sample_device_config
+                )
+            )
 
     async def test_it_handles_network_timeout(
         self, use_case, mock_device_gateway, sample_device_config
@@ -163,7 +182,11 @@ class TestSetConfigurationUseCase:
         )
 
         with pytest.raises(ConnectionError, match="Connection timeout"):
-            await use_case.execute(SetConfigurationRequest(device_ip=device_ip, config=sample_device_config))
+            await use_case.execute(
+                SetConfigurationRequest(
+                    device_ip=device_ip, config=sample_device_config
+                )
+            )
 
     async def test_it_handles_auth_required_scenario(
         self, use_case, mock_device_gateway, sample_device_config
@@ -171,7 +194,9 @@ class TestSetConfigurationUseCase:
         device_ip = "192.168.1.100"
         mock_device_gateway.set_device_config = AsyncMock(return_value=False)
 
-        result = await use_case.execute(SetConfigurationRequest(device_ip=device_ip, config=sample_device_config))
+        result = await use_case.execute(
+            SetConfigurationRequest(device_ip=device_ip, config=sample_device_config)
+        )
 
         assert result["success"] is False
         assert result["message"] == "Failed to update configuration"
@@ -183,7 +208,9 @@ class TestSetConfigurationUseCase:
         partial_config = {"name": "New Device Name"}
         mock_device_gateway.set_device_config = AsyncMock(return_value=True)
 
-        result = await use_case.execute(SetConfigurationRequest(device_ip=device_ip, config=partial_config))
+        result = await use_case.execute(
+            SetConfigurationRequest(device_ip=device_ip, config=partial_config)
+        )
 
         assert result["success"] is True
         assert result["message"] == "Configuration updated successfully"

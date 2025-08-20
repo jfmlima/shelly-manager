@@ -8,13 +8,12 @@ from .bulk_device_request import BulkDeviceRequest
 from .bulk_reboot_request import BulkRebootRequest
 from .bulk_scan_request import BulkScanRequest
 from .bulk_status_request import BulkStatusRequest
-from .bulk_update_device_firmware_request import BulkUpdateDeviceFirmwareRequest
 from .check_device_status_request import CheckDeviceStatusRequest
+from .component_action_request import ComponentActionRequest
 from .device_configuration_request import DeviceConfigurationRequest
-from .reboot_device_request import RebootDeviceRequest
+from .get_component_actions_request import GetComponentActionsRequest
 from .scan_request import ScanRequest
 from .set_configuration_request import SetConfigurationRequest
-from .update_device_firmware_request import UpdateDeviceFirmwareRequest
 
 __all__ = [
     "ActionResult",
@@ -22,12 +21,11 @@ __all__ = [
     "ScanRequest",
     "BaseDeviceRequest",
     "BaseBulkDeviceRequest",
-    "UpdateDeviceFirmwareRequest",
-    "BulkUpdateDeviceFirmwareRequest",
     "CheckDeviceStatusRequest",
+    "ComponentActionRequest",
     "DeviceConfigurationRequest",
+    "GetComponentActionsRequest",
     "SetConfigurationRequest",
-    "RebootDeviceRequest",
     "BulkDeviceRequest",
     "BulkRebootRequest",
     "BulkConfigurationRequest",

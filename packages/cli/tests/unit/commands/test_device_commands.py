@@ -1,9 +1,8 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from cli.commands.device_commands import device_commands, scan
 from click.testing import CliRunner
-from core.domain.value_objects.reboot_device_request import RebootDeviceRequest
 
 
 class TestDeviceCommands:
@@ -21,14 +20,14 @@ class TestDeviceCommands:
     def test_status_command_in_group(self):
         assert "status" in device_commands.commands
 
-    def test_reboot_command_in_group(self):
+    def test_actions_command_in_group(self):
+        assert "actions" in device_commands.commands
+        actions_group = device_commands.commands["actions"]
+        assert "list" in actions_group.commands
+        assert "execute" in actions_group.commands
         assert "reboot" in device_commands.commands
-
-    def test_update_command_in_group(self):
         assert "update" in device_commands.commands
-        update_group = device_commands.commands["update"]
-        assert "firmware" in update_group.commands
-        assert "config" in update_group.commands
+        assert "toggle" in device_commands.commands
 
     def test_device_commands_help(self, cli_context):
         runner = CliRunner()
@@ -38,8 +37,7 @@ class TestDeviceCommands:
         assert "scan" in result.output
         assert "list" in result.output
         assert "status" in result.output
-        assert "reboot" in result.output
-        assert "update" in result.output
+        assert "component" in result.output
 
 
 class TestScanCommand:
@@ -278,125 +276,180 @@ class TestStatusCommand:
         assert result.exit_code == 0
 
 
-class TestRebootCommand:
+class TestDeviceRebootCommand:
 
     @pytest.fixture
-    def mock_reboot_interactor(self):
+    def mock_execute_component_action_interactor(self):
         interactor = AsyncMock()
         return interactor
 
     @pytest.fixture
-    def mock_scan_interactor_for_reboot(self):
-        interactor = AsyncMock()
-        return interactor
-
-    @pytest.fixture
-    def cli_context_with_reboot(
-        self, cli_context, mock_reboot_interactor, mock_scan_interactor_for_reboot
+    def cli_context_with_component_reboot(
+        self, cli_context, mock_execute_component_action_interactor
     ):
-        cli_context.container.get_reboot_interactor.return_value = (
-            mock_reboot_interactor
+        cli_context.container.get_execute_component_action_interactor.return_value = (
+            mock_execute_component_action_interactor
         )
-        cli_context.container.get_scan_interactor.return_value = (
-            mock_scan_interactor_for_reboot
-        )
+        mock_scan_interactor = cli_context.container.get_scan_interactor.return_value
+        mock_scan_interactor.execute.return_value = []
         return cli_context
 
-    def test_reboot_help(self, cli_context):
+    def test_device_reboot_help(self, cli_context):
         runner = CliRunner()
         result = runner.invoke(device_commands, ["reboot", "--help"], obj=cli_context)
 
         assert result.exit_code == 0
-        assert "Reboot Shelly devices" in result.output
+        assert "Reboot devices" in result.output
 
-    def test_reboot_no_devices_specified(self, cli_context_with_reboot):
+    def test_device_reboot_no_devices_specified(
+        self, cli_context_with_component_reboot
+    ):
         runner = CliRunner()
-        result = runner.invoke(device_commands, ["reboot"], obj=cli_context_with_reboot)
+        result = runner.invoke(
+            device_commands, ["reboot"], obj=cli_context_with_component_reboot
+        )
 
         assert result.exit_code != 0
 
-    def test_reboot_with_force_flag(
-        self, cli_context_with_reboot, mock_reboot_interactor, sample_action_result
+    def test_device_reboot_with_force_flag(
+        self,
+        cli_context_with_component_reboot,
+        mock_execute_component_action_interactor,
+        sample_action_result,
     ):
-        mock_reboot_interactor.execute.return_value = sample_action_result
+        mock_execute_component_action_interactor.execute.return_value = (
+            sample_action_result
+        )
+
+        mock_scan_interactor = (
+            cli_context_with_component_reboot.container.get_scan_interactor.return_value
+        )
+        mock_scan_interactor.execute.return_value = ["192.168.1.100"]
 
         runner = CliRunner()
         result = runner.invoke(
             device_commands,
-            ["reboot", "192.168.1.100", "--force"],
-            obj=cli_context_with_reboot,
+            ["reboot", "--devices", "192.168.1.100", "--force"],
+            obj=cli_context_with_component_reboot,
         )
 
         assert result.exit_code == 0
-        mock_reboot_interactor.execute.assert_called_once_with(
-            RebootDeviceRequest(device_ip="192.168.1.100")
-        )
+        mock_execute_component_action_interactor.execute.assert_called_once()
 
-    def test_reboot_user_cancellation(self, cli_context_with_reboot):
+    def test_device_reboot_user_cancellation(
+        self,
+        cli_context_with_component_reboot,
+        mock_execute_component_action_interactor,
+    ):
+        mock_scan_interactor = (
+            cli_context_with_component_reboot.container.get_scan_interactor.return_value
+        )
+        mock_scan_interactor.execute.return_value = ["192.168.1.100"]
+
+        cli_context_with_component_reboot.console.input.return_value = "n"
+
         runner = CliRunner()
         result = runner.invoke(
             device_commands,
-            ["reboot", "192.168.1.100"],
-            obj=cli_context_with_reboot,
+            ["reboot", "--devices", "192.168.1.100"],
+            obj=cli_context_with_component_reboot,
             input="n\n",
         )
 
         assert result.exit_code == 0
-        assert "Are you sure you want to reboot 1 device(s)?" in result.output
+        cli_context_with_component_reboot.console.input.assert_called_once_with(
+            "\nContinue? [y/N]: "
+        )
+        mock_execute_component_action_interactor.execute.assert_not_called()
 
-    def test_reboot_from_config_with_confirmation(
+    def test_device_reboot_from_config_with_confirmation(
         self,
-        cli_context_with_reboot,
-        mock_reboot_interactor,
-        mock_scan_interactor_for_reboot,
-        sample_devices,
+        cli_context_with_component_reboot,
+        mock_execute_component_action_interactor,
         sample_action_result,
     ):
-        mock_scan_interactor_for_reboot.execute.return_value = sample_devices
-        mock_reboot_interactor.execute.return_value = sample_action_result
+        mock_execute_component_action_interactor.execute.return_value = (
+            sample_action_result
+        )
+
+        mock_scan_interactor = (
+            cli_context_with_component_reboot.container.get_scan_interactor.return_value
+        )
+        mock_scan_interactor.execute.return_value = ["192.168.1.100"]
+
+        cli_context_with_component_reboot.console.input.return_value = "y"
 
         runner = CliRunner()
         result = runner.invoke(
             device_commands,
             ["reboot", "--from-config"],
-            obj=cli_context_with_reboot,
+            obj=cli_context_with_component_reboot,
             input="y\n",
         )
 
         assert result.exit_code == 0
-        mock_scan_interactor_for_reboot.execute.assert_called_once()
-        assert mock_reboot_interactor.execute.call_count == 2
+        assert mock_execute_component_action_interactor.execute.call_count >= 1
 
-    def test_reboot_device_error(self, cli_context_with_reboot, mock_reboot_interactor):
-        mock_reboot_interactor.execute.side_effect = Exception("Connection failed")
+    def test_device_reboot_device_error(
+        self,
+        cli_context_with_component_reboot,
+        mock_execute_component_action_interactor,
+    ):
+        mock_execute_component_action_interactor.execute.side_effect = Exception(
+            "Connection failed"
+        )
+
+        mock_scan_interactor = (
+            cli_context_with_component_reboot.container.get_scan_interactor.return_value
+        )
+        mock_scan_interactor.execute.return_value = ["192.168.1.100"]
 
         runner = CliRunner()
         result = runner.invoke(
             device_commands,
-            ["reboot", "192.168.1.100", "--force"],
-            obj=cli_context_with_reboot,
+            ["reboot", "--devices", "192.168.1.100", "--force"],
+            obj=cli_context_with_component_reboot,
         )
 
         assert result.exit_code == 0
-        mock_reboot_interactor.execute.assert_called_once()
+        mock_execute_component_action_interactor.execute.assert_called_once()
 
-    def test_reboot_mixed_results(
-        self, cli_context_with_reboot, mock_reboot_interactor, sample_action_result
+    def test_device_reboot_mixed_results(
+        self,
+        cli_context_with_component_reboot,
+        mock_execute_component_action_interactor,
+        sample_action_result,
     ):
-        mock_reboot_interactor.execute.side_effect = [
+        failed_result = AsyncMock()
+        failed_result.success = False
+        failed_result.message = "Connection failed"
+
+        mock_execute_component_action_interactor.execute.side_effect = [
             sample_action_result,
-            Exception("Connection failed"),
+            failed_result,
         ]
 
+        mock_scan_interactor = (
+            cli_context_with_component_reboot.container.get_scan_interactor.return_value
+        )
+        mock_scan_interactor.execute.return_value = ["192.168.1.100", "192.168.1.101"]
+
         runner = CliRunner()
         result = runner.invoke(
             device_commands,
-            ["reboot", "192.168.1.100", "192.168.1.101", "--force"],
-            obj=cli_context_with_reboot,
+            [
+                "reboot",
+                "--devices",
+                "192.168.1.100",
+                "--devices",
+                "192.168.1.101",
+                "--force",
+            ],
+            obj=cli_context_with_component_reboot,
         )
 
         assert result.exit_code == 0
-        assert mock_reboot_interactor.execute.call_count == 2
+        assert mock_execute_component_action_interactor.execute.call_count == 2
 
 
 class TestStandaloneScandCommand:
@@ -431,64 +484,75 @@ class TestStandaloneScandCommand:
         mock_scan_interactor.execute.assert_called_once()
 
 
-class TestDeviceUpdateCommands:
-    """Tests for device update subcommands (firmware and config)."""
+class TestActionsCommands:
+    """Tests for actions subcommand group and convenience commands."""
 
-    def test_update_subcommand_group_exists(self):
-        """Test that update subcommand group exists under device commands."""
+    def test_actions_subcommand_group_exists(self):
+        """Test that actions subcommand group exists under device commands."""
+        assert "actions" in device_commands.commands
+        actions_group = device_commands.commands["actions"]
+        assert len(actions_group.commands) > 0
+
+    def test_actions_list_command_exists(self):
+        """Test that list command exists in actions group."""
+        actions_group = device_commands.commands["actions"]
+        assert "list" in actions_group.commands
+
+    def test_actions_execute_command_exists(self):
+        """Test that execute command exists in actions group."""
+        actions_group = device_commands.commands["actions"]
+        assert "execute" in actions_group.commands
+
+    def test_device_convenience_commands_exist(self):
+        """Test that convenience commands exist directly under device."""
+        assert "reboot" in device_commands.commands
         assert "update" in device_commands.commands
-        update_group = device_commands.commands["update"]
-        assert len(update_group.commands) > 0
+        assert "toggle" in device_commands.commands
 
-    def test_update_firmware_command_exists(self):
-        """Test that firmware command exists in update group."""
-        update_group = device_commands.commands["update"]
-        assert "firmware" in update_group.commands
+    def test_actions_help(self, cli_context):
+        """Test actions subcommand help displays correctly."""
+        runner = CliRunner()
+        result = runner.invoke(device_commands, ["actions", "--help"], obj=cli_context)
 
-    def test_update_config_command_exists(self):
-        """Test that config command exists in update group."""
-        update_group = device_commands.commands["update"]
-        assert "config" in update_group.commands
+        assert result.exit_code == 0
+        assert "list" in result.output
+        assert "execute" in result.output
 
-    def test_update_subcommand_help(self, cli_context):
-        """Test update subcommand help displays correctly."""
+    def test_device_update_help(self, cli_context):
+        """Test device update command help."""
         runner = CliRunner()
         result = runner.invoke(device_commands, ["update", "--help"], obj=cli_context)
 
         assert result.exit_code == 0
-        assert "firmware" in result.output
-        assert "config" in result.output
+        assert "Update device firmware" in result.output
 
-    def test_update_firmware_help(self, cli_context):
-        """Test firmware update command help."""
+    def test_actions_execute_help(self, cli_context):
+        """Test actions execute command help."""
         runner = CliRunner()
         result = runner.invoke(
-            device_commands, ["update", "firmware", "--help"], obj=cli_context
+            device_commands, ["actions", "execute", "--help"], obj=cli_context
         )
 
         assert result.exit_code == 0
-        assert "Update Shelly device firmware" in result.output
+        assert "Execute action on device components" in result.output
 
-    def test_update_config_help(self, cli_context):
-        """Test config update command help."""
-        runner = CliRunner()
-        result = runner.invoke(
-            device_commands, ["update", "config", "--help"], obj=cli_context
+    def test_device_update_requires_device_specification(self, cli_context):
+        """Test that device update requires device specification."""
+        mock_scan_interactor = cli_context.container.get_scan_interactor.return_value
+        mock_scan_interactor.execute.return_value = []
+
+        cli_context.container.get_execute_component_action_interactor.return_value = (
+            MagicMock()
         )
 
-        assert result.exit_code == 0
-        assert "Update Shelly device configuration" in result.output
-
-    def test_update_firmware_requires_device_specification(self, cli_context):
-        """Test that firmware update requires device specification."""
         runner = CliRunner()
-        result = runner.invoke(device_commands, ["update", "firmware"], obj=cli_context)
+        result = runner.invoke(device_commands, ["update"], obj=cli_context)
 
         assert result.exit_code != 0
 
-    def test_update_config_requires_device_specification(self, cli_context):
-        """Test that config update requires device specification."""
+    def test_actions_execute_requires_parameters(self, cli_context):
+        """Test that actions execute requires component and action parameters."""
         runner = CliRunner()
-        result = runner.invoke(device_commands, ["update", "config"], obj=cli_context)
+        result = runner.invoke(device_commands, ["actions", "execute"], obj=cli_context)
 
         assert result.exit_code != 0

@@ -24,6 +24,9 @@ class Component(BaseModel):
     attrs: dict[str, Any] = Field(
         default_factory=dict, description="Additional attributes"
     )
+    available_actions: list[str] = Field(
+        default_factory=list, description="Available actions for this component"
+    )
 
     @classmethod
     def from_raw_data(cls, component_data: dict[str, Any]) -> "Component":
@@ -47,6 +50,31 @@ class Component(BaseModel):
             config=component_data.get("config", {}),
             attrs=component_data.get("attrs", {}),
         )
+
+    def get_available_actions(self, all_methods: list[str]) -> list[str]:
+        """Override in subclasses to filter relevant methods.
+
+        Args:
+            all_methods: All available RPC methods from device
+
+        Returns:
+            List of action methods relevant to this component type
+        """
+        return []
+
+    def can_perform_action(self, action: str) -> bool:
+        """Check if component supports specific action.
+
+        Args:
+            action: Action name to check
+
+        Returns:
+            True if action is available for this component
+        """
+        component_prefix = self.component_type.title()
+        expected_method = f"{component_prefix}.{action}"
+
+        return expected_method in self.available_actions
 
 
 class SwitchComponent(Component):
@@ -108,6 +136,10 @@ class SwitchComponent(Component):
             current_limit=config.get("current_limit", 0.0),
         )
 
+    def get_available_actions(self, all_methods: list[str]) -> list[str]:
+        """Filter methods relevant to switch components."""
+        return [m for m in all_methods if m.startswith("Switch.")]
+
 
 class InputComponent(Component):
     """Input component with UI-friendly fields."""
@@ -133,6 +165,10 @@ class InputComponent(Component):
             enabled=config.get("enable", True),
             inverted=config.get("invert", False),
         )
+
+    def get_available_actions(self, all_methods: list[str]) -> list[str]:
+        """Filter methods relevant to input components."""
+        return [m for m in all_methods if m.startswith("Input.")]
 
 
 class CoverComponent(Component):
@@ -197,6 +233,10 @@ class CoverComponent(Component):
             power_limit=config.get("power_limit", 0.0),
         )
 
+    def get_available_actions(self, all_methods: list[str]) -> list[str]:
+        """Filter methods relevant to cover components."""
+        return [m for m in all_methods if m.startswith("Cover.")]
+
 
 class SystemComponent(Component):
     """System component with device information."""
@@ -242,6 +282,10 @@ class SystemComponent(Component):
             timezone=location_config.get("tz"),
         )
 
+    def get_available_actions(self, all_methods: list[str]) -> list[str]:
+        """Filter methods relevant to system components."""
+        return [m for m in all_methods if m.startswith(("Sys.", "Shelly."))]
+
 
 class CloudComponent(Component):
     """Cloud component with connectivity information."""
@@ -264,13 +308,19 @@ class CloudComponent(Component):
             server=config.get("server"),
         )
 
+    def get_available_actions(self, all_methods: list[str]) -> list[str]:
+        """Filter methods relevant to cloud components."""
+        return [m for m in all_methods if m.startswith("Cloud.")]
+
 
 class ZigbeeComponent(Component):
     """Zigbee component with network connectivity information."""
-    
-    network_state: str = Field(default="unknown", description="Zigbee network state (joined, left, etc.)")
+
+    network_state: str = Field(
+        default="unknown", description="Zigbee network state (joined, left, etc.)"
+    )
     enabled: bool = Field(default=False, description="Zigbee service enabled")
-    
+
     @classmethod
     def from_raw_data(cls, component_data: dict[str, Any]) -> "ZigbeeComponent":
         """Create Zigbee component from raw JSON data."""
@@ -283,6 +333,10 @@ class ZigbeeComponent(Component):
             network_state=status.get("network_state", "unknown"),
             enabled=config.get("enable", False),
         )
+
+    def get_available_actions(self, all_methods: list[str]) -> list[str]:
+        """Filter methods relevant to Zigbee components."""
+        return [m for m in all_methods if m.startswith("Zigbee.")]
 
 
 ComponentType = (

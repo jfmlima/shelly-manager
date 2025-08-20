@@ -4,19 +4,21 @@ from typing import Any
 
 from core.gateways.device.shelly_device_gateway import ShellyDeviceGateway
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
+from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
+from core.use_cases.get_component_actions import GetComponentActionsUseCase
 from core.use_cases.get_configuration import GetConfigurationUseCase
-from core.use_cases.reboot_device import RebootDeviceUseCase
 from core.use_cases.scan_devices import ScanDevicesUseCase
 from core.use_cases.set_configuration import SetConfigurationUseCase
-from core.use_cases.update_device_firmware import UpdateDeviceFirmwareUseCase
 
 
 class BaseContainer:
     def __init__(self) -> None:
         self._device_gateway: ShellyDeviceGateway | None = None
         self._scan_interactor: ScanDevicesUseCase | None = None
-        self._update_interactor: UpdateDeviceFirmwareUseCase | None = None
-        self._reboot_interactor: RebootDeviceUseCase | None = None
+        self._execute_component_action_interactor: (
+            ExecuteComponentActionUseCase | None
+        ) = None
+        self._component_actions_interactor: GetComponentActionsUseCase | None = None
         self._status_interactor: CheckDeviceStatusUseCase | None = None
         self._device_config_interactor: GetConfigurationUseCase | None = None
         self._device_config_set_interactor: SetConfigurationUseCase | None = None
@@ -40,19 +42,19 @@ class BaseContainer:
             )
         return self._scan_interactor
 
-    def get_update_interactor(self) -> UpdateDeviceFirmwareUseCase:
-        if self._update_interactor is None:
-            self._update_interactor = UpdateDeviceFirmwareUseCase(
+    def get_execute_component_action_interactor(self) -> ExecuteComponentActionUseCase:
+        if self._execute_component_action_interactor is None:
+            self._execute_component_action_interactor = ExecuteComponentActionUseCase(
                 device_gateway=self.get_device_gateway()
             )
-        return self._update_interactor
+        return self._execute_component_action_interactor
 
-    def get_reboot_interactor(self) -> RebootDeviceUseCase:
-        if self._reboot_interactor is None:
-            self._reboot_interactor = RebootDeviceUseCase(
+    def get_component_actions_interactor(self) -> GetComponentActionsUseCase:
+        if self._component_actions_interactor is None:
+            self._component_actions_interactor = GetComponentActionsUseCase(
                 device_gateway=self.get_device_gateway()
             )
-        return self._reboot_interactor
+        return self._component_actions_interactor
 
     def get_status_interactor(self) -> CheckDeviceStatusUseCase:
         if self._status_interactor is None:

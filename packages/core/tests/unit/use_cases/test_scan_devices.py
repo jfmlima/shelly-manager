@@ -190,9 +190,7 @@ class TestScanDevicesUseCase:
         await use_case.execute(valid_scan_request)
 
         for call in mock_device_gateway.discover_device.call_args_list:
-            assert call[0][0].startswith(
-                "192.168.1."
-            )  
+            assert call[0][0].startswith("192.168.1.")
 
     def test_it_validates_valid_ip_address(self, use_case):
         result = use_case._validate_ip_address("192.168.1.1")

@@ -6,10 +6,10 @@ import json
 from pathlib import Path
 from typing import Any
 
-from core.domain.value_objects.scan_request import ScanRequest
 from core.domain.value_objects.check_device_status_request import (
     CheckDeviceStatusRequest,
 )
+from core.domain.value_objects.scan_request import ScanRequest
 from rich.console import Console
 from rich.table import Table
 
@@ -260,7 +260,7 @@ class ScanExportUseCase:
         if not self._check_file_overwrite(output_path, request.force):
             self._console.print("[yellow]Export cancelled[/yellow]")
             raise RuntimeError("Export cancelled by user")
-    
+
         devices = await self._scan_network(request)
 
         return await self._export_scan_results(devices, output_path, request)

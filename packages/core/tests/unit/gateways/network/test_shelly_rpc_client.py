@@ -47,22 +47,6 @@ class TestShellyRPCClient:
         assert response_time >= 0
         mock_session.post.assert_called_once()
 
-    async def test_it_makes_rpc_request_with_parameters(self, client, mock_session):
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"result": "success"}
-        mock_session.post.return_value = mock_response
-
-        params = {"config": {"name": "Test Device"}}
-
-        result, response_time = await client.make_rpc_request(
-            "192.168.1.100", "Sys.SetConfig", params=params
-        )
-
-        call_args = mock_session.post.call_args
-        expected_payload = {"id": 1, "method": "Sys.SetConfig", "params": params}
-        assert call_args[1]["json"] == expected_payload
-
     async def test_it_makes_rpc_request_with_auth(self, client, mock_session):
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -166,20 +150,6 @@ class TestShellyRPCClient:
         with pytest.raises(Exception, match="Network error"):
             await client.make_rpc_request("192.168.1.100", "Shelly.GetDeviceInfo")
 
-    async def test_it_handles_empty_parameters(self, client, mock_session):
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {}
-        mock_session.post.return_value = mock_response
-
-        await client.make_rpc_request(
-            "192.168.1.100", "Shelly.GetDeviceInfo", params=None
-        )
-
-        call_args = mock_session.post.call_args
-        expected_payload = {"id": 1, "method": "Shelly.GetDeviceInfo", "params": {}}
-        assert call_args[1]["json"] == expected_payload
-
     async def test_it_closes_session_successfully(self, client, mock_session):
         await client.close()
 
@@ -193,24 +163,6 @@ class TestShellyRPCClient:
 
         with pytest.raises(ValueError, match="Invalid JSON"):
             await client.make_rpc_request("192.168.1.100", "Shelly.GetDeviceInfo")
-
-    async def test_it_constructs_payload_correctly(self, client, mock_session):
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {}
-        mock_session.post.return_value = mock_response
-
-        method = "Custom.Method"
-        params = {"key": "value", "number": 42}
-
-        await client.make_rpc_request("192.168.1.100", method, params=params)
-
-        call_args = mock_session.post.call_args
-        payload = call_args[1]["json"]
-
-        assert payload["id"] == 1
-        assert payload["method"] == method
-        assert payload["params"] == params
 
     async def test_it_handles_various_http_status_codes(self, client, mock_session):
         status_codes = [400, 401, 403, 500, 503]

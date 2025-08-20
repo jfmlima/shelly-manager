@@ -2,10 +2,12 @@
 Device use cases for CLI operations.
 """
 
-from .config_update import ConfigUpdateUseCase
-from .firmware_update import FirmwareUpdateUseCase
+from .component_actions import ComponentActionsUseCase
+from .device_status import DeviceStatusUseCase
+from .scan_devices import DeviceScanUseCase
 
 __all__ = [
-    "FirmwareUpdateUseCase",
-    "ConfigUpdateUseCase",
+    "ComponentActionsUseCase",
+    "DeviceStatusUseCase",
+    "DeviceScanUseCase",
 ]

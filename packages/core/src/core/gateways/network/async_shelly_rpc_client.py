@@ -34,7 +34,9 @@ class AsyncShellyRPCClient(NetworkGateway):
     ) -> tuple[dict[str, Any], float]:
         url = f"http://{ip}/rpc/{method}"
 
-        payload = {"id": 1, "method": method, "params": params or {}}
+        payload = {"id": 1, "method": method}
+        if params:
+            payload["params"] = params
 
         headers = {"Content-Type": "application/json"}
 

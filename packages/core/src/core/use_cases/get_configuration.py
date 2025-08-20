@@ -11,26 +11,32 @@ from ..gateways.device import DeviceGateway
 
 
 class GetConfigurationUseCase:
+    """Use case for getting device configuration."""
 
-    def __init__(self, device_gateway: DeviceGateway):
+    def __init__(self, device_gateway: DeviceGateway) -> None:
         self._device_gateway = device_gateway
 
-    async def execute(self, request: DeviceConfigurationRequest) -> dict[str, Any]:
-        """
-        Get device configuration.
+    async def execute(
+        self, request: DeviceConfigurationRequest, **kwargs: Any
+    ) -> dict[str, Any]:
+        """Get device configuration.
 
         Args:
-            request: DeviceConfigurationRequest with validated IP
+            request: Device configuration request containing device IP
+            **kwargs: Additional keyword arguments (unused but kept for compatibility)
 
         Returns:
-            Configuration data
+            Device configuration dictionary
 
         Raises:
-            ValueError: If configuration cannot be retrieved
+            ValueError: If configuration could not be retrieved from device
+            Exception: Gateway exceptions are propagated (ConnectionError, etc.)
         """
-        result = await self._device_gateway.get_device_config(request.device_ip)
-        if result is None:
+        config = await self._device_gateway.get_device_config(request.device_ip)
+
+        if config is None:
             raise ValueError(
                 f"Could not retrieve configuration for device: {request.device_ip}"
             )
-        return result
+
+        return config

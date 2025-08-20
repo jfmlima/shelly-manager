@@ -28,7 +28,7 @@ def create_app(config_file_path: str | None = None) -> Litestar:
     _container = APIContainer(config_file_path)
 
     cors_config = CORSConfig(
-        allow_origins=["*"],  # Configure based on your needs
+        allow_origins=["*"],
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
@@ -106,11 +106,13 @@ def create_app(config_file_path: str | None = None) -> Litestar:
             "scan_interactor": Provide(
                 lambda: _container.get_scan_interactor(), sync_to_thread=False
             ),
-            "update_interactor": Provide(
-                lambda: _container.get_update_interactor(), sync_to_thread=False
+            "execute_component_action_interactor": Provide(
+                lambda: _container.get_execute_component_action_interactor(),
+                sync_to_thread=False,
             ),
-            "reboot_interactor": Provide(
-                lambda: _container.get_reboot_interactor(), sync_to_thread=False
+            "component_actions_interactor": Provide(
+                lambda: _container.get_component_actions_interactor(),
+                sync_to_thread=False,
             ),
             "status_interactor": Provide(
                 lambda: _container.get_status_interactor(), sync_to_thread=False

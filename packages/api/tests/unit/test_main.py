@@ -1,8 +1,3 @@
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
-
 from datetime import datetime
 
 from api.controllers.monitoring import health_check
@@ -34,7 +29,7 @@ class TestMainApp:
                 },
             )
 
-            assert response.status_code == 204  # OPTIONS requests return 204 No Content
+            assert response.status_code == 204
             assert "access-control-allow-origin" in response.headers
             assert response.headers["access-control-allow-origin"] == "*"
 

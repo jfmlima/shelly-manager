@@ -3,7 +3,6 @@ Bulk operations use case for executing actions on multiple devices.
 """
 
 import asyncio
-from typing import Any
 
 from ..domain.entities.device_status import DeviceStatus
 from ..domain.entities.discovered_device import DiscoveredDevice
@@ -37,10 +36,7 @@ class BulkOperationsUseCase:
         results = []
 
         try:
-            tasks = [
-                self._device_gateway.discover_device(ip)
-                for ip in request.ips
-            ]
+            tasks = [self._device_gateway.discover_device(ip) for ip in request.ips]
 
             devices = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -73,7 +69,7 @@ class BulkOperationsUseCase:
         """
         try:
             return await self._device_gateway.execute_bulk_action(
-                device_ips, "update", {"channel": channel}
+                device_ips, "shelly", "Update", {"channel": channel}
             )
         except Exception as e:
             raise BulkOperationError(
@@ -92,33 +88,32 @@ class BulkOperationsUseCase:
         """
         try:
             return await self._device_gateway.execute_bulk_action(
-                device_ips, "reboot", {}
+                device_ips, "shelly", "Reboot", {}
             )
         except Exception as e:
             raise BulkOperationError(
                 "bulk_reboot", device_ips, f"Bulk reboot failed: {str(e)}"
             ) from e
 
-    async def execute_bulk_config_set(
-        self, device_ips: list[str], config: dict[str, Any]
+    async def execute_bulk_factory_reset(
+        self, device_ips: list[str]
     ) -> list[ActionResult]:
         """
-        Set configuration on multiple devices.
+        Factory reset multiple devices.
 
         Args:
             device_ips: List of device IP addresses
-            config: Configuration to set
 
         Returns:
             List of action results
         """
         try:
             return await self._device_gateway.execute_bulk_action(
-                device_ips, "config-set", {"config": config}
+                device_ips, "shelly", "FactoryReset", {}
             )
         except Exception as e:
             raise BulkOperationError(
-                "bulk_config_set", device_ips, f"Bulk config set failed: {str(e)}"
+                "bulk_factory_reset", device_ips, f"Bulk factory reset failed: {str(e)}"
             ) from e
 
     async def get_bulk_status(
@@ -129,7 +124,7 @@ class BulkOperationsUseCase:
 
         Args:
             device_ips: List of device IP addresses
-            include_updates: Include update information
+            include_updates: Include update information (parameter kept for compatibility but not used)
 
         Returns:
             List of device statuses
@@ -138,9 +133,7 @@ class BulkOperationsUseCase:
 
         for ip in device_ips:
             try:
-                device = await self._device_gateway.get_device_status(
-                    ip, include_updates
-                )
+                device = await self._device_gateway.get_device_status(ip)
                 if device:
                     results.append(device)
             except Exception as e:

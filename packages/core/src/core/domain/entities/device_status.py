@@ -29,20 +29,29 @@ class DeviceStatus(BaseModel):
     cfg_rev: int = Field(default=0, description="Configuration revision")
     total_components: int = Field(default=0, description="Total number of components")
     offset: int = Field(default=0, description="Component offset in response")
+    available_methods: list[str] = Field(
+        default_factory=list, description="Available RPC methods"
+    )
     last_updated: datetime = Field(
         default_factory=datetime.now, description="Last update timestamp"
     )
 
     @classmethod
     def from_raw_response(
-        cls, device_ip: str, response_data: dict[str, Any], zigbee_data: dict[str, Any] | None = None
+        cls,
+        device_ip: str,
+        response_data: dict[str, Any],
+        zigbee_data: dict[str, Any] | None = None,
+        available_methods: list[str] | None = None,
     ) -> "DeviceStatus":
         """Create DeviceStatus from raw shelly.getcomponents response and optional Zigbee data."""
         components_data = response_data.get("components", [])
         components = []
+        methods = available_methods or []
 
         for component_data in components_data:
             component = ComponentFactory.create_component(component_data)
+            component.available_actions = component.get_available_actions(methods)
             components.append(component)
 
         if zigbee_data:
@@ -50,9 +59,12 @@ class DeviceStatus(BaseModel):
                 "key": "zigbee",
                 "status": zigbee_data,
                 "config": {},
-                "attrs": {}
+                "attrs": {},
             }
             zigbee_component = ZigbeeComponent.from_raw_data(zigbee_component_data)
+            zigbee_component.available_actions = zigbee_component.get_available_actions(
+                methods
+            )
             components.append(zigbee_component)
 
         return cls(
@@ -61,6 +73,7 @@ class DeviceStatus(BaseModel):
             cfg_rev=response_data.get("cfg_rev", 0),
             total_components=response_data.get("total", len(components)),
             offset=response_data.get("offset", 0),
+            available_methods=methods,
             last_updated=datetime.now(),
         )
 
@@ -139,7 +152,10 @@ class DeviceStatus(BaseModel):
             "firmware_version": sys_info.firmware_version if sys_info else None,
             "uptime": sys_info.uptime if sys_info else 0,
             "cloud_connected": cloud_info.connected if cloud_info else False,
-            "zigbee_connected": zigbee_info.network_state == "joined" if zigbee_info else False,
+            "zigbee_connected": (
+                zigbee_info.network_state == "joined" if zigbee_info else False
+            ),
+            "zigbee_network_state": zigbee_info.network_state if zigbee_info else None,
             "switch_count": len(self.get_switches()),
             "input_count": len(self.get_inputs()),
             "cover_count": len(self.get_covers()),

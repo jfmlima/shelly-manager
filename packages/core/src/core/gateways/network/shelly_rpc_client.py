@@ -21,7 +21,7 @@ class ShellyRPCClient(NetworkGateway):
         self,
         ip: str,
         method: str,
-        params: dict | None = None,
+        params: dict[str, Any] | None = None,
         auth: tuple[str, str] | None = None,
         timeout: float = 1.0,
     ) -> tuple[dict[str, Any], float]:
@@ -34,13 +34,15 @@ class ShellyRPCClient(NetworkGateway):
         self,
         ip: str,
         method: str,
-        params: dict | None = None,
+        params: dict[str, Any] | None = None,
         auth: tuple[str, str] | None = None,
         timeout: float = 1.0,
     ) -> tuple[dict[str, Any], float]:
         url = f"http://{ip}/rpc/{method}"
 
-        payload = {"id": 1, "method": method, "params": params or {}}
+        payload = {"id": 1, "method": method}
+        if params:
+            payload["params"] = params
 
         headers = {"Content-Type": "application/json"}
         start_time = time.time()

@@ -2,7 +2,7 @@
 Test configuration and shared fixtures for CLI tests.
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from cli.main import CliContext
@@ -15,10 +15,8 @@ from core.gateways.configuration import ConfigurationGateway
 from core.gateways.device import DeviceGateway
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.get_configuration import GetConfigurationUseCase
-from core.use_cases.reboot_device import RebootDeviceUseCase
 from core.use_cases.scan_devices import ScanDevicesUseCase
 from core.use_cases.set_configuration import SetConfigurationUseCase
-from core.use_cases.update_device_firmware import UpdateDeviceFirmwareUseCase
 
 
 @pytest.fixture
@@ -35,6 +33,7 @@ def mock_device_gateway():
 @pytest.fixture
 def mock_config_gateway():
     gateway = MagicMock(spec=ConfigurationGateway)
+    gateway.get_predefined_ips = AsyncMock(return_value=["192.168.1.100"])
     return gateway
 
 
@@ -46,16 +45,6 @@ def mock_scan_interactor():
 @pytest.fixture
 def mock_status_interactor():
     return MagicMock(spec=CheckDeviceStatusUseCase)
-
-
-@pytest.fixture
-def mock_reboot_interactor():
-    return MagicMock(spec=RebootDeviceUseCase)
-
-
-@pytest.fixture
-def mock_update_interactor():
-    return MagicMock(spec=UpdateDeviceFirmwareUseCase)
 
 
 @pytest.fixture
@@ -72,21 +61,21 @@ def mock_config_set_interactor():
 def mock_container(
     mock_scan_interactor,
     mock_status_interactor,
-    mock_reboot_interactor,
-    mock_update_interactor,
     mock_config_get_interactor,
     mock_config_set_interactor,
+    mock_config_gateway,
 ):
-    container = MagicMock()  # Remove spec restriction
+    container = MagicMock()
     container.get_scan_interactor.return_value = mock_scan_interactor
     container.get_status_interactor.return_value = mock_status_interactor
-    container.get_reboot_interactor.return_value = mock_reboot_interactor
-    container.get_update_interactor.return_value = mock_update_interactor
     container.get_config_get_interactor.return_value = mock_config_get_interactor
     container.get_config_set_interactor.return_value = mock_config_set_interactor
     container.get_device_config_interactor.return_value = mock_config_get_interactor
     container.get_device_config_set_interactor.return_value = mock_config_set_interactor
+    container.get_config_gateway.return_value = mock_config_gateway
     container.get_export_interactor.return_value = MagicMock()
+    container.get_execute_component_action_interactor.return_value = MagicMock()
+    container.get_component_actions_interactor.return_value = MagicMock()
     return container
 
 

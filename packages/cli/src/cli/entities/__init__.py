@@ -8,6 +8,7 @@ type safety and validation.
 
 from .bulk import *  # noqa: F403
 from .common import *  # noqa: F403
+from .component_actions import *  # noqa: F403
 from .config import *  # noqa: F403
 from .device import *  # noqa: F403
 from .export import *  # noqa: F403
@@ -20,13 +21,12 @@ __all__ = [
     # Device entities
     "DeviceScanRequest",  # noqa: F405
     "DeviceStatusRequest",  # noqa: F405
-    "DeviceRebootRequest",  # noqa: F405
-    "DeviceRebootResult",  # noqa: F405
     "DeviceStatusResult",  # noqa: F405
-    "DeviceConfigUpdateRequest",  # noqa: F405
-    "DeviceConfigUpdateResult",  # noqa: F405
-    "DeviceFirmwareUpdateRequest",  # noqa: F405
-    "DeviceFirmwareUpdateResult",  # noqa: F405
+    # Component action entities
+    "ComponentActionRequest",  # noqa: F405
+    "ComponentActionResult",  # noqa: F405
+    "ComponentActionsListRequest",  # noqa: F405
+    "ComponentActionsListResult",  # noqa: F405
     # Config entities
     "ConfigShowRequest",  # noqa: F405
     "ConfigSetRequest",  # noqa: F405

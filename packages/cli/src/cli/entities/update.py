@@ -7,34 +7,6 @@ from pydantic import BaseModel, Field
 from .common import OperationResult
 
 
-class FirmwareUpdateRequest(BaseModel):
-    """Request for firmware update operation."""
-
-    devices: list[str] = Field(default_factory=list)
-    from_config: bool = Field(default=False)
-    channel: str = Field(
-        default="stable", description="Update channel (stable or beta)"
-    )
-    force: bool = Field(default=False, description="Skip all confirmation prompts")
-    check_only: bool = Field(
-        default=False, description="Only check for updates, do not install"
-    )
-    timeout: float = Field(default=3.0, gt=0)
-    workers: int = Field(default=10, gt=0, le=50)
-
-
-class FirmwareUpdateResult(OperationResult):
-    """Result of a firmware update operation."""
-
-    current_version: str | None = Field(default=None)
-    new_version: str | None = Field(default=None)
-    update_available: bool = Field(default=False)
-    update_initiated: bool = Field(
-        default=False, description="Whether the update was successfully initiated"
-    )
-    time_taken_seconds: float | None = Field(default=None)
-
-
 class DeviceUpdateRequest(BaseModel):
     """Request for updating a single device."""
 

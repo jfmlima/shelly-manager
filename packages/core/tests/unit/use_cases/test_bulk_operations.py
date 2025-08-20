@@ -1,11 +1,11 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from core.domain.value_objects.bulk_scan_request import BulkScanRequest
 from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.entities.exceptions import BulkOperationError
 from core.domain.enums.enums import Status
 from core.domain.value_objects.action_result import ActionResult
+from core.domain.value_objects.bulk_scan_request import BulkScanRequest
 from core.use_cases.bulk_operations import BulkOperationsUseCase
 
 
@@ -114,7 +114,7 @@ class TestBulkOperationsUseCase:
         assert len(results) == 2
         assert all(result.success for result in results)
         mock_device_gateway.execute_bulk_action.assert_called_once_with(
-            device_ips, "update", {"channel": "stable"}
+            device_ips, "shelly", "Update", {"channel": "stable"}
         )
 
     async def test_it_updates_with_beta_channel(self, use_case, mock_device_gateway):
@@ -136,7 +136,7 @@ class TestBulkOperationsUseCase:
         assert len(results) == 1
         assert results[0].success is True
         mock_device_gateway.execute_bulk_action.assert_called_once_with(
-            device_ips, "update", {"channel": "beta"}
+            device_ips, "shelly", "Update", {"channel": "beta"}
         )
 
     async def test_it_raises_bulk_operation_error_on_update_failure(
@@ -177,7 +177,7 @@ class TestBulkOperationsUseCase:
         assert len(results) == 2
         assert all(result.success for result in results)
         mock_device_gateway.execute_bulk_action.assert_called_once_with(
-            device_ips, "reboot", {}
+            device_ips, "shelly", "Reboot", {}
         )
 
     async def test_it_raises_bulk_operation_error_on_reboot_failure(
@@ -191,35 +191,34 @@ class TestBulkOperationsUseCase:
         with pytest.raises(BulkOperationError, match="Bulk reboot failed"):
             await use_case.execute_bulk_reboot(device_ips)
 
-    async def test_it_sets_configuration_on_multiple_devices(
+    async def test_it_factory_resets_multiple_devices(
         self, use_case, mock_device_gateway
     ):
         device_ips = ["192.168.1.100", "192.168.1.101"]
-        config = {"name": "Bulk Updated Device"}
         expected_results = [
             ActionResult(
                 success=True,
-                action_type="config_set",
+                action_type="shelly.FactoryReset",
                 device_ip="192.168.1.100",
-                message="Config updated",
+                message="Factory reset completed",
             ),
             ActionResult(
                 success=True,
-                action_type="config_set",
+                action_type="shelly.FactoryReset",
                 device_ip="192.168.1.101",
-                message="Config updated",
+                message="Factory reset completed",
             ),
         ]
         mock_device_gateway.execute_bulk_action = AsyncMock(
             return_value=expected_results
         )
 
-        results = await use_case.execute_bulk_config_set(device_ips, config)
+        results = await use_case.execute_bulk_factory_reset(device_ips)
 
         assert len(results) == 2
         assert all(result.success for result in results)
         mock_device_gateway.execute_bulk_action.assert_called_once_with(
-            device_ips, "config-set", {"config": config}
+            device_ips, "shelly", "FactoryReset", {}
         )
 
     async def test_it_handles_mixed_results_in_bulk_operations(
@@ -289,7 +288,9 @@ class TestBulkOperationsUseCase:
         mock_device_gateway.discover_device = AsyncMock()
         mock_device_gateway.discover_device.side_effect = devices
 
-        result = await use_case.execute_bulk_scan(BulkScanRequest(ips=ips, timeout=10.0))
+        result = await use_case.execute_bulk_scan(
+            BulkScanRequest(ips=ips, timeout=10.0)
+        )
 
         assert len(result) == 1
         mock_device_gateway.discover_device.assert_called_with("192.168.1.100")
@@ -301,9 +302,10 @@ class TestBulkOperationsUseCase:
         mock_device_gateway.execute_bulk_action = AsyncMock(return_value=[])
 
         from pydantic import ValidationError
+
         with pytest.raises(ValidationError, match="List should have at least 1 item"):
             BulkScanRequest(ips=empty_ips)
-        
+
         update_result = await use_case.execute_bulk_update(empty_ips)
         reboot_result = await use_case.execute_bulk_reboot(empty_ips)
 

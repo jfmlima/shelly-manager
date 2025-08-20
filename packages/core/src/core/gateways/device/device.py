@@ -23,9 +23,19 @@ class DeviceGateway(ABC):
         pass
 
     @abstractmethod
-    async def execute_action(
-        self, ip: str, action_type: str, parameters: dict[str, Any]
+    async def get_available_methods(self, ip: str) -> list[str]:
+        """Get available RPC methods for action validation."""
+        pass
+
+    @abstractmethod
+    async def execute_component_action(
+        self,
+        ip: str,
+        component_key: str,
+        action: str,
+        parameters: dict[str, Any] | None = None,
     ) -> ActionResult:
+        """Execute validated action on any component type."""
         pass
 
     @abstractmethod
@@ -38,6 +48,11 @@ class DeviceGateway(ABC):
 
     @abstractmethod
     async def execute_bulk_action(
-        self, device_ips: list[str], action_type: str, parameters: dict[str, Any]
+        self,
+        device_ips: list[str],
+        component_key: str,
+        action: str,
+        parameters: dict[str, Any] | None = None,
     ) -> list[ActionResult]:
+        """Execute component actions on multiple devices in parallel."""
         pass

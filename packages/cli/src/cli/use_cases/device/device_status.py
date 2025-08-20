@@ -7,7 +7,6 @@ from typing import Any
 from core.domain.value_objects.check_device_status_request import (
     CheckDeviceStatusRequest,
 )
-
 from rich.console import Console
 
 from cli.dependencies.container import CLIContainer
