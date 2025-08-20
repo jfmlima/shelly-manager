@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useTranslation } from "react-i18next";
+import { useEffect } from "react";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,13 +23,66 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 
-const scanFormSchema = z.object({
-  start_ip: z.string().optional(),
-  end_ip: z.string().optional(),
-  use_predefined: z.boolean(),
-  timeout: z.number().min(1).max(30),
-  max_workers: z.number().min(1).max(100),
-});
+// IP address validation regex
+const ipRegex =
+  /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+
+const scanFormSchema = z
+  .object({
+    start_ip: z.string().optional(),
+    end_ip: z.string().optional(),
+    use_predefined: z.boolean(),
+    timeout: z.number().min(1).max(30),
+    max_workers: z.number().min(1).max(100),
+  })
+  .refine(
+    (data) => {
+      // If not using predefined, both IP fields are required
+      if (!data.use_predefined) {
+        return (
+          data.start_ip &&
+          data.start_ip.trim() !== "" &&
+          data.end_ip &&
+          data.end_ip.trim() !== ""
+        );
+      }
+      return true;
+    },
+    {
+      message: "Start IP and End IP are required when not using predefined IPs",
+      path: ["start_ip"],
+    },
+  )
+  .refine(
+    (data) => {
+      // Validate start IP format if provided and not using predefined
+      if (
+        !data.use_predefined &&
+        data.start_ip &&
+        data.start_ip.trim() !== ""
+      ) {
+        return ipRegex.test(data.start_ip.trim());
+      }
+      return true;
+    },
+    {
+      message: "Please enter a valid IP address (e.g., 192.168.1.1)",
+      path: ["start_ip"],
+    },
+  )
+  .refine(
+    (data) => {
+      // Validate end IP format if provided and not using predefined
+      if (!data.use_predefined && data.end_ip && data.end_ip.trim() !== "") {
+        return ipRegex.test(data.end_ip.trim());
+      }
+      return true;
+    },
+    {
+      message: "Please enter a valid IP address (e.g., 192.168.1.254)",
+      path: ["end_ip"],
+    },
+  );
 
 export type ScanFormData = z.infer<typeof scanFormSchema>;
 
@@ -53,11 +107,21 @@ export function ScanForm({ onSubmit, isLoading = false }: ScanFormProps) {
 
   const usePredefined = form.watch("use_predefined");
 
+  // Clear IP fields when switching to predefined mode
+  useEffect(() => {
+    if (usePredefined) {
+      form.setValue("start_ip", "");
+      form.setValue("end_ip", "");
+      // Clear any validation errors
+      form.clearErrors(["start_ip", "end_ip"]);
+    }
+  }, [usePredefined, form]);
+
   const handleSubmit = (data: ScanFormData) => {
     const cleanData = {
       ...data,
-      start_ip: data.start_ip || undefined,
-      end_ip: data.end_ip || undefined,
+      start_ip: data.start_ip?.trim() || undefined,
+      end_ip: data.end_ip?.trim() || undefined,
     };
     onSubmit(cleanData);
   };
@@ -106,9 +170,18 @@ export function ScanForm({ onSubmit, isLoading = false }: ScanFormProps) {
                     name="start_ip"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t("dashboard.scanForm.startIp")}</FormLabel>
+                        <FormLabel>
+                          {t("dashboard.scanForm.startIp")}
+                          {!usePredefined && (
+                            <span className="text-red-500 ml-1">*</span>
+                          )}
+                        </FormLabel>
                         <FormControl>
-                          <Input placeholder="192.168.1.1" {...field} />
+                          <Input
+                            placeholder="192.168.1.1"
+                            {...field}
+                            value={field.value || ""}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -120,9 +193,18 @@ export function ScanForm({ onSubmit, isLoading = false }: ScanFormProps) {
                     name="end_ip"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t("dashboard.scanForm.endIp")}</FormLabel>
+                        <FormLabel>
+                          {t("dashboard.scanForm.endIp")}
+                          {!usePredefined && (
+                            <span className="text-red-500 ml-1">*</span>
+                          )}
+                        </FormLabel>
                         <FormControl>
-                          <Input placeholder="192.168.1.254" {...field} />
+                          <Input
+                            placeholder="192.168.1.254"
+                            {...field}
+                            value={field.value || ""}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

@@ -42,14 +42,15 @@ class ShellyDeviceGateway(DeviceGateway):
             device_info, response_time = await self._rpc_client.make_rpc_request(
                 ip, "Shelly.GetDeviceInfo", timeout=self.timeout
             )
+            device_data = device_info.get("result", device_info)
 
             device = DiscoveredDevice(
                 ip=ip,
                 status=Status.DETECTED,
-                device_id=device_info.get("id"),
-                device_type=device_info.get("model"),
-                device_name=device_info.get("name"),
-                firmware_version=device_info.get("fw_id"),
+                device_id=device_data.get("id"),
+                device_type=device_data.get("model"),
+                device_name=device_data.get("name"),
+                firmware_version=device_data.get("fw_id"),
                 response_time=response_time,
                 last_seen=datetime.now(),
             )
@@ -58,9 +59,10 @@ class ShellyDeviceGateway(DeviceGateway):
                 update_info, _ = await self._rpc_client.make_rpc_request(
                     ip, "Shelly.CheckForUpdate", timeout=self.timeout
                 )
+                update_data = update_info.get("result", update_info)
 
-                stable_update = update_info.get("stable", {}) if update_info else {}
-                beta_update = update_info.get("beta", {}) if update_info else {}
+                stable_update = update_data.get("stable", {}) if update_data else {}
+                beta_update = update_data.get("beta", {}) if update_data else {}
 
                 if stable_update.get("version") or beta_update.get("version"):
                     device.status = Status.UPDATE_AVAILABLE

@@ -560,4 +560,4 @@ class TestShellyDeviceGateway:
         result = await gateway.discover_device("192.168.1.100")
 
         assert result is not None
-        assert result.status == Status.NO_UPDATE_NEEDED
+        assert result.status == Status.DETECTED

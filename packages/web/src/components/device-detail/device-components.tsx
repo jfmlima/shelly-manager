@@ -48,6 +48,24 @@ const PRIORITY_COMPONENT_TYPES = [
   "ble",
 ];
 
+const TYPE_ORDER = ["switch", "cover", "cloud", "sys", "zigbee", "ble"];
+
+function sortComponentsByType(components: Component[]): Component[] {
+  return [...components].sort((a, b) => {
+    const aIndex = TYPE_ORDER.indexOf(a.type);
+    const bIndex = TYPE_ORDER.indexOf(b.type);
+
+    if (aIndex !== -1 && bIndex !== -1) {
+      return aIndex - bIndex;
+    }
+
+    if (aIndex !== -1) return -1;
+    if (bIndex !== -1) return 1;
+
+    return a.type.localeCompare(b.type);
+  });
+}
+
 export function DeviceComponents({
   deviceStatus,
   isLoading,
@@ -168,7 +186,6 @@ export function DeviceComponents({
       );
     }
 
-    // Generic component fallback
     return (
       <GenericComponent
         key={component.key}
@@ -179,11 +196,16 @@ export function DeviceComponents({
     );
   };
 
-  const priorityComponents = deviceStatus.components.filter((component) =>
-    PRIORITY_COMPONENT_TYPES.includes(component.type),
+  const priorityComponentsUnsorted = deviceStatus.components.filter(
+    (component) => PRIORITY_COMPONENT_TYPES.includes(component.type),
   );
-  const additionalComponents = deviceStatus.components.filter(
+  const additionalComponentsUnsorted = deviceStatus.components.filter(
     (component) => !PRIORITY_COMPONENT_TYPES.includes(component.type),
+  );
+
+  const priorityComponents = sortComponentsByType(priorityComponentsUnsorted);
+  const additionalComponents = sortComponentsByType(
+    additionalComponentsUnsorted,
   );
 
   const hasAdditionalComponents = additionalComponents.length > 0;

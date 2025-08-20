@@ -102,8 +102,7 @@ class ScanDevicesUseCase:
     ) -> DiscoveredDevice | None:
         async with semaphore:
             try:
-                device = await self._discover_device(ip, timeout)
-                return device
+                return await self._discover_device(ip, timeout)
             except Exception:
                 return DiscoveredDevice(
                     ip=ip,

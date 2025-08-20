@@ -6,6 +6,7 @@ import {
   HardDrive,
   Clock,
   Zap,
+  AlertTriangle,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -102,22 +103,94 @@ export function DeviceHeader({ deviceStatus, isLoading }: DeviceHeaderProps) {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4 text-sm">
+            {/* Firmware Section - Full Left Column */}
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
                 <HardDrive className="h-4 w-4 text-muted-foreground" />
                 <span>{t("deviceDetail.deviceInfo.firmware")}</span>
               </div>
-              <div className="font-mono text-xs pl-6">
-                {summary.firmware_version ||
-                  t("deviceDetail.deviceInfo.unknown")}
+              <div className="pl-6 space-y-2">
+                {/* Current Version */}
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">
+                    Current:
+                  </span>
+                  <div className="font-mono text-xs break-all">
+                    {summary.firmware_version ||
+                      t("deviceDetail.deviceInfo.unknown")}
+                  </div>
+                </div>
+
+                {/* Available Updates */}
+                {deviceStatus.firmware.available_updates &&
+                  Object.keys(deviceStatus.firmware.available_updates).length >
+                    0 && (
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground">
+                        {t("deviceDetail.deviceInfo.availableUpdates")}:
+                      </div>
+                      <div className="space-y-1">
+                        {Object.entries(
+                          deviceStatus.firmware.available_updates,
+                        ).map(([channel, update]) => (
+                          <div
+                            key={channel}
+                            className="flex items-center space-x-2"
+                          >
+                            <Badge
+                              variant="secondary"
+                              className="text-xs px-2 py-0"
+                            >
+                              {channel}
+                            </Badge>
+                            <span className="text-xs font-mono">
+                              {update.version}
+                            </span>
+                            {update.name && (
+                              <span className="text-xs text-muted-foreground">
+                                ({update.name})
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
               </div>
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <span>{t("deviceDetail.status.uptime")}</span>
+
+            {/* Right Column - Uptime and Restart Required */}
+            <div className="space-y-4">
+              {/* Uptime Section */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span>{t("deviceDetail.status.uptime")}</span>
+                </div>
+                <div className="pl-6">{formatUptime(summary.uptime)}</div>
               </div>
-              <div className="pl-6">{formatUptime(summary.uptime)}</div>
+
+              {/* Restart Required Section */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                  <span>{t("deviceDetail.status.restartRequired")}</span>
+                </div>
+                <div className="pl-6">
+                  <Badge
+                    variant={
+                      deviceStatus.firmware.restart_required
+                        ? "destructive"
+                        : "outline"
+                    }
+                    className="text-xs"
+                  >
+                    {deviceStatus.firmware.restart_required
+                      ? t("deviceDetail.components.input.yes")
+                      : t("deviceDetail.components.input.no")}
+                  </Badge>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>

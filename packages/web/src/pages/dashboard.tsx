@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { ScanForm } from "@/components/dashboard/scan-form";
+import { ScanForm, type ScanFormData } from "@/components/dashboard/scan-form";
 import { DeviceTable } from "@/components/dashboard/device-table";
 import { BulkActionsDialog } from "@/components/dashboard/bulk-actions-dialog";
 import { deviceApi, handleApiError } from "@/lib/api";
@@ -13,27 +13,26 @@ export function Dashboard() {
   const { t } = useTranslation();
   const [selectedDevices, setSelectedDevices] = useState<Device[]>([]);
   const [bulkActionsOpen, setBulkActionsOpen] = useState(false);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const queryClient = useQueryClient();
 
-  const {
-    data: devices = [],
-    isLoading,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: ["devices", "scan"],
-    queryFn: () => deviceApi.scanDevices({ use_predefined: true }),
-    enabled: false,
+  const scanMutation = useMutation({
+    mutationFn: (params: ScanFormData) => deviceApi.scanDevices(params),
+    onSuccess: (data) => {
+      setDevices(data);
+      toast.success(
+        t("dashboard.messages.scanSuccess", { count: data.length }),
+      );
+      // Update the query cache
+      queryClient.setQueryData(["devices", "scan"], data);
+    },
+    onError: (error) => {
+      toast.error(handleApiError(error));
+    },
   });
 
-  const handleScan = async () => {
-    try {
-      await refetch();
-      toast.success(
-        t("dashboard.messages.scanSuccess", { count: devices.length }),
-      );
-    } catch (error) {
-      toast.error(handleApiError(error));
-    }
+  const handleScan = (formData: ScanFormData) => {
+    scanMutation.mutate(formData);
   };
 
   const handleBulkAction = (devices: Device[]) => {
@@ -57,12 +56,14 @@ export function Dashboard() {
       </div>
 
       {/* Scan Form */}
-      <ScanForm onSubmit={handleScan} isLoading={isLoading} />
+      <ScanForm onSubmit={handleScan} isLoading={scanMutation.isPending} />
 
       {/* Error Display */}
-      {error && (
+      {scanMutation.error && (
         <div className="p-4 border border-destructive/50 bg-destructive/10 rounded-lg">
-          <p className="text-sm text-destructive">{handleApiError(error)}</p>
+          <p className="text-sm text-destructive">
+            {handleApiError(scanMutation.error)}
+          </p>
         </div>
       )}
 
