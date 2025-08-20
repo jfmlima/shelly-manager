@@ -208,7 +208,7 @@ export interface ComponentActionResult {
   success: boolean;
   message?: string;
   error?: string;
-  data?: unknown;
+  data?: string | Record<string, unknown>;
 }
 
 export interface BulkOperationRequest {

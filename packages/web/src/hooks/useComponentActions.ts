@@ -1,6 +1,11 @@
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { deviceApi } from "@/lib/api";
+import {
+  shouldShowResponseData,
+  hasResponseData,
+} from "@/utils/action-responses";
 import type { ComponentActionResult } from "@/types/api";
 
 interface ExecuteComponentActionParams {
@@ -10,7 +15,46 @@ interface ExecuteComponentActionParams {
   parameters?: Record<string, unknown>;
 }
 
-export function useExecuteComponentAction() {
+interface UseActionResponseModalResult {
+  responseModalState: {
+    isOpen: boolean;
+    response: ComponentActionResult | null;
+  };
+  openResponseModal: (response: ComponentActionResult) => void;
+  closeResponseModal: () => void;
+}
+
+export function useActionResponseModal(): UseActionResponseModalResult {
+  const [responseModalState, setResponseModalState] = useState<{
+    isOpen: boolean;
+    response: ComponentActionResult | null;
+  }>({
+    isOpen: false,
+    response: null,
+  });
+
+  const openResponseModal = (response: ComponentActionResult) => {
+    setResponseModalState({ isOpen: true, response });
+  };
+
+  const closeResponseModal = () => {
+    setResponseModalState({ isOpen: false, response: null });
+  };
+
+  return {
+    responseModalState,
+    openResponseModal,
+    closeResponseModal,
+  };
+}
+
+interface UseExecuteComponentActionOptions {
+  onResponseReceived?: (response: ComponentActionResult) => void;
+}
+
+export function useExecuteComponentAction(
+  options?: UseExecuteComponentActionOptions,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -36,10 +80,18 @@ export function useExecuteComponentAction() {
         queryKey: ["device", "status", variables.deviceIp],
       });
 
+      options?.onResponseReceived?.(result);
+
+      const shouldShowModal =
+        shouldShowResponseData(variables.action) && hasResponseData(result);
+
       if (result.success) {
-        toast.success(
-          result.message || `Action ${variables.action} executed successfully`,
-        );
+        if (!shouldShowModal) {
+          toast.success(
+            result.message ||
+              `Action ${variables.action} executed successfully`,
+          );
+        }
       } else {
         toast.error(result.error || `Action ${variables.action} failed`);
       }

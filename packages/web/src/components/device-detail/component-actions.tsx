@@ -43,10 +43,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import {
   useExecuteComponentAction,
+  useActionResponseModal,
   getActionDisplayName,
   getActionIcon,
   isDestructiveAction,
 } from "@/hooks/useComponentActions";
+import {
+  shouldShowResponseData,
+  hasResponseData,
+} from "@/utils/action-responses";
+import { ActionResponseModal } from "./action-response-modal";
 import type { Component } from "@/types/api";
 
 interface ComponentActionsProps {
@@ -87,7 +93,19 @@ export function ComponentActions({
   >({});
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  const executeAction = useExecuteComponentAction();
+  const { responseModalState, openResponseModal, closeResponseModal } =
+    useActionResponseModal();
+
+  const executeAction = useExecuteComponentAction({
+    onResponseReceived: (response) => {
+      if (
+        shouldShowResponseData(selectedAction || "") &&
+        hasResponseData(response)
+      ) {
+        openResponseModal(response);
+      }
+    },
+  });
 
   if (
     !component.available_actions ||
@@ -312,6 +330,14 @@ export function ComponentActions({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Action Response Modal */}
+      <ActionResponseModal
+        isOpen={responseModalState.isOpen}
+        onClose={closeResponseModal}
+        response={responseModalState.response}
+        componentType={component.type}
+      />
     </div>
   );
 }
