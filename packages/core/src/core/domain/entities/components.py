@@ -336,7 +336,11 @@ class ZigbeeComponent(Component):
 
     def get_available_actions(self, all_methods: list[str]) -> list[str]:
         """Filter methods relevant to Zigbee components."""
-        return [m for m in all_methods if m.startswith("Zigbee.")]
+        return [
+            m
+            for m in all_methods
+            if m.startswith("Zigbee.") or m.startswith("Shelly.Zigbee")
+        ]
 
 
 ComponentType = (
