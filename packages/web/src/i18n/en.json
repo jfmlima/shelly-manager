@@ -286,10 +286,7 @@
     },
     "footer": {
       "title": "Shelly Manager",
-      "description": "A modern web interface for managing Shelly IoT devices",
-      "builtWith": "Built with React + TypeScript",
-      "poweredBy": "Powered by Vite",
-      "uiBy": "UI by shadcn/ui"
+      "description": "A modern web interface for locally managing Shelly IoT devices"
     },
     "messages": {
       "settingsSaved": "Settings saved successfully",
