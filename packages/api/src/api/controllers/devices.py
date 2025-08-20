@@ -75,13 +75,15 @@ async def scan_devices(
 @get("/{ip:str}/components/actions")
 async def get_component_actions(
     ip: str,
-    actions_interactor: GetComponentActionsUseCase | None = None,
+    component_actions_interactor: GetComponentActionsUseCase | None = None,
 ) -> dict:
     """Get available actions for all device components."""
-    actions_interactor = _require("actions_interactor", actions_interactor)
+    component_actions_interactor = _require(
+        "component_actions_interactor", component_actions_interactor
+    )
 
     request = GetComponentActionsRequest(device_ip=ip)
-    actions = await actions_interactor.execute(request)
+    actions = await component_actions_interactor.execute(request)
 
     return {"ip": ip, "component_actions": actions}
 
@@ -92,10 +94,12 @@ async def execute_component_action(
     component_key: str,
     action: str,
     data: dict = Body(),
-    action_interactor: ExecuteComponentActionUseCase | None = None,
+    execute_component_action_interactor: ExecuteComponentActionUseCase | None = None,
 ) -> dict:
     """Execute action on device component."""
-    action_interactor = _require("action_interactor", action_interactor)
+    execute_component_action_interactor = _require(
+        "execute_component_action_interactor", execute_component_action_interactor
+    )
 
     request = ComponentActionRequest(
         device_ip=ip,
@@ -104,7 +108,7 @@ async def execute_component_action(
         parameters=data,
     )
 
-    result = await action_interactor.execute(request)
+    result = await execute_component_action_interactor.execute(request)
 
     return {
         "ip": result.device_ip,
@@ -202,10 +206,12 @@ async def set_device_config(
 async def update_device(
     ip: str,
     data: dict = Body(),
-    action_interactor: ExecuteComponentActionUseCase | None = None,
+    execute_component_action_interactor: ExecuteComponentActionUseCase | None = None,
 ) -> dict:
     """Convenience endpoint for firmware updates (shortcut for component action)."""
-    action_interactor = _require("action_interactor", action_interactor)
+    execute_component_action_interactor = _require(
+        "execute_component_action_interactor", execute_component_action_interactor
+    )
 
     channel = data.get("channel", "stable")
     parameters = {"channel": channel} if channel != "stable" else {}
@@ -217,7 +223,7 @@ async def update_device(
         parameters=parameters,
     )
 
-    result = await action_interactor.execute(request)
+    result = await execute_component_action_interactor.execute(request)
 
     return {
         "ip": result.device_ip,
@@ -232,10 +238,12 @@ async def update_device(
 @post("/{ip:str}/reboot", status_code=200)
 async def reboot_device(
     ip: str,
-    action_interactor: ExecuteComponentActionUseCase | None = None,
+    execute_component_action_interactor: ExecuteComponentActionUseCase | None = None,
 ) -> dict:
     """Convenience endpoint for device reboot (shortcut for component action)."""
-    action_interactor = _require("action_interactor", action_interactor)
+    execute_component_action_interactor = _require(
+        "execute_component_action_interactor", execute_component_action_interactor
+    )
 
     request = ComponentActionRequest(
         device_ip=ip,
@@ -244,7 +252,7 @@ async def reboot_device(
         parameters={},
     )
 
-    result = await action_interactor.execute(request)
+    result = await execute_component_action_interactor.execute(request)
 
     return {
         "ip": result.device_ip,

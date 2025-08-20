@@ -1024,6 +1024,9 @@ wheels = [
 name = "shelly-manager"
 version = "0.1.0"
 source = { editable = "." }
+dependencies = [
+    { name = "shelly-manager-core" },
+]
 
 [package.optional-dependencies]
 dev = [
@@ -1047,6 +1050,7 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = "==1.1.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = "==6.2.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.12.9" },
+    { name = "shelly-manager-core", editable = "packages/core" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = "==6.0.12.20250516" },
     { name = "types-requests", marker = "extra == 'dev'", specifier = "==2.32.4.20250809" },
 ]
@@ -1058,7 +1062,6 @@ version = "0.1.0"
 source = { editable = "packages/api" }
 dependencies = [
     { name = "litestar", extra = ["standard"] },
-    { name = "pydantic" },
     { name = "shelly-manager-core" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -1078,7 +1081,6 @@ requires-dist = [
     { name = "black", marker = "extra == 'dev'" },
     { name = "litestar", extras = ["standard"], specifier = "==2.16.0" },
     { name = "mypy", marker = "extra == 'dev'" },
-    { name = "pydantic", specifier = "==2.11.7" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },

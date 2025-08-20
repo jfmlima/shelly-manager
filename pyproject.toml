@@ -9,7 +9,9 @@ description = "Shelly IoT device management tool with clean architecture"
 authors = [{name = "Jorge Lima", email = "jorgefilipemlima@gmail.com"}]
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "shelly-manager-core"
+]
 
 [project.optional-dependencies]
 dev = [

@@ -4,6 +4,7 @@ Synchronous Shelly RPC client implementation.
 
 import asyncio
 import time
+import uuid
 from typing import Any
 
 import requests
@@ -38,9 +39,9 @@ class ShellyRPCClient(NetworkGateway):
         auth: tuple[str, str] | None = None,
         timeout: float = 1.0,
     ) -> tuple[dict[str, Any], float]:
-        url = f"http://{ip}/rpc/{method}"
+        url = f"http://{ip}/rpc"
 
-        payload = {"id": 1, "method": method}
+        payload: dict[str, Any] = {"id": str(uuid.uuid4()), "method": method}
         if params:
             payload["params"] = params
 

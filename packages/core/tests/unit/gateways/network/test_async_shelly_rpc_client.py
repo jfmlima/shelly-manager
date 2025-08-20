@@ -75,7 +75,7 @@ class TestAsyncShellyRPCClient:
         )
 
         call_args = mock_session.post.call_args
-        expected_url = "http://192.168.1.100/rpc/Shelly.GetDeviceInfo"
+        expected_url = "http://192.168.1.100/rpc"
         assert call_args[0][0] == expected_url
 
     async def test_it_handles_http_error_responses(self, client, mock_session):
@@ -108,7 +108,7 @@ class TestAsyncShellyRPCClient:
         await client.make_rpc_request("10.0.0.1", "Test.Method")
 
         call_args = mock_session.post.call_args
-        expected_url = "http://10.0.0.1/rpc/Test.Method"
+        expected_url = "http://10.0.0.1/rpc"
         assert call_args[0][0] == expected_url
 
     async def test_it_uses_correct_headers(self, client, mock_session):

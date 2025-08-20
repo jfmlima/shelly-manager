@@ -74,7 +74,7 @@ class TestDevicesController:
         with create_test_client(
             route_handlers=[execute_component_action],
             dependencies={
-                "action_interactor": Provide(
+                "execute_component_action_interactor": Provide(
                     lambda: MockExecuteComponentActionUseCase(), sync_to_thread=False
                 )
             },
@@ -107,7 +107,7 @@ class TestDevicesController:
         with create_test_client(
             route_handlers=[execute_component_action],
             dependencies={
-                "action_interactor": Provide(
+                "execute_component_action_interactor": Provide(
                     lambda: MockExecuteComponentActionUseCase(), sync_to_thread=False
                 )
             },
@@ -139,7 +139,7 @@ class TestDevicesController:
         with create_test_client(
             route_handlers=[get_component_actions],
             dependencies={
-                "actions_interactor": Provide(
+                "component_actions_interactor": Provide(
                     lambda: MockGetComponentActionsUseCase(), sync_to_thread=False
                 )
             },
@@ -173,7 +173,7 @@ class TestDevicesController:
         with create_test_client(
             route_handlers=[execute_component_action],
             dependencies={
-                "action_interactor": Provide(
+                "execute_component_action_interactor": Provide(
                     lambda: MockExecuteComponentActionUseCase(), sync_to_thread=False
                 )
             },
@@ -369,7 +369,7 @@ class TestDevicesController:
 
         class MockBulkOperationsUseCase(BulkOperationsUseCase):
             def __init__(self):
-                pass  # Skip parent constructor
+                pass
 
             async def execute_bulk_reboot(self, device_ips):
                 return [
@@ -405,7 +405,7 @@ class TestDevicesController:
 
         class MockBulkOperationsUseCase(BulkOperationsUseCase):
             def __init__(self):
-                pass  # Skip parent constructor
+                pass
 
             async def execute_bulk_factory_reset(self, device_ips):
                 return [

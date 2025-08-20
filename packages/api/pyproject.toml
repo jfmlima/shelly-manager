@@ -13,7 +13,6 @@ dependencies = [
     "shelly-manager-core",  # Local package dependency
     "litestar[standard]==2.16.0",
     "uvicorn[standard]==0.35.0",
-    "pydantic==2.11.7",     # Explicit version for consistency
 ]
 
 [project.optional-dependencies]

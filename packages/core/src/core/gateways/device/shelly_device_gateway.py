@@ -101,15 +101,16 @@ class ShellyDeviceGateway(DeviceGateway):
                 zigbee_response, _ = await self._rpc_client.make_rpc_request(
                     ip, "Zigbee.GetStatus", timeout=self.timeout
                 )
-                zigbee_data = zigbee_response
+                zigbee_data = zigbee_response.get("result", zigbee_response)
             except Exception as e:
                 logger.error(f"Error getting Zigbee data: {e}", exc_info=True)
                 pass
 
             available_methods = await self.get_available_methods(ip)
+            components_data = components_response.get("result", components_response)
 
             return DeviceStatus.from_raw_response(
-                ip, components_response, zigbee_data, available_methods
+                ip, components_data, zigbee_data, available_methods
             )
 
         except Exception as e:
@@ -129,9 +130,13 @@ class ShellyDeviceGateway(DeviceGateway):
             methods_response, _ = await self._rpc_client.make_rpc_request(
                 ip, "Shelly.ListMethods", timeout=self.timeout
             )
-            if isinstance(methods_response, dict) and "methods" in methods_response:
-                methods = methods_response["methods"]
+            result = methods_response.get("result", methods_response)
+
+            if isinstance(result, dict) and "methods" in result:
+                methods = result["methods"]
+
                 return methods if isinstance(methods, list) else []
+
             return []
         except Exception as e:
             logger.warning(f"Failed to get available methods for {ip}: {e}")
