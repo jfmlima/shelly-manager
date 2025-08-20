@@ -27,6 +27,8 @@ from litestar import Router, get, post
 from litestar.exceptions import HTTPException
 from litestar.params import Body
 
+from ..presentation.exceptions import DeviceNotFoundHTTPException
+
 T = TypeVar("T")
 
 
@@ -164,7 +166,7 @@ async def get_device_status(
             "total_components": device_status.total_components,
         }
     else:
-        return {"ip": ip, "error": "Device not found or unreachable"}
+        raise DeviceNotFoundHTTPException(ip)
 
 
 @get("/{ip:str}/config")

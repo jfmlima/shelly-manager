@@ -9,6 +9,7 @@ from api.controllers.devices import (
     scan_devices,
     set_device_config,
 )
+from api.presentation.exceptions import DeviceNotFoundHTTPException
 from core.domain.entities.device_status import DeviceStatus
 from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.enums.enums import Status
@@ -468,3 +469,48 @@ class TestDevicesController:
             )
             assert response.status_code == 400
             assert "Unsupported operation: invalid" in response.json()["detail"]
+
+    def test_get_device_status_returns_404_when_device_not_found(self):
+        from datetime import datetime
+
+        from litestar.response import Response
+
+        def handle_device_not_found_exception(
+            request, exc: DeviceNotFoundHTTPException
+        ) -> Response:
+            return Response(
+                content={
+                    "error": "Device Not Found",
+                    "message": exc.detail,
+                    "timestamp": datetime.now().isoformat(),
+                    "ip": exc.device_ip,
+                },
+                status_code=404,
+                media_type="application/json",
+            )
+
+        class MockCheckDeviceStatusUseCase(CheckDeviceStatusUseCase):
+            def __init__(self):
+                pass
+
+            async def execute(self, request):
+                return None  # Device not found
+
+        with create_test_client(
+            route_handlers=[get_device_status],
+            dependencies={
+                "status_interactor": Provide(
+                    lambda: MockCheckDeviceStatusUseCase(), sync_to_thread=False
+                )
+            },
+            exception_handlers={
+                DeviceNotFoundHTTPException: handle_device_not_found_exception,
+            },
+        ) as client:
+            response = client.get("/192.168.1.200/status")
+
+            assert response.status_code == 404
+            data = response.json()
+            assert "Device Not Found" in data["error"]
+            assert "192.168.1.200" in data["message"]
+            assert data["ip"] == "192.168.1.200"
