@@ -1,7 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DeviceHeader } from "@/components/device-detail/device-header";
@@ -92,12 +92,15 @@ export function DeviceDetail() {
               t("deviceDetail.deviceInfo.unnamedDevice")}
           </h1>
           <p className="text-muted-foreground">
-            {t("deviceDetail.subtitle", {
-              name:
-                deviceStatus?.summary.device_name ||
-                t("deviceDetail.deviceInfo.unnamedDevice"),
-              ip,
-            })}
+            <a
+              href={`http://${ip}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:underline cursor-pointer inline-flex items-center gap-1 justify-center"
+            >
+              {ip}
+              <ExternalLink className="h-3 w-3" />
+            </a>
           </p>
         </div>
       </div>

@@ -7,6 +7,7 @@ import {
   Clock,
   Zap,
   AlertTriangle,
+  ExternalLink,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -89,7 +90,17 @@ export function DeviceHeader({ deviceStatus, isLoading }: DeviceHeaderProps) {
                 </span>
                 {getStatusBadge()}
               </CardTitle>
-              <CardDescription className="font-mono">{ip}</CardDescription>
+              <CardDescription className="font-mono">
+                <a
+                  href={`http://${ip}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:underline cursor-pointer inline-flex items-center gap-1"
+                >
+                  {ip}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </CardDescription>
             </div>
             <div className="text-right space-y-1">
               <div className="text-sm text-muted-foreground">
