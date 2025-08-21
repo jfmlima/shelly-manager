@@ -18,7 +18,7 @@ Manage Shelly devices on your local network without connecting them to the Shell
 - Bulk operations across multiple devices
 - Status monitoring
 - Component action discovery and execution
-- Dynamic device capability detection  
+- Dynamic device capability detection
 - Component-specific controls (switches, covers, lights, etc.)
 
 Available as:
@@ -35,7 +35,7 @@ Available as:
 
 ```yaml
 services:
-  api:
+  shelly-manager-api:
     image: ghcr.io/jfmlima/shelly-manager-api:latest
     ports:
       - "8000:8000"
@@ -45,7 +45,7 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
 
-  web:
+  shelly-manager-web:
     image: ghcr.io/jfmlima/shelly-manager-web:latest
     ports:
       - "8080:8080"
@@ -53,6 +53,40 @@ services:
       - VITE_BASE_API_URL=http://localhost:8000
     depends_on:
       - api
+```
+
+**With Traefik**:
+
+```yaml
+services:
+  shelly-manager-api:
+    container_name: shelly-manager-api
+    image: ghcr.io/jfmlima/shelly-manager-api:latest
+    volumes:
+      - ./home/shelly-manager/config.json:/app/config.json:ro
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.shelly-manager-api.rule=Host(`shelly-manager-api.your.domain`)"
+      - "traefik.http.routers.shelly-manager-api.service=shelly-manager-api"
+      - "traefik.http.routers.shelly-manager-api.entrypoints=web"
+      - "traefik.http.services.shelly-manager-api.loadbalancer.server.port=8000"
+
+  shelly-manager-web:
+    container_name: shelly-manager-web
+    image: ghcr.io/jfmlima/shelly-manager-web:latest
+    environment:
+      - VITE_BASE_API_URL=http://shelly-manager-api.your.domain
+    depends_on:
+      - shelly-manager-api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.shelly-manager-web.rule=Host(`shelly-manager.your.domain`)"
+      - "traefik.http.routers.shelly-manager-web.service=shelly-manager-web"
+      - "traefik.http.routers.shelly-manager-web.entrypoints=web"
+      - "traefik.http.services.shelly-manager-web.loadbalancer.server.port=8080"
 ```
 
 **CLI Only**:
@@ -136,7 +170,7 @@ GET /api/health                    # Service health check
 GET /api/devices/scan              # Discover devices on network
 GET /api/devices/{ip}/status       # Get device status
 
-# Device operations  
+# Device operations
 POST /api/devices/{ip}/update      # Update device firmware
 POST /api/devices/{ip}/reboot      # Reboot device
 POST /api/devices/bulk/update      # Bulk firmware updates
@@ -146,7 +180,7 @@ GET /api/devices/{ip}/components/actions           # Discover available actions
 POST /api/devices/{ip}/components/{id}/action      # Execute component action
 
 # Configuration management
-GET /api/devices/{ip}/config       # Get device configuration  
+GET /api/devices/{ip}/config       # Get device configuration
 POST /api/devices/{ip}/config      # Update device configuration
 ```
 
