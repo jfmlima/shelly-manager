@@ -4,9 +4,9 @@ Local management for Shelly IoT devices without cloud connectivity.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub release](https://img.shields.io/github/release/jfmlima/shelly-manager.svg)](https://github.com/jfmlima/shelly-manager/releases)
-[![API Pulls](https://img.shields.io/docker/pulls/ghcr.io/jfmlima/shelly-manager-api)](https://github.com/jfmlima/shelly-manager/pkgs/container/shelly-manager-api)
-[![CLI Pulls](https://img.shields.io/docker/pulls/ghcr.io/jfmlima/shelly-manager-cli)](https://github.com/jfmlima/shelly-manager/pkgs/container/shelly-manager-cli)
-[![Web Pulls](https://img.shields.io/docker/pulls/ghcr.io/jfmlima/shelly-manager-web)](https://github.com/jfmlima/shelly-manager/pkgs/container/shelly-manager-web)
+[![API CI](https://img.shields.io/github/actions/workflow/status/jfmlima/shelly-manager/api-ci.yml?label=API)](https://github.com/jfmlima/shelly-manager/actions/workflows/api-ci.yml)
+[![CLI CI](https://img.shields.io/github/actions/workflow/status/jfmlima/shelly-manager/cli-ci.yml?label=CLI)](https://github.com/jfmlima/shelly-manager/actions/workflows/cli-ci.yml)
+[![Web CI](https://img.shields.io/github/actions/workflow/status/jfmlima/shelly-manager/web-ci.yml?label=Web)](https://github.com/jfmlima/shelly-manager/actions/workflows/web-ci.yml)
 
 Manage Shelly devices on your local network without connecting them to the Shelly Cloud. Scan for devices, update firmware, manage configurations, and monitor status - all locally.
 
