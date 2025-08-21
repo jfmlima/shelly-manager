@@ -10,7 +10,14 @@ import type {
   ComponentActionResult,
 } from "@/types/api";
 
-const baseURL = import.meta.env.VITE_BASE_API_URL || "http://localhost:8000";
+const getApiBaseUrl = (): string => {
+  const savedApiUrl = localStorage.getItem("shelly-manager-api-url");
+  return (
+    savedApiUrl || import.meta.env.VITE_BASE_API_URL || "http://localhost:8000"
+  );
+};
+
+const baseURL = getApiBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: `${baseURL}/api`,
@@ -19,6 +26,48 @@ export const apiClient = axios.create({
   },
   timeout: 30000,
 });
+
+export const updateApiBaseUrl = () => {
+  const newBaseUrl = getApiBaseUrl();
+  apiClient.defaults.baseURL = `${newBaseUrl}/api`;
+};
+
+export const validateApiUrl = (
+  url: string,
+): { valid: boolean; error?: string } => {
+  if (!url || typeof url !== "string") {
+    return { valid: false, error: "URL is required" };
+  }
+
+  const cleanUrl = url.replace(/\/+$/, "");
+
+  try {
+    const parsedUrl = new URL(cleanUrl);
+
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      return { valid: false, error: "URL must use HTTP or HTTPS protocol" };
+    }
+
+    if (!parsedUrl.hostname) {
+      return { valid: false, error: "URL must have a valid hostname" };
+    }
+
+    if (parsedUrl.pathname && parsedUrl.pathname !== "/") {
+      return {
+        valid: false,
+        error:
+          "API URL should not include a path (e.g., use http://host:8000, not http://host:8000/api)",
+      };
+    }
+
+    return { valid: true };
+  } catch (error) {
+    return {
+      valid: false,
+      error: error instanceof Error ? error.message : "Invalid URL format",
+    };
+  }
+};
 
 apiClient.interceptors.request.use(
   (config) => {
@@ -94,7 +143,7 @@ export const deviceApi = {
 
   factoryResetDevice: async (ip: string): Promise<ActionResult> => {
     const results = await deviceApi.bulkExecuteOperation([ip], "factory_reset");
-    return results[0]; // Return the single result
+    return results[0];
   },
 
   getDeviceConfig: async (ip: string): Promise<ConfigResponse> => {

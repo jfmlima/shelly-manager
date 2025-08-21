@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Settings as SettingsIcon, Palette, Server, Table } from "lucide-react";
+import {
+  Settings as SettingsIcon,
+  Palette,
+  Server,
+  Table,
+  Check,
+  X,
+  Loader2,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,10 +30,16 @@ import {
 import { Footer } from "@/components/ui/footer";
 import { useTheme } from "@/components/theme-provider";
 import { toast } from "sonner";
+import { validateApiUrl } from "@/lib/api";
 
 interface SettingsData {
   tablePageSize: number;
   tableDensity: "compact" | "normal" | "comfortable";
+}
+
+interface ApiConnectionStatus {
+  status: "checking" | "connected" | "error" | "unknown";
+  message?: string;
 }
 
 export function Settings() {
@@ -35,6 +49,14 @@ export function Settings() {
     tablePageSize: 10,
     tableDensity: "normal",
   });
+
+  const [apiUrl, setApiUrl] = useState("");
+  const [tempApiUrl, setTempApiUrl] = useState("");
+  const [connectionStatus, setConnectionStatus] = useState<ApiConnectionStatus>(
+    {
+      status: "unknown",
+    },
+  );
 
   useEffect(() => {
     const savedSettings = localStorage.getItem("shelly-manager-settings");
@@ -46,6 +68,14 @@ export function Settings() {
         console.error(t("settings.messages.failedToParse"), error);
       }
     }
+
+    const savedApiUrl = localStorage.getItem("shelly-manager-api-url");
+    const defaultApiUrl =
+      import.meta.env.VITE_BASE_API_URL || "http://localhost:8000";
+    const currentApiUrl = savedApiUrl || defaultApiUrl;
+
+    setApiUrl(currentApiUrl);
+    setTempApiUrl(currentApiUrl);
   }, [t]);
 
   const saveSettings = () => {
@@ -60,8 +90,92 @@ export function Settings() {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
-  const baseApiUrl =
-    import.meta.env.VITE_BASE_API_URL || "http://localhost:8000";
+  const testApiConnection = async (url: string) => {
+    setConnectionStatus({ status: "checking" });
+
+    try {
+      const sanitizedUrl = url.replace(/\/+$/, ""); // Remove trailing slashes
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(`${sanitizedUrl}/api/health`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        setConnectionStatus({
+          status: "connected",
+          message: `Connected successfully (${data.status || "OK"})`,
+        });
+        return true;
+      } else {
+        setConnectionStatus({
+          status: "error",
+          message: `HTTP ${response.status}: ${response.statusText}`,
+        });
+        return false;
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      setConnectionStatus({
+        status: "error",
+        message: `Connection failed: ${errorMessage}`,
+      });
+      return false;
+    }
+  };
+
+  const saveApiUrl = async () => {
+    if (!validateCurrentUrl()) {
+      return;
+    }
+
+    const isValid = await testApiConnection(tempApiUrl);
+    if (isValid) {
+      localStorage.setItem("shelly-manager-api-url", tempApiUrl);
+      setApiUrl(tempApiUrl);
+      toast.success("API URL saved successfully");
+      setTimeout(() => window.location.reload(), 1000);
+    } else {
+      toast.error("Cannot save API URL - connection test failed");
+    }
+  };
+
+  const resetApiUrl = () => {
+    const defaultApiUrl =
+      import.meta.env.VITE_BASE_API_URL || "http://localhost:8000";
+    setTempApiUrl(defaultApiUrl);
+    localStorage.removeItem("shelly-manager-api-url");
+    setApiUrl(defaultApiUrl);
+    setConnectionStatus({ status: "unknown" });
+    toast.success("API URL reset to default");
+    setTimeout(() => window.location.reload(), 1000);
+  };
+
+  const validateCurrentUrl = () => {
+    const validation = validateApiUrl(tempApiUrl);
+    if (!validation.valid) {
+      toast.error(validation.error || "Invalid URL");
+      return false;
+    }
+    return true;
+  };
+
+  const getPresetUrls = () => {
+    const currentHost = window.location.hostname;
+    return [
+      `http://${currentHost}:8000`,
+      "http://localhost:8000",
+      "http://192.168.1.100:8000",
+      "http://192.168.0.100:8000",
+    ].filter((url, index, self) => self.indexOf(url) === index);
+  };
 
   return (
     <div className="min-h-[calc(100vh-8rem)] flex flex-col">
@@ -127,30 +241,115 @@ export function Settings() {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Server className="h-5 w-5" />
-                <span>{t("settings.api.title")}</span>
+                <span>API Configuration</span>
               </CardTitle>
-              <CardDescription>{t("settings.api.description")}</CardDescription>
+              <CardDescription>
+                Configure API server connection for mobile and remote access
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>{t("settings.api.baseUrl")}</Label>
-                <Input
-                  value={baseApiUrl}
-                  disabled
-                  className="font-mono text-sm"
-                />
+                <Label>API Server URL</Label>
+                <div className="flex space-x-2">
+                  <Input
+                    value={tempApiUrl}
+                    onChange={(e) => setTempApiUrl(e.target.value)}
+                    placeholder="http://192.168.1.100:8000"
+                    className="font-mono text-sm"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => testApiConnection(tempApiUrl)}
+                    disabled={connectionStatus.status === "checking"}
+                  >
+                    {connectionStatus.status === "checking" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Test"
+                    )}
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  {t("settings.api.urlDescription")}
+                  Enter the IP address or hostname where your API server is
+                  running
                 </p>
               </div>
 
-              <div className="p-3 bg-muted rounded-lg">
-                <div className="text-sm font-medium mb-1">
-                  {t("settings.api.connectionStatus")}
+              {/* Connection Status */}
+              <div
+                className={`p-3 rounded-lg border ${
+                  connectionStatus.status === "connected"
+                    ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
+                    : connectionStatus.status === "error"
+                      ? "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"
+                      : "bg-muted"
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  {connectionStatus.status === "checking" && (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                  )}
+                  {connectionStatus.status === "connected" && (
+                    <Check className="h-4 w-4 text-green-600" />
+                  )}
+                  {connectionStatus.status === "error" && (
+                    <X className="h-4 w-4 text-red-600" />
+                  )}
+                  <div className="text-sm font-medium">
+                    {connectionStatus.status === "checking" &&
+                      "Testing connection..."}
+                    {connectionStatus.status === "connected" && "Connected"}
+                    {connectionStatus.status === "error" && "Connection failed"}
+                    {connectionStatus.status === "unknown" &&
+                      "Connection status unknown"}
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {t("settings.api.apiEndpoint")}: {baseApiUrl}/api
+                {connectionStatus.message && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {connectionStatus.message}
+                  </div>
+                )}
+              </div>
+
+              {/* Quick Presets */}
+              <div className="space-y-2">
+                <Label className="text-xs">Quick presets:</Label>
+                <div className="flex flex-wrap gap-1">
+                  {getPresetUrls().map((url) => (
+                    <Button
+                      key={url}
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-xs font-mono"
+                      onClick={() => setTempApiUrl(url)}
+                    >
+                      {url.replace(/^https?:\/\//, "")}
+                    </Button>
+                  ))}
                 </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-2">
+                <Button
+                  onClick={saveApiUrl}
+                  className="flex-1"
+                  disabled={!tempApiUrl || tempApiUrl === apiUrl}
+                >
+                  Save & Apply
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={resetApiUrl}
+                  disabled={!localStorage.getItem("shelly-manager-api-url")}
+                >
+                  Reset
+                </Button>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                Current: {apiUrl}/api
               </div>
             </CardContent>
           </Card>
@@ -219,7 +418,6 @@ export function Settings() {
             </CardContent>
           </Card>
 
-          {/* Network Presets - Placeholder */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
