@@ -14,7 +14,8 @@ if __name__ == "__main__":
 
     print(f"Starting Shelly Manager API on {host}:{port}")
     print(f"Debug mode: {debug}")
-    print(f"OpenAPI docs: http://{host}:{port}/schema")
+    print(f"OpenAPI docs: http://{host}:{port}/docs")
+    print(f"OpenAPI JSON: http://{host}:{port}/openapi.json")
     print(f"Health check: http://{host}:{port}/api/health")
 
     uvicorn.run(

@@ -38,7 +38,7 @@ def _require(dep_name: str, dep: T | None) -> T:
     return dep
 
 
-@get("/scan")
+@get("/scan", tags=["Devices"], summary="Scan Network for Devices")
 async def scan_devices(
     start_ip: str | None = None,
     end_ip: str | None = None,
@@ -47,6 +47,22 @@ async def scan_devices(
     max_workers: int = 50,
     scan_interactor: ScanDevicesUseCase | None = None,
 ) -> list[dict]:
+    """
+    Discover Shelly devices on the network.
+
+    Scans the specified IP range or predefined ranges to find Shelly devices.
+    Returns device information including IP, status, type, and firmware version.
+
+    Args:
+        start_ip: Starting IP address for scan range (e.g., "192.168.1.1")
+        end_ip: Ending IP address for scan range (e.g., "192.168.1.254")
+        use_predefined: Whether to use predefined IP ranges from config
+        timeout: Timeout in seconds for each device probe
+        max_workers: Maximum concurrent workers for scanning
+
+    Returns:
+        list[dict]: List of discovered devices with their information
+    """
     scan_interactor = _require("scan_interactor", scan_interactor)
 
     scan_request = ScanRequest(
@@ -74,12 +90,27 @@ async def scan_devices(
     ]
 
 
-@get("/{ip:str}/components/actions")
+@get(
+    "/{ip:str}/components/actions",
+    tags=["Components"],
+    summary="Discover Device Component Actions",
+)
 async def get_component_actions(
     ip: str,
     component_actions_interactor: GetComponentActionsUseCase | None = None,
 ) -> dict:
-    """Get available actions for all device components."""
+    """
+    Discover available actions for all device components.
+
+    Retrieves component information and supported actions for a specific Shelly device.
+    Each device component (switches, covers, lights, sensors) has different available actions.
+
+    Args:
+        ip: The device's IP address (e.g., "192.168.1.100")
+
+    Returns:
+        dict: Component information with available actions for each component
+    """
     component_actions_interactor = _require(
         "component_actions_interactor", component_actions_interactor
     )
@@ -90,7 +121,12 @@ async def get_component_actions(
     return {"ip": ip, "component_actions": actions}
 
 
-@post("/{ip:str}/components/{component_key:str}/actions/{action:str}", status_code=200)
+@post(
+    "/{ip:str}/components/{component_key:str}/actions/{action:str}",
+    status_code=200,
+    tags=["Components"],
+    summary="Control Device Components",
+)
 async def execute_component_action(
     ip: str,
     component_key: str,
@@ -98,7 +134,22 @@ async def execute_component_action(
     data: dict = Body(),
     execute_component_action_interactor: ExecuteComponentActionUseCase | None = None,
 ) -> dict:
-    """Execute action on device component."""
+    """
+    Execute an action on a specific device component.
+
+    Performs the specified action on a device component such as turning on a switch,
+    opening a cover, or adjusting light brightness. Parameters can be provided in the
+    request body for actions that require additional configuration.
+
+    Args:
+        ip: Device IP address (e.g., "192.168.1.100")
+        component_key: Component identifier (e.g., "switch:0", "cover:0")
+        action: Action to execute (e.g., "turn_on", "toggle", "open", "close")
+        data: Additional parameters for the action
+
+    Returns:
+        dict: Action execution result and updated component state
+    """
     execute_component_action_interactor = _require(
         "execute_component_action_interactor", execute_component_action_interactor
     )
@@ -124,12 +175,25 @@ async def execute_component_action(
     }
 
 
-@get("/{ip:str}/status")
+@get("/{ip:str}/status", tags=["Devices"], summary="Get Device Status")
 async def get_device_status(
     ip: str,
     include_updates: bool = True,
     status_interactor: CheckDeviceStatusUseCase | None = None,
 ) -> dict:
+    """
+    Retrieve comprehensive status information for a specific device.
+
+    Returns detailed information about the device including component states,
+    system information, firmware details, and available updates.
+
+    Args:
+        ip: Device IP address (e.g., "192.168.1.100")
+        include_updates: Whether to include firmware update information
+
+    Returns:
+        dict: Complete device status including components and system information
+    """
     status_interactor = _require("status_interactor", status_interactor)
 
     request = CheckDeviceStatusRequest(device_ip=ip, include_updates=include_updates)
@@ -169,10 +233,22 @@ async def get_device_status(
         raise DeviceNotFoundHTTPException(ip)
 
 
-@get("/{ip:str}/config")
+@get("/{ip:str}/config", tags=["Configuration"], summary="Get Device Configuration")
 async def get_device_config(
     ip: str, get_config_interactor: GetConfigurationUseCase | None = None
 ) -> dict:
+    """
+    Retrieve the current configuration settings for a device.
+
+    Returns the complete configuration object from the device, which includes
+    all component settings, network configuration, and device-specific options.
+
+    Args:
+        ip: Device IP address (e.g., "192.168.1.100")
+
+    Returns:
+        dict: Device configuration data and operation status
+    """
     get_config_interactor = _require("get_config_interactor", get_config_interactor)
 
     try:
@@ -183,12 +259,31 @@ async def get_device_config(
         return {"ip": ip, "success": False, "error": str(e)}
 
 
-@post("/{ip:str}/config", status_code=200)
+@post(
+    "/{ip:str}/config",
+    status_code=200,
+    tags=["Configuration"],
+    summary="Update Device Configuration",
+)
 async def set_device_config(
     ip: str,
     data: dict = Body(),
     set_config_interactor: SetConfigurationUseCase | None = None,
 ) -> dict:
+    """
+    Update device configuration settings.
+
+    Applies new configuration settings to the device. The configuration object
+    should contain the settings to be updated. Only specified settings will be
+    changed; other settings remain unchanged.
+
+    Args:
+        ip: Device IP address (e.g., "192.168.1.100")
+        data: Configuration data with "config" object containing settings to update
+
+    Returns:
+        dict: Operation result with success status and message
+    """
     set_config_interactor = _require("set_config_interactor", set_config_interactor)
 
     try:
@@ -204,13 +299,30 @@ async def set_device_config(
         return {"ip": ip, "success": False, "error": str(e)}
 
 
-@post("/{ip:str}/update", status_code=200)
+@post(
+    "/{ip:str}/update",
+    status_code=200,
+    tags=["Devices"],
+    summary="Update Device Firmware",
+)
 async def update_device(
     ip: str,
     data: dict = Body(),
     execute_component_action_interactor: ExecuteComponentActionUseCase | None = None,
 ) -> dict:
-    """Convenience endpoint for firmware updates (shortcut for component action)."""
+    """
+    Initiate firmware update for a device.
+
+    Updates the device firmware to the latest version from the specified channel.
+    The device will download and install the update, which may take several minutes.
+
+    Args:
+        ip: Device IP address (e.g., "192.168.1.100")
+        data: Update parameters with optional "channel" field (stable/beta)
+
+    Returns:
+        dict: Update operation result and status
+    """
     execute_component_action_interactor = _require(
         "execute_component_action_interactor", execute_component_action_interactor
     )
@@ -237,12 +349,23 @@ async def update_device(
     }
 
 
-@post("/{ip:str}/reboot", status_code=200)
+@post("/{ip:str}/reboot", status_code=200, tags=["Devices"], summary="Reboot Device")
 async def reboot_device(
     ip: str,
     execute_component_action_interactor: ExecuteComponentActionUseCase | None = None,
 ) -> dict:
-    """Convenience endpoint for device reboot (shortcut for component action)."""
+    """
+    Restart a device.
+
+    Performs a soft restart of the device. The device will be temporarily unavailable
+    during the reboot process, typically for 10-30 seconds.
+
+    Args:
+        ip: Device IP address (e.g., "192.168.1.100")
+
+    Returns:
+        dict: Reboot operation result and status
+    """
     execute_component_action_interactor = _require(
         "execute_component_action_interactor", execute_component_action_interactor
     )
@@ -265,12 +388,24 @@ async def reboot_device(
     }
 
 
-@post("/bulk", status_code=200)
+@post("/bulk", status_code=200, tags=["Devices"], summary="Execute Bulk Operations")
 async def execute_bulk_operations(
     data: dict = Body(),
     bulk_operations_use_case: BulkOperationsUseCase | None = None,
 ) -> list[dict]:
-    """Unified bulk operations endpoint."""
+    """
+    Execute operations on multiple devices simultaneously.
+
+    Performs the specified operation on a list of devices. Supported operations
+    include firmware updates, device reboots, and factory resets. Results are
+    returned for each device individually.
+
+    Args:
+        data: Request containing device_ips list and operation type
+
+    Returns:
+        list[dict]: Operation results for each device with success status
+    """
 
     bulk_operations_use_case = _require(
         "bulk_operations_use_case", bulk_operations_use_case

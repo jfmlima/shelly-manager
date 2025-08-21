@@ -211,7 +211,7 @@ GET /api/devices/{ip}/config       # Get device configuration
 POST /api/devices/{ip}/config      # Update device configuration
 ```
 
-**API Documentation**: Start the API server and visit `http://localhost:8000/docs` for interactive OpenAPI documentation.
+**API Documentation**: Start the API server and visit `http://localhost:8000/docs` for interactive OpenAPI documentation
 
 ## CLI Overview
 

@@ -12,20 +12,23 @@ from ..dependencies.container import APIContainer
 _container = APIContainer()
 
 
-@get("/health")
+@get("/health", tags=["Health"], summary="Health Check")
 async def health_check() -> dict[str, Any]:
+    """
+    Service health check endpoint.
+
+    Returns the current status of the API service including:
+    - Service status
+    - Current timestamp
+    - API version
+    - Service name
+
+    Returns:
+        dict: Health status information
+    """
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "version": "1.0.0",
         "service": "shelly-manager-api",
-    }
-
-
-@get("/actions")
-async def get_action_history() -> dict[str, Any]:
-    return {
-        "success": True,
-        "actions": [],
-        "message": "Action history not yet implemented",
     }

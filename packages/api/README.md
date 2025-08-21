@@ -63,7 +63,7 @@ GET /api/devices/scan              # Scan network for devices
 GET /api/devices/{ip}/status       # Get device status
   ?include_updates=true            # Include update information
 
-POST /api/devices/{ip}/update      # Update device firmware  
+POST /api/devices/{ip}/update      # Update device firmware
   ?channel=stable                  # Update channel (stable/beta)
 
 POST /api/devices/{ip}/reboot      # Reboot device
@@ -92,21 +92,21 @@ PUT /api/config                    # Update global configuration
 The Component Actions system provides dynamic action discovery and execution for individual device components.
 
 #### Discovery
+
 ```bash
 GET /api/devices/{ip}/components/actions    # Get all available actions for device
 ```
 
-
 #### Execute Component Action
+
 ```bash
 POST /api/devices/{ip}/components/{component_id}/action
 ```
 
-### Monitoring (Future)
+### Monitoring
 
 ```bash
-GET /api/actions                   # Get action history (coming soon)
-GET /api/devices/updates           # Get update status (coming soon)
+GET /api/health
 ```
 
 ## Examples
@@ -153,18 +153,20 @@ curl -X POST "http://localhost:8000/api/devices/192.168.1.100/update?channel=sta
 ### Component Actions Examples
 
 #### Discover Device Actions
+
 ```bash
 curl "http://localhost:8000/api/devices/192.168.1.100/components/actions"
 ```
 
 **Response Example:**
+
 ```json
 {
   "device_ip": "192.168.1.100",
   "components": [
     {
       "component_id": "switch:0",
-      "component_type": "switch", 
+      "component_type": "switch",
       "available_actions": [
         {
           "action": "toggle",
@@ -172,7 +174,7 @@ curl "http://localhost:8000/api/devices/192.168.1.100/components/actions"
           "parameters": {}
         },
         {
-          "action": "turn_on", 
+          "action": "turn_on",
           "description": "Turn switch on",
           "parameters": {}
         }
@@ -183,6 +185,7 @@ curl "http://localhost:8000/api/devices/192.168.1.100/components/actions"
 ```
 
 #### Toggle a Switch
+
 ```bash
 curl -X POST "http://localhost:8000/api/devices/192.168.1.100/components/switch:0/action" \
   -H "Content-Type: application/json" \
@@ -190,6 +193,7 @@ curl -X POST "http://localhost:8000/api/devices/192.168.1.100/components/switch:
 ```
 
 **Request Body:**
+
 ```json
 {
   "action": "toggle",
@@ -198,10 +202,11 @@ curl -X POST "http://localhost:8000/api/devices/192.168.1.100/components/switch:
 ```
 
 **Response:**
+
 ```json
 {
   "ip": "192.168.1.100",
-  "component_id": "switch:0", 
+  "component_id": "switch:0",
   "action": "toggle",
   "success": true,
   "result": {
@@ -211,6 +216,7 @@ curl -X POST "http://localhost:8000/api/devices/192.168.1.100/components/switch:
 ```
 
 #### Open a Cover
+
 ```bash
 curl -X POST "http://localhost:8000/api/devices/192.168.1.100/components/cover:0/action" \
   -H "Content-Type: application/json" \
@@ -325,7 +331,6 @@ uv run mypy packages/api/src/api
 The API uses Litestar's built-in OpenAPI generation:
 
 - **Interactive Docs**: http://localhost:8000/docs (Swagger UI)
-- **Alternative Docs**: http://localhost:8000/redoc (ReDoc)
 - **OpenAPI Spec**: http://localhost:8000/schema/openapi.json
 
 ### Adding New Endpoints
