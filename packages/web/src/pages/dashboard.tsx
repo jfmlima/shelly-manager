@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -8,24 +8,46 @@ import { DeviceTable } from "@/components/dashboard/device-table";
 import { BulkActionsDialog } from "@/components/dashboard/bulk-actions-dialog";
 import { Footer } from "@/components/ui/footer";
 import { deviceApi, handleApiError } from "@/lib/api";
+import {
+  loadScanResults,
+  saveScanResults,
+  clearScanResults,
+} from "@/lib/storage";
 import type { Device } from "@/types/api";
 
 export function Dashboard() {
   const { t } = useTranslation();
   const [selectedDevices, setSelectedDevices] = useState<Device[]>([]);
   const [bulkActionsOpen, setBulkActionsOpen] = useState(false);
-  const [devices, setDevices] = useState<Device[]>([]);
   const queryClient = useQueryClient();
 
+  const {
+    data: devices = [],
+    isLoading: isLoadingCached,
+    error: cacheError,
+  } = useQuery({
+    queryKey: ["devices", "scan"],
+    queryFn: () => {
+      const cached = loadScanResults();
+      return cached ? cached.devices : [];
+    },
+    staleTime: Infinity, // Cached data never becomes stale automatically
+    gcTime: Infinity, // Keep in memory indefinitely
+    enabled: true, // Auto-load on mount
+  });
+
   const scanMutation = useMutation({
-    mutationFn: (params: ScanFormData) => deviceApi.scanDevices(params),
-    onSuccess: (data) => {
-      setDevices(data);
+    mutationFn: async (params: ScanFormData) => {
+      clearScanResults();
+      queryClient.removeQueries({ queryKey: ["devices", "scan"] });
+      return deviceApi.scanDevices(params);
+    },
+    onSuccess: (data, variables) => {
+      saveScanResults(data, variables);
+      queryClient.setQueryData(["devices", "scan"], data);
       toast.success(
         t("dashboard.messages.scanSuccess", { count: data.length }),
       );
-      // Update the query cache
-      queryClient.setQueryData(["devices", "scan"], data);
     },
     onError: (error) => {
       toast.error(handleApiError(error));
@@ -42,7 +64,6 @@ export function Dashboard() {
   };
 
   const handleBulkActionComplete = () => {
-    // Optionally refetch devices after bulk actions
     // refetch();
   };
 
@@ -61,11 +82,25 @@ export function Dashboard() {
         {/* Scan Form */}
         <ScanForm onSubmit={handleScan} isLoading={scanMutation.isPending} />
 
+        {/* Loading States */}
+        {isLoadingCached && devices.length === 0 && (
+          <div className="flex items-center justify-center p-8">
+            <div className="flex items-center space-x-2 text-muted-foreground">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
+              <span className="text-sm">
+                {t("dashboard.loadingCached", "Loading cached results...")}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Error Display */}
-        {scanMutation.error && (
+        {(scanMutation.error || cacheError) && (
           <div className="p-4 border border-destructive/50 bg-destructive/10 rounded-lg">
             <p className="text-sm text-destructive">
-              {handleApiError(scanMutation.error)}
+              {scanMutation.error
+                ? handleApiError(scanMutation.error)
+                : "Failed to load cached scan results"}
             </p>
           </div>
         )}
@@ -74,6 +109,22 @@ export function Dashboard() {
         {devices.length > 0 && (
           <DeviceTable devices={devices} onBulkAction={handleBulkAction} />
         )}
+
+        {/* Empty State */}
+        {!isLoadingCached &&
+          !scanMutation.isPending &&
+          devices.length === 0 &&
+          !scanMutation.error &&
+          !cacheError && (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">
+                {t(
+                  "dashboard.noDevices",
+                  "No devices found. Start by scanning for devices.",
+                )}
+              </p>
+            </div>
+          )}
       </div>
 
       {/* Sticky Footer */}

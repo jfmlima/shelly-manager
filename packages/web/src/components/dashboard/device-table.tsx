@@ -43,6 +43,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ScanTimestamp } from "@/components/dashboard/scan-timestamp";
 import type { Device } from "@/types/api";
 
 interface DeviceTableProps {
@@ -255,10 +256,17 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t("dashboard.deviceTable.title")}</CardTitle>
-        <CardDescription>
-          {t("dashboard.deviceTable.description", { count: devices.length })}
-        </CardDescription>
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle>{t("dashboard.deviceTable.title")}</CardTitle>
+            <CardDescription>
+              {t("dashboard.deviceTable.description", {
+                count: devices.length,
+              })}
+            </CardDescription>
+          </div>
+          <ScanTimestamp />
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">

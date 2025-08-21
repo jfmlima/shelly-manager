@@ -43,25 +43,22 @@ export function Navbar() {
                 <span>{t("navigation.dashboard")}</span>
               </Link>
             </Button>
-
-            <Button
-              variant={isActive("/settings") ? "default" : "ghost"}
-              size="sm"
-              asChild
-              className={cn(
-                "flex items-center space-x-2",
-                isActive("/settings") && "bg-primary text-primary-foreground",
-              )}
-            >
-              <Link to="/settings">
-                <Settings className="h-4 w-4" />
-                <span>{t("navigation.settings")}</span>
-              </Link>
-            </Button>
           </div>
 
           {/* Right side */}
           <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              title={t("navigation.settings")}
+              className="h-8 w-8 px-0"
+            >
+              <Link to="/settings">
+                <Settings className="h-[1.2rem] w-[1.2rem]" />
+                <span className="sr-only">{t("navigation.settings")}</span>
+              </Link>
+            </Button>
             <ThemeToggle />
           </div>
         </div>
