@@ -298,3 +298,11 @@ We welcome contributions! Here's how to get started:
 ## License
 
 MIT License - see [LICENSE](LICENSE) file.
+
+## Disclaimer
+
+**USE AT YOUR OWN RISK**: This software is provided "as is" without warranty of any kind. The developers of Shelly Manager are not responsible for any damage, malfunction, or loss of data that may occur to your Shelly devices, network infrastructure, or any other equipment as a result of using this software.
+
+Understand that firmware updates and device modifications carry inherent risks.
+
+By using this software, you acknowledge that you do so at your own risk and that the developers disclaim all liability for any damages or losses that may result from its use.
