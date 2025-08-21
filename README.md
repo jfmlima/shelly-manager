@@ -27,6 +27,35 @@ Available as:
 - Command line tool
 - REST API
 
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%">
+      <h3>Dashboard Overview</h3>
+      <img src="docs/images/dashboard.png" width="100%" alt="Dashboard">
+      <em>Device discovery and management with real-time status monitoring</em>
+    </td>
+    <td width="50%">
+      <h3>Device Management</h3>
+      <img src="docs/images/device.png" width="100%" alt="Device Details">
+      <em>Individual device control with component actions and status</em>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h3>Bulk Operations</h3>
+      <img src="docs/images/bulk-actions.png" width="100%" alt="Bulk Actions">
+      <em>Perform operations on multiple devices simultaneously</em>
+    </td>
+    <td width="50%">
+      <h3>Settings & Configuration</h3>
+      <img src="docs/images/settings.png" width="100%" alt="Settings">
+      <em>API configuration for mobile access and application preferences</em>
+    </td>
+  </tr>
+</table>
+
 ## Quick Start
 
 ### Docker
@@ -118,7 +147,7 @@ docker run -p 8000:8000 \
   ghcr.io/jfmlima/shelly-manager-api:latest
 ```
 
-### 📋 Configuration
+### Configuration
 
 Create a `config.json` file for device management:
 
@@ -136,9 +165,7 @@ Create a `config.json` file for device management:
 }
 ```
 
-## 🏗️ Architecture
-
-Shelly Manager follows Clean Architecture principles with a modular, package-based design:
+## Architecture
 
 ```
 shelly-manager/
@@ -151,7 +178,7 @@ shelly-manager/
 └── docker-compose.yml     # Development environment
 ```
 
-### 📦 Package Overview
+### Package Overview
 
 | Package                       | Purpose                                             | Documentation                          |
 | ----------------------------- | --------------------------------------------------- | -------------------------------------- |
@@ -160,7 +187,7 @@ shelly-manager/
 | **💻 [CLI](packages/cli/)**   | Modern command-line interface with rich output      | [CLI README](packages/cli/README.md)   |
 | **🖥️ [Web](packages/web/)**   | Responsive web UI for device management             | [Web README](packages/web/README.md)   |
 
-## 🌐 API Overview
+## API Overview
 
 The REST API provides complete device management capabilities:
 
@@ -186,7 +213,7 @@ POST /api/devices/{ip}/config      # Update device configuration
 
 **API Documentation**: Start the API server and visit `http://localhost:8000/docs` for interactive OpenAPI documentation.
 
-## 💻 CLI Overview
+## CLI Overview
 
 The CLI provides powerful automation capabilities:
 
@@ -207,7 +234,7 @@ shelly-manager bulk update --from-config
 
 **CLI Documentation**: See [CLI README](packages/cli/README.md) for complete command reference.
 
-## 🖥️ Web UI Overview
+## Web UI Overview
 
 The web interface provides an intuitive management experience:
 
@@ -219,13 +246,13 @@ The web interface provides an intuitive management experience:
 
 **Web Documentation**: See [Web README](packages/web/README.md) for setup and features.
 
-## 📋 Requirements
+## Requirements
 
 - **Docker** (recommended) or **Python 3.11+**
 - **Network access** to Shelly devices on your local network
 - **Optional**: Device credentials for authenticated devices
 
-## 🛠️ Development
+## Development
 
 For local development and contributing to Shelly Manager:
 
