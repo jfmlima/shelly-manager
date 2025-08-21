@@ -48,6 +48,7 @@ import {
   getActionDisplayName,
   getActionIcon,
   isDestructiveAction,
+  isComingSoonAction,
 } from "@/hooks/useComponentActions";
 import {
   shouldShowResponseData,
@@ -203,6 +204,27 @@ export function ComponentActions({
       Play;
     const isLoading = executeAction.isPending && selectedAction === action;
     const isDestructive = isDestructiveAction(action);
+    const isComingSoon = isComingSoonAction(action);
+
+    if (isComingSoon) {
+      return (
+        <div key={action} className="relative group">
+          <Button
+            variant={isDestructive ? "destructive" : "outline"}
+            size="sm"
+            onClick={() => {}} // No action for coming soon
+            disabled={true}
+            className="flex items-center space-x-2 opacity-60 cursor-not-allowed"
+          >
+            <IconComponent className="h-3 w-3" />
+            <span>{getActionDisplayName(action)}</span>
+          </Button>
+          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+            {t("common.comingSoon")}
+          </div>
+        </div>
+      );
+    }
 
     return (
       <Button

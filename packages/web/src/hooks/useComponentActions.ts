@@ -244,3 +244,11 @@ export function isDestructiveAction(action: string): boolean {
   const destructiveActions = ["Reboot", "FactoryReset", "ClearNetwork"];
   return destructiveActions.includes(cleanAction);
 }
+
+export function isComingSoonAction(action: string): boolean {
+  const cleanAction = action.includes(".")
+    ? action.split(".").pop() || action
+    : action;
+
+  return /^(set|put)/i.test(cleanAction);
+}
