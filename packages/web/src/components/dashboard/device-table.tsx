@@ -256,7 +256,7 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-2 sm:space-y-0">
           <div>
             <CardTitle>{t("dashboard.deviceTable.title")}</CardTitle>
             <CardDescription>
@@ -271,20 +271,21 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
       <CardContent>
         <div className="space-y-4">
           {/* Filters and Actions */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0 sm:space-x-4">
             <Input
               placeholder={t("dashboard.deviceTable.filterDevices")}
               value={(table.getColumn("ip")?.getFilterValue() as string) ?? ""}
               onChange={(event) =>
                 table.getColumn("ip")?.setFilterValue(event.target.value)
               }
-              className="max-w-sm"
+              className="w-full sm:max-w-sm"
             />
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 flex-shrink-0">
               {selectedDevices.length > 0 && (
                 <Button
                   onClick={() => onBulkAction(selectedDevices)}
                   variant="outline"
+                  size="sm"
                 >
                   {t("dashboard.deviceTable.bulkActions")} (
                   {selectedDevices.length})
@@ -292,7 +293,7 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
               )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="ml-auto">
+                  <Button variant="outline" size="sm">
                     {t("dashboard.deviceTable.columns")}{" "}
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>

@@ -21,12 +21,18 @@ export function ScanTimestamp({ className }: ScanTimestampProps) {
 
   return (
     <div
-      className={`flex items-center space-x-2 text-sm text-muted-foreground ${className || ""}`}
+      className={`flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-1 sm:space-y-0 text-sm text-muted-foreground ${className || ""}`}
     >
       <div className="flex items-center space-x-1">
         <Clock className="h-4 w-4" />
-        <span>
-          {t("dashboard.lastScanned", "Last scanned")}: {timeAgo}
+        <span className="whitespace-nowrap">
+          <span className="hidden sm:inline">
+            {t("dashboard.lastScanned", "Last scanned")}:{" "}
+          </span>
+          <span className="sm:hidden">
+            {t("dashboard.lastScannedShort", "Scanned")}:{" "}
+          </span>
+          {timeAgo}
         </span>
       </div>
 
