@@ -11,7 +11,8 @@
     "confirm": "Confirm",
     "retry": "Retry",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "comingSoon": "Coming Soon"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -83,7 +84,7 @@
     "descriptions": {
       "updateFirmware": "Update firmware on selected devices",
       "rebootDevices": "Restart selected devices",
-      "factoryReset": "Reset devices to factory defaults (WARNING: Erases all settings)",
+      "factoryReset": "Reset devices to factory defaults",
       "checkStatus": "Fetch status for selected devices",
       "exportConfigurations": "Download device configurations",
       "applyConfiguration": "Apply configuration template"
@@ -100,7 +101,8 @@
       "factoryResetSuccess": "Successfully reset {{count}} devices",
       "factoryResetPartial": "Reset {{successful}} devices, {{failed}} failed",
       "actionNotImplemented": "Action not implemented yet"
-    }
+    },
+    "comingSoonDescription": "This feature is currently under development and will be available in a future release."
   },
   "deviceDetail": {
     "title": "Device Details",

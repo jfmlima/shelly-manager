@@ -301,7 +301,7 @@ export function BulkActionsDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] min-w-[40vw]  overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <AlertCircle className="h-5 w-5" />
@@ -334,25 +334,49 @@ export function BulkActionsDialog({
           {/* Action Selection */}
           {!selectedAction && !progress && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {actionCards.map((action) => (
-                <Card
-                  key={action.id}
-                  className={`cursor-pointer hover:shadow-md transition-shadow ${
-                    action.id === "factory_reset"
-                      ? "border-destructive/20 hover:border-destructive/40"
-                      : ""
-                  }`}
-                  onClick={() => setSelectedAction(action.id)}
-                >
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-3">
-                      {action.icon}
-                      <span>{action.title}</span>
-                    </CardTitle>
-                    <CardDescription>{action.description}</CardDescription>
-                  </CardHeader>
-                </Card>
-              ))}
+              {actionCards.map((action) => {
+                const isComingSoon =
+                  action.id === "export" ||
+                  action.id === "config" ||
+                  action.id === "status";
+                return (
+                  <Card
+                    key={action.id}
+                    className={`transition-shadow ${
+                      isComingSoon
+                        ? "opacity-60 cursor-not-allowed"
+                        : `cursor-pointer hover:shadow-md ${
+                            action.id === "factory_reset"
+                              ? "border-destructive/20 hover:border-destructive/40"
+                              : ""
+                          }`
+                    }`}
+                    onClick={() =>
+                      !isComingSoon && setSelectedAction(action.id)
+                    }
+                  >
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-3">
+                        {action.icon}
+                        <span>{action.title}</span>
+                      </CardTitle>
+                      {isComingSoon && (
+                        <Badge
+                          variant="secondary"
+                          className="text-xs w-fit mb-2 mt-2"
+                        >
+                          {t("common.comingSoon")}
+                        </Badge>
+                      )}
+                      <CardDescription>
+                        {isComingSoon
+                          ? t("bulkActions.comingSoonDescription")
+                          : action.description}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                );
+              })}
             </div>
           )}
 
