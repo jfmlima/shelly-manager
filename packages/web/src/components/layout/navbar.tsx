@@ -23,7 +23,9 @@ export function Navbar() {
                   SM
                 </span>
               </div>
-              <span className="font-semibold text-lg">Shelly Manager</span>
+              <span className="hidden sm:inline font-semibold text-lg">
+                Shelly Manager
+              </span>
             </Link>
           </div>
 

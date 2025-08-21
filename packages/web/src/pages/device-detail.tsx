@@ -79,8 +79,10 @@ export function DeviceDetail() {
         <div className="absolute left-0 top-0">
           <Button variant="outline" size="sm" asChild>
             <Link to="/">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              {t("deviceDetail.backToDashboard")}
+              <ArrowLeft className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">
+                {t("deviceDetail.backToDashboard")}
+              </span>
             </Link>
           </Button>
         </div>
