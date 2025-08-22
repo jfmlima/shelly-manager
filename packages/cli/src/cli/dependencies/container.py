@@ -8,7 +8,6 @@ from core.gateways.configuration.file_configuration_gateway import (
     FileConfigurationGateway,
 )
 from core.gateways.network.shelly_rpc_client import ShellyRPCClient
-from core.use_cases.get_configuration import GetConfigurationUseCase
 from core.use_cases.scan_devices import ScanDevicesUseCase
 from core.utils.path import resolve_config_path
 
@@ -34,8 +33,5 @@ class CLIContainer(BaseContainer):
         return self._config_gateway
 
     # Backwards compatibility helpers (optional convenience wrappers)
-    def get_export_interactor(self) -> GetConfigurationUseCase:
-        return self.get_device_config_interactor()
-
     def get_device_scan_interactor(self) -> ScanDevicesUseCase:
         return self.get_scan_interactor()

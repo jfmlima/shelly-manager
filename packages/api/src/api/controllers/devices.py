@@ -8,21 +8,15 @@ from core.domain.value_objects.check_device_status_request import (
     CheckDeviceStatusRequest,
 )
 from core.domain.value_objects.component_action_request import ComponentActionRequest
-from core.domain.value_objects.device_configuration_request import (
-    DeviceConfigurationRequest,
-)
 from core.domain.value_objects.get_component_actions_request import (
     GetComponentActionsRequest,
 )
 from core.domain.value_objects.scan_request import ScanRequest
-from core.domain.value_objects.set_configuration_request import SetConfigurationRequest
 from core.use_cases.bulk_operations import BulkOperationsUseCase
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
 from core.use_cases.get_component_actions import GetComponentActionsUseCase
-from core.use_cases.get_configuration import GetConfigurationUseCase
 from core.use_cases.scan_devices import ScanDevicesUseCase
-from core.use_cases.set_configuration import SetConfigurationUseCase
 from litestar import Router, get, post
 from litestar.exceptions import HTTPException
 from litestar.params import Body
@@ -236,72 +230,6 @@ async def get_device_status(
         }
     else:
         raise DeviceNotFoundHTTPException(ip)
-
-
-@get("/{ip:str}/config", tags=["Configuration"], summary="Get Device Configuration")
-async def get_device_config(
-    ip: str, get_config_interactor: GetConfigurationUseCase | None = None
-) -> dict:
-    """
-    Retrieve the current configuration settings for a device.
-
-    Returns the complete configuration object from the device, which includes
-    all component settings, network configuration, and device-specific options.
-
-    Args:
-        ip: Device IP address (e.g., "192.168.1.100")
-
-    Returns:
-        dict: Device configuration data and operation status
-    """
-    get_config_interactor = _require("get_config_interactor", get_config_interactor)
-
-    try:
-        request = DeviceConfigurationRequest(device_ip=ip)
-        config = await get_config_interactor.execute(request)
-        return {"ip": ip, "success": True, "config": config}
-    except Exception as e:
-        return {"ip": ip, "success": False, "error": str(e)}
-
-
-@post(
-    "/{ip:str}/config",
-    status_code=200,
-    tags=["Configuration"],
-    summary="Update Device Configuration",
-)
-async def set_device_config(
-    ip: str,
-    data: dict = Body(),
-    set_config_interactor: SetConfigurationUseCase | None = None,
-) -> dict:
-    """
-    Update device configuration settings.
-
-    Applies new configuration settings to the device. The configuration object
-    should contain the settings to be updated. Only specified settings will be
-    changed; other settings remain unchanged.
-
-    Args:
-        ip: Device IP address (e.g., "192.168.1.100")
-        data: Configuration data with "config" object containing settings to update
-
-    Returns:
-        dict: Operation result with success status and message
-    """
-    set_config_interactor = _require("set_config_interactor", set_config_interactor)
-
-    try:
-        config = data.get("config", {})
-        request = SetConfigurationRequest(device_ip=ip, config=config)
-        result = await set_config_interactor.execute(request)
-        return {
-            "ip": ip,
-            "success": result["success"],
-            "message": result["message"],
-        }
-    except Exception as e:
-        return {"ip": ip, "success": False, "error": str(e)}
 
 
 @post(
@@ -524,8 +452,6 @@ devices_router = Router(
         get_component_actions,
         execute_component_action,
         get_device_status,
-        get_device_config,
-        set_device_config,
         update_device,
         reboot_device,
         execute_bulk_operations,

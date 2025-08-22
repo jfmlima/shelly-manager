@@ -76,17 +76,6 @@ GET /api/devices/{ip}/components/actions           # Discover available actions
 POST /api/devices/{ip}/components/{id}/action      # Execute component action
 ```
 
-### Configuration Management
-
-```bash
-GET /api/devices/{ip}/config       # Get device configuration
-POST /api/devices/{ip}/config      # Update device configuration
-  # Body: {"config": {...}}
-
-GET /api/config                    # Get global configuration
-PUT /api/config                    # Update global configuration
-```
-
 ### Component Actions
 
 The Component Actions system provides dynamic action discovery and execution for individual device components.

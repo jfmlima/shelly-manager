@@ -6,10 +6,8 @@ from api.controllers.devices import (
     execute_bulk_operations,
     execute_component_action,
     get_component_actions,
-    get_device_config,
     get_device_status,
     scan_devices,
-    set_device_config,
 )
 from api.presentation.exceptions import DeviceNotFoundHTTPException
 from core.domain.entities.device_status import DeviceStatus
@@ -20,9 +18,7 @@ from core.use_cases.bulk_operations import BulkOperationsUseCase
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
 from core.use_cases.get_component_actions import GetComponentActionsUseCase
-from core.use_cases.get_configuration import GetConfigurationUseCase
 from core.use_cases.scan_devices import ScanDevicesUseCase
-from core.use_cases.set_configuration import SetConfigurationUseCase
 from litestar.di import Provide
 from litestar.testing import create_test_client
 
@@ -223,108 +219,6 @@ class TestDevicesController:
             assert "components" in data
             assert "summary" in data
             assert "firmware" in data
-
-    def test_get_device_config_successfully(self):
-        class MockGetConfigurationUseCase(GetConfigurationUseCase):
-            def __init__(self):
-                pass
-
-            async def execute(self, request):
-                return {"relay": {"name": "Test Relay"}}
-
-        with create_test_client(
-            route_handlers=[get_device_config],
-            dependencies={
-                "get_config_interactor": Provide(
-                    lambda: MockGetConfigurationUseCase(), sync_to_thread=False
-                )
-            },
-        ) as client:
-            response = client.get("/192.168.1.100/config")
-
-            assert response.status_code == 200
-            data = response.json()
-            assert data["ip"] == "192.168.1.100"
-            assert data["success"] is True
-            assert data["config"]["relay"]["name"] == "Test Relay"
-
-    def test_set_device_config_successfully(self):
-        class MockSetConfigurationUseCase(SetConfigurationUseCase):
-            def __init__(self):
-                pass
-
-            async def execute(self, request):
-                return {"success": True, "message": "Configuration updated"}
-
-        with create_test_client(
-            route_handlers=[set_device_config],
-            dependencies={
-                "set_config_interactor": Provide(
-                    lambda: MockSetConfigurationUseCase(), sync_to_thread=False
-                )
-            },
-        ) as client:
-            response = client.post(
-                "/192.168.1.100/config",
-                json={"config": {"relay": {"name": "New Name"}}},
-            )
-
-            assert response.status_code == 200
-            data = response.json()
-            assert data["ip"] == "192.168.1.100"
-            assert data["success"] is True
-            assert data["message"] == "Configuration updated"
-
-    def test_get_device_config_fails(self):
-        class MockGetConfigurationUseCase(GetConfigurationUseCase):
-            def __init__(self):
-                pass
-
-            async def execute(self, request):
-                raise Exception("Device not reachable")
-
-        with create_test_client(
-            route_handlers=[get_device_config],
-            dependencies={
-                "get_config_interactor": Provide(
-                    lambda: MockGetConfigurationUseCase(), sync_to_thread=False
-                )
-            },
-        ) as client:
-            response = client.get("/192.168.1.100/config")
-
-            assert response.status_code == 200
-            data = response.json()
-            assert data["ip"] == "192.168.1.100"
-            assert data["success"] is False
-            assert data["error"] == "Device not reachable"
-
-    def test_set_device_config_fails(self):
-        class MockSetConfigurationUseCase(SetConfigurationUseCase):
-            def __init__(self):
-                pass
-
-            async def execute(self, request):
-                raise Exception("Permission denied")
-
-        with create_test_client(
-            route_handlers=[set_device_config],
-            dependencies={
-                "set_config_interactor": Provide(
-                    lambda: MockSetConfigurationUseCase(), sync_to_thread=False
-                )
-            },
-        ) as client:
-            response = client.post(
-                "/192.168.1.100/config",
-                json={"config": {"relay": {"name": "New Name"}}},
-            )
-
-            assert response.status_code == 200
-            data = response.json()
-            assert data["ip"] == "192.168.1.100"
-            assert data["success"] is False
-            assert data["error"] == "Permission denied"
 
     def test_bulk_operations_update_successfully(self):
         from core.use_cases.bulk_operations import BulkOperationsUseCase

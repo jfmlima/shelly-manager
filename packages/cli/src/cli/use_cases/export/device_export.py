@@ -155,16 +155,31 @@ class DeviceExportUseCase:
         self._console.print("[blue]⚙️ Retrieving device configurations...[/blue]")
 
         try:
-            config_interactor = self._container.get_device_config_interactor()
+            bulk_operations = self._container.get_bulk_operations_interactor()
+            device_ips = [device.ip for device in devices]
 
+            # Use bulk config export to get all component configs
+            component_types = [
+                "switch",
+                "input",
+                "cover",
+                "sys",
+                "cloud",
+                "ble",
+                "zigbee",
+            ]
+            config_data = await bulk_operations.export_bulk_config(
+                device_ips, component_types
+            )
+
+            # Assign configurations to devices
             for device in devices:
-                try:
-                    config = await config_interactor.execute(device)
-                    device.configuration = config
+                if device.ip in config_data:
+                    device.configuration = config_data[device.ip].get("components", {})
                     self._console.print(f"[green]✅ Config for {device.ip}[/green]")
-                except Exception as e:
+                else:
                     self._console.print(
-                        f"[yellow]⚠️ Config for {device.ip}: {e}[/yellow]"
+                        f"[yellow]⚠️ Config for {device.ip}: Device not found in bulk export[/yellow]"
                     )
                     device.configuration = None
 

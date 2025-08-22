@@ -10,10 +10,8 @@ from .bulk_scan_request import BulkScanRequest
 from .bulk_status_request import BulkStatusRequest
 from .check_device_status_request import CheckDeviceStatusRequest
 from .component_action_request import ComponentActionRequest
-from .device_configuration_request import DeviceConfigurationRequest
 from .get_component_actions_request import GetComponentActionsRequest
 from .scan_request import ScanRequest
-from .set_configuration_request import SetConfigurationRequest
 
 __all__ = [
     "ActionResult",
@@ -23,9 +21,7 @@ __all__ = [
     "BaseBulkDeviceRequest",
     "CheckDeviceStatusRequest",
     "ComponentActionRequest",
-    "DeviceConfigurationRequest",
     "GetComponentActionsRequest",
-    "SetConfigurationRequest",
     "BulkDeviceRequest",
     "BulkRebootRequest",
     "BulkConfigurationRequest",

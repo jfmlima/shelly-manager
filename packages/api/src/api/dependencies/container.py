@@ -61,13 +61,6 @@ def get_dependencies(container: APIContainer) -> dict:
         "status_interactor": Provide(
             lambda: container.get_status_interactor(), sync_to_thread=False
         ),
-        "get_config_interactor": Provide(
-            lambda: container.get_device_config_interactor(), sync_to_thread=False
-        ),
-        "set_config_interactor": Provide(
-            lambda: container.get_device_config_set_interactor(),
-            sync_to_thread=False,
-        ),
         "bulk_operations_use_case": Provide(
             lambda: container.get_bulk_operations_interactor(),
             sync_to_thread=False,

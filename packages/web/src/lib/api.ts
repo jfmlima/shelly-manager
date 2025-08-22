@@ -3,9 +3,7 @@ import type {
   Device,
   DeviceStatus,
   ActionResult,
-  ConfigResponse,
   BulkUpdateRequest,
-  ConfigUpdateRequest,
   ScanRequest,
   ComponentActionResult,
 } from "@/types/api";
@@ -144,19 +142,6 @@ export const deviceApi = {
   factoryResetDevice: async (ip: string): Promise<ActionResult> => {
     const results = await deviceApi.bulkExecuteOperation([ip], "factory_reset");
     return results[0];
-  },
-
-  getDeviceConfig: async (ip: string): Promise<ConfigResponse> => {
-    const response = await apiClient.get(`/devices/${ip}/config`);
-    return response.data;
-  },
-
-  updateDeviceConfig: async (
-    ip: string,
-    request: ConfigUpdateRequest,
-  ): Promise<ConfigResponse> => {
-    const response = await apiClient.post(`/devices/${ip}/config`, request);
-    return response.data;
   },
 
   executeComponentAction: async (

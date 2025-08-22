@@ -188,20 +188,9 @@ export interface BulkActionResult {
   results: ActionResult[];
 }
 
-export interface ConfigResponse {
-  ip: string;
-  success: boolean;
-  config?: unknown;
-  error?: string;
-}
-
 export interface BulkUpdateRequest {
   device_ips: string[];
   channel?: "stable" | "beta";
-}
-
-export interface ConfigUpdateRequest {
-  config: Record<string, unknown>;
 }
 
 export interface ScanRequest {

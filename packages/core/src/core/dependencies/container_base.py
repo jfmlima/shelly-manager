@@ -7,9 +7,7 @@ from core.use_cases.bulk_operations import BulkOperationsUseCase
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
 from core.use_cases.get_component_actions import GetComponentActionsUseCase
-from core.use_cases.get_configuration import GetConfigurationUseCase
 from core.use_cases.scan_devices import ScanDevicesUseCase
-from core.use_cases.set_configuration import SetConfigurationUseCase
 
 
 class BaseContainer:
@@ -21,8 +19,6 @@ class BaseContainer:
         ) = None
         self._component_actions_interactor: GetComponentActionsUseCase | None = None
         self._status_interactor: CheckDeviceStatusUseCase | None = None
-        self._device_config_interactor: GetConfigurationUseCase | None = None
-        self._device_config_set_interactor: SetConfigurationUseCase | None = None
         self._bulk_operations_interactor: BulkOperationsUseCase | None = None
 
     def get_rpc_client(self) -> Any:
@@ -64,20 +60,6 @@ class BaseContainer:
                 device_gateway=self.get_device_gateway()
             )
         return self._status_interactor
-
-    def get_device_config_interactor(self) -> GetConfigurationUseCase:
-        if self._device_config_interactor is None:
-            self._device_config_interactor = GetConfigurationUseCase(
-                device_gateway=self.get_device_gateway()
-            )
-        return self._device_config_interactor
-
-    def get_device_config_set_interactor(self) -> SetConfigurationUseCase:
-        if self._device_config_set_interactor is None:
-            self._device_config_set_interactor = SetConfigurationUseCase(
-                device_gateway=self.get_device_gateway()
-            )
-        return self._device_config_set_interactor
 
     def get_bulk_operations_interactor(self) -> BulkOperationsUseCase:
         if self._bulk_operations_interactor is None:

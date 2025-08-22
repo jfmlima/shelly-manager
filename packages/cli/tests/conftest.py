@@ -14,9 +14,7 @@ from core.domain.value_objects.scan_request import ScanRequest
 from core.gateways.configuration import ConfigurationGateway
 from core.gateways.device import DeviceGateway
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
-from core.use_cases.get_configuration import GetConfigurationUseCase
 from core.use_cases.scan_devices import ScanDevicesUseCase
-from core.use_cases.set_configuration import SetConfigurationUseCase
 
 
 @pytest.fixture
@@ -48,34 +46,18 @@ def mock_status_interactor():
 
 
 @pytest.fixture
-def mock_config_get_interactor():
-    return MagicMock(spec=GetConfigurationUseCase)
-
-
-@pytest.fixture
-def mock_config_set_interactor():
-    return MagicMock(spec=SetConfigurationUseCase)
-
-
-@pytest.fixture
 def mock_container(
     mock_scan_interactor,
     mock_status_interactor,
-    mock_config_get_interactor,
-    mock_config_set_interactor,
     mock_config_gateway,
 ):
     container = MagicMock()
     container.get_scan_interactor.return_value = mock_scan_interactor
     container.get_status_interactor.return_value = mock_status_interactor
-    container.get_config_get_interactor.return_value = mock_config_get_interactor
-    container.get_config_set_interactor.return_value = mock_config_set_interactor
-    container.get_device_config_interactor.return_value = mock_config_get_interactor
-    container.get_device_config_set_interactor.return_value = mock_config_set_interactor
     container.get_config_gateway.return_value = mock_config_gateway
-    container.get_export_interactor.return_value = MagicMock()
     container.get_execute_component_action_interactor.return_value = MagicMock()
     container.get_component_actions_interactor.return_value = MagicMock()
+    container.get_bulk_operations_interactor.return_value = MagicMock()
     return container
 
 
