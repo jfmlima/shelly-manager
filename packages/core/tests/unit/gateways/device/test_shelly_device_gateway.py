@@ -464,62 +464,6 @@ class TestShellyDeviceGateway:
         assert all(result.action_type == "shelly.Reboot" for result in results)
         assert mock_rpc_client.make_rpc_request.call_count == 6
 
-    async def test_it_gets_device_config_successfully(self, gateway, mock_rpc_client):
-        config_data = {"wifi": {"ssid": "TestNetwork"}, "name": "Test Device"}
-        mock_rpc_client.make_rpc_request = AsyncMock(return_value=(config_data, 0.1))
-
-        result = await gateway.get_device_config("192.168.1.100")
-
-        assert result == config_data
-        mock_rpc_client.make_rpc_request.assert_called_once_with(
-            "192.168.1.100", "Sys.GetConfig"
-        )
-
-    async def test_it_returns_none_when_config_retrieval_fails(
-        self, gateway, mock_rpc_client
-    ):
-        mock_rpc_client.make_rpc_request = AsyncMock(
-            side_effect=Exception("Network error")
-        )
-
-        result = await gateway.get_device_config("192.168.1.100")
-
-        assert result is None
-
-    async def test_it_returns_none_when_config_is_not_dict(
-        self, gateway, mock_rpc_client
-    ):
-        mock_rpc_client.make_rpc_request = AsyncMock(
-            return_value=("invalid_config", 0.1)
-        )
-
-        result = await gateway.get_device_config("192.168.1.100")
-
-        assert result is None
-
-    async def test_it_sets_device_config_successfully(self, gateway, mock_rpc_client):
-        config_data = {"name": "Updated Device"}
-        mock_rpc_client.make_rpc_request = AsyncMock(return_value=({}, 0.1))
-
-        result = await gateway.set_device_config("192.168.1.100", config_data)
-
-        assert result is True
-        mock_rpc_client.make_rpc_request.assert_called_once_with(
-            "192.168.1.100", "Sys.SetConfig", params={"config": config_data}
-        )
-
-    async def test_it_returns_false_when_config_set_fails(
-        self, gateway, mock_rpc_client
-    ):
-        config_data = {"name": "Updated Device"}
-        mock_rpc_client.make_rpc_request = AsyncMock(
-            side_effect=Exception("Network error")
-        )
-
-        result = await gateway.set_device_config("192.168.1.100", config_data)
-
-        assert result is False
-
     async def test_it_handles_device_with_partial_info(self, gateway, mock_rpc_client):
         device_info = {"id": "minimal-device"}
         mock_rpc_client.make_rpc_request = AsyncMock(return_value=(device_info, 0.1))

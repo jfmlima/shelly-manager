@@ -8,26 +8,31 @@ class TestExportCommands:
         assert export_commands.name == "export-commands"
         assert len(export_commands.commands) > 0
 
-    def test_export_command_in_group(self):
-        assert "export" in export_commands.commands
+    def test_devices_command_in_group(self):
+        assert "devices" in export_commands.commands
 
     def test_export_commands_help(self, mock_container):
         runner = CliRunner()
         result = runner.invoke(export_commands, ["--help"], obj=mock_container)
 
         assert result.exit_code == 0
-        assert "export" in result.output
+        assert "devices" in result.output
 
-    def test_export_command_shows_help(self, mock_container):
+    def test_devices_command_shows_help(self, mock_container):
         runner = CliRunner()
         result = runner.invoke(
-            export_commands, ["export", "--help"], obj=mock_container
+            export_commands, ["devices", "--help"], obj=mock_container
         )
 
         assert result.exit_code == 0
 
-    def test_export_command_requires_target_specification(self, mock_container):
+    def test_devices_command_requires_target_specification(self, cli_context):
         runner = CliRunner()
-        result = runner.invoke(export_commands, ["export"], obj=mock_container)
+        result = runner.invoke(
+            export_commands,
+            ["devices", "--output", "test_output.json"],
+            obj=cli_context,
+        )
 
         assert result.exit_code != 0
+        assert "Aborted" in result.output

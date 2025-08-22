@@ -39,14 +39,6 @@ class DeviceGateway(ABC):
         pass
 
     @abstractmethod
-    async def get_device_config(self, ip: str) -> dict[str, Any] | None:
-        pass
-
-    @abstractmethod
-    async def set_device_config(self, ip: str, config: dict[str, Any]) -> bool:
-        pass
-
-    @abstractmethod
     async def execute_bulk_action(
         self,
         device_ips: list[str],

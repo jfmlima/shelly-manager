@@ -2,10 +2,14 @@
 Device export use case for CLI operations.
 """
 
+import csv
+import ipaddress
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from core.domain.entities import DeviceStatus
 from core.domain.value_objects.check_device_status_request import (
     CheckDeviceStatusRequest,
 )
@@ -17,8 +21,6 @@ from cli.dependencies.container import CLIContainer
 from cli.entities import (
     ExportRequest,
 )
-
-from ..common.device_discovery import DeviceDiscoveryRequest, DeviceDiscoveryUseCase
 
 
 class DeviceExportUseCase:
@@ -35,7 +37,6 @@ class DeviceExportUseCase:
     def __init__(self, container: CLIContainer, console: Console):
         self._container = container
         self._console = console
-        self._device_discovery = DeviceDiscoveryUseCase(container)
 
     async def execute(self, request: ExportRequest) -> bool:
         """
@@ -63,9 +64,6 @@ class DeviceExportUseCase:
         if not devices:
             return False
 
-        if request.include_config:
-            await self._add_device_configurations(devices)
-
         return await self._export_devices(devices, output_path, request)
 
     def _check_file_overwrite(self, output_path: Path, force: bool) -> bool:
@@ -78,7 +76,65 @@ class DeviceExportUseCase:
             )
         return True
 
-    async def _get_devices(self, request: ExportRequest) -> list[Any]:
+    def _generate_ip_range(self, network: str) -> list[str]:
+        """Generate IP list from CIDR notation (e.g., 192.168.1.0/24)."""
+        try:
+            network_obj = ipaddress.IPv4Network(network, strict=False)
+            return [str(ip) for ip in network_obj.hosts()]
+        except ValueError as e:
+            raise ValueError(f"Invalid network range: {network}") from e
+
+    async def _get_config_device_ips(self) -> list[str]:
+        """Get device IPs from configuration."""
+
+        try:
+            scan_interactor = self._container.get_scan_interactor()
+
+            scan_request = ScanRequest(
+                use_predefined=True,
+                start_ip=None,
+                end_ip=None,
+                timeout=5.0,
+                max_workers=10,
+            )
+
+            discovered_devices = await scan_interactor.execute(scan_request)
+            return [device.ip for device in discovered_devices]
+        except Exception:
+
+            return []
+
+    async def _get_detailed_status_for_devices(
+        self, device_ips: list[str]
+    ) -> list[DeviceStatus]:
+        """Get detailed DeviceStatus for a list of IPs. Excludes failed devices."""
+        devices: list[DeviceStatus] = []
+        status_interactor = self._container.get_status_interactor()
+
+        self._console.print(
+            f"[blue]📊 Getting status from {len(device_ips)} devices...[/blue]"
+        )
+
+        for ip in device_ips:
+            try:
+                status_request = CheckDeviceStatusRequest(
+                    device_ip=ip, include_updates=True
+                )
+                device = await status_interactor.execute(status_request)
+                if device is not None:
+                    devices.append(device)
+                    self._console.print(f"[green]✅ {ip}[/green]")
+                else:
+                    self._console.print(f"[yellow]⚠️ {ip}: No response[/yellow]")
+            except Exception as e:
+                self._console.print(f"[red]❌ {ip}: {e}[/red]")
+
+        if not devices:
+            self._console.print("[yellow]⚠️ No devices responded[/yellow]")
+
+        return devices
+
+    async def _get_devices(self, request: ExportRequest) -> list[DeviceStatus]:
         """Get devices based on scan or IP list."""
         if request.scan and request.ips:
             self._console.print(
@@ -92,73 +148,54 @@ class DeviceExportUseCase:
         else:
             raise ValueError("Must provide either --scan or --ips")
 
-    async def _scan_for_devices(self, request: ExportRequest) -> list[Any]:
-        """Scan network for devices."""
-        self._console.print("[blue]🔍 Scanning network for devices...[/blue]")
+    async def _scan_for_devices(self, request: ExportRequest) -> list[DeviceStatus]:
+        """Scan network for devices using direct status requests."""
 
-        try:
-            discovery_request = DeviceDiscoveryRequest(
-                ip_ranges=[],
-                devices=[],
-                from_config=True,
-                timeout=request.timeout,
-                workers=10,
+        if request.network:
+
+            try:
+                target_ips = self._generate_ip_range(request.network)
+                self._console.print(
+                    f"[blue]🔍 Scanning {request.network} ({len(target_ips)} IPs) for devices...[/blue]"
+                )
+            except ValueError as e:
+                self._console.print(f"[red]❌ {e}[/red]")
+                raise
+        else:
+
+            config_ips = await self._get_config_device_ips()
+            target_ips = config_ips
+            self._console.print(
+                f"[blue]🔍 Checking {len(target_ips)} devices from config...[/blue]"
             )
 
-            devices = await self._device_discovery.discover_devices(discovery_request)
+        if not target_ips:
+            self._console.print("[yellow]⚠️ No IPs to scan[/yellow]")
+            return []
 
-            if not devices:
-                self._console.print("[yellow]⚠️ No devices found during scan[/yellow]")
-                return []
+        return await self._get_detailed_status_for_devices(target_ips)
 
-            self._console.print(f"[green]✅ Found {len(devices)} devices[/green]")
-            return devices
-
-        except Exception as e:
-            self._console.print(f"[red]❌ Error during scan: {e}[/red]")
-            raise
-
-    async def _get_devices_by_ips(self, request: ExportRequest) -> list[Any]:
+    async def _get_devices_by_ips(self, request: ExportRequest) -> list[DeviceStatus]:
         """Get devices by specific IP addresses."""
-        from cli.commands.common import parse_ip_list
-
         if request.ips is None:
             raise ValueError("No IP addresses provided")
 
+        from cli.commands.common import parse_ip_list
+
         target_ips = parse_ip_list(",".join(request.ips))
 
-        self._console.print(
-            f"[blue]📊 Getting device information from {len(target_ips)} IPs...[/blue]"
-        )
+        return await self._get_detailed_status_for_devices(target_ips)
 
-        devices = []
-        status_interactor = self._container.get_status_interactor()
-
-        for ip in target_ips:
-            try:
-                status_request = CheckDeviceStatusRequest(
-                    device_ip=ip, include_updates=True
-                )
-                device = await status_interactor.execute(status_request)
-                devices.append(device)
-                self._console.print(f"[green]✅ {ip}[/green]")
-            except Exception as e:
-                self._console.print(f"[red]❌ {ip}: {e}[/red]")
-
-        if not devices:
-            self._console.print("[yellow]⚠️ No devices responded[/yellow]")
-
-        return devices
-
-    async def _add_device_configurations(self, devices: list[Any]) -> None:
-        """Add configuration data to devices."""
+    async def _get_configurations_for_devices(
+        self, devices: list[DeviceStatus]
+    ) -> dict[str, dict[str, Any]]:
+        """Get configuration data for devices, returning a mapping of device_ip -> config."""
         self._console.print("[blue]⚙️ Retrieving device configurations...[/blue]")
 
         try:
             bulk_operations = self._container.get_bulk_operations_interactor()
-            device_ips = [device.ip for device in devices]
+            device_ips = [device.device_ip for device in devices]
 
-            # Use bulk config export to get all component configs
             component_types = [
                 "switch",
                 "input",
@@ -168,26 +205,32 @@ class DeviceExportUseCase:
                 "ble",
                 "zigbee",
             ]
-            config_data = await bulk_operations.export_bulk_config(
+            bulk_config_result = await bulk_operations.export_bulk_config(
                 device_ips, component_types
             )
 
-            # Assign configurations to devices
-            for device in devices:
-                if device.ip in config_data:
-                    device.configuration = config_data[device.ip].get("components", {})
-                    self._console.print(f"[green]✅ Config for {device.ip}[/green]")
+            devices_data = bulk_config_result.get("devices", {})
+
+            result = {}
+            for device_ip in device_ips:
+                if device_ip in devices_data:
+
+                    device_data = devices_data[device_ip]
+                    result[device_ip] = device_data.get("components", {})
+                    self._console.print(f"[green]✅ Config for {device_ip}[/green]")
                 else:
                     self._console.print(
-                        f"[yellow]⚠️ Config for {device.ip}: Device not found in bulk export[/yellow]"
+                        f"[yellow]⚠️ Config for {device_ip}: Device not found in bulk export[/yellow]"
                     )
-                    device.configuration = None
+
+            return result
 
         except Exception as e:
             self._console.print(f"[red]❌ Error getting configurations: {e}[/red]")
+            return {}
 
     async def _export_devices(
-        self, devices: list[Any], output_path: Path, request: ExportRequest
+        self, devices: list[DeviceStatus], output_path: Path, request: ExportRequest
     ) -> bool:
         """Export devices to file."""
         self._console.print(
@@ -195,22 +238,29 @@ class DeviceExportUseCase:
         )
 
         try:
-            # TODO: Implement actual export functionality
-            success = True  # Placeholder
 
-            if success:
-                file_size = output_path.stat().st_size
-                self._console.print(
-                    f"[green]✅ Exported {len(devices)} devices to {output_path} ({file_size} bytes)[/green]"
-                )
+            config_data = {}
+            if request.include_config:
+                config_data = await self._get_configurations_for_devices(devices)
 
-                self._display_export_summary(
-                    output_path, request, len(devices), file_size
-                )
-                return True
+            export_data = self._prepare_export_data(devices, request, config_data)
+
+            if request.format.lower() == "json":
+                self._write_json_export(export_data, output_path, request.pretty)
+            elif request.format.lower() == "yaml":
+                self._write_yaml_export(export_data, output_path)
+            elif request.format.lower() == "csv":
+                self._write_csv_export(export_data["devices"], output_path)
             else:
-                self._console.print("[red]❌ Export failed[/red]")
-                return False
+                raise ValueError(f"Unsupported export format: {request.format}")
+
+            file_size = output_path.stat().st_size
+            self._console.print(
+                f"[green]✅ Exported {len(devices)} devices to {output_path} ({file_size} bytes)[/green]"
+            )
+
+            self._display_export_summary(output_path, request, len(devices), file_size)
+            return True
 
         except Exception as e:
             self._console.print(f"[red]❌ Error during export: {e}[/red]")
@@ -239,152 +289,124 @@ class DeviceExportUseCase:
 
         self._console.print(table)
 
-
-class ScanExportUseCase:
-    """
-    Use case for exporting network scan results.
-
-    Handles the CLI orchestration for scan export including:
-    - Network scanning with optional network range
-    - Empty result handling
-    - File format conversion and output
-    """
-
-    def __init__(self, container: CLIContainer, console: Console):
-        self._container = container
-        self._console = console
-
-    async def execute(self, request: ExportRequest) -> bool:
-        """
-        Export devices found by scanning the network.
-
-        Args:
-            request: Scan export request parameters
-
-        Returns:
-            True if export was successful, False otherwise
-
-        Raises:
-            RuntimeError: If user cancels operation
-        """
-        if request.output is None:
-            raise ValueError("Output path is required for scan export")
-
-        output_path = Path(request.output)
-
-        if not self._check_file_overwrite(output_path, request.force):
-            self._console.print("[yellow]Export cancelled[/yellow]")
-            raise RuntimeError("Export cancelled by user")
-
-        devices = await self._scan_network(request)
-
-        return await self._export_scan_results(devices, output_path, request)
-
-    def _check_file_overwrite(self, output_path: Path, force: bool) -> bool:
-        """Check if file should be overwritten."""
-        if output_path.exists() and not force:
-            from cli.commands.common import confirm_action
-
-            return confirm_action(
-                f"File {output_path} already exists. Overwrite?", default=False
-            )
-        return True
-
-    async def _scan_network(self, request: ExportRequest) -> list[Any]:
-        """Scan network for devices."""
-        self._console.print("[blue]🔍 Scanning network for Shelly devices...[/blue]")
-
-        try:
-            scan_interactor = self._container.get_scan_interactor()
-
-            scan_request = ScanRequest(
-                use_predefined=False,
-                start_ip=None,
-                end_ip=None,
-                timeout=request.timeout,
-                max_workers=request.workers,
-            )
-
-            devices = await scan_interactor.execute(scan_request)
-
-            if not devices:
-                self._console.print("[yellow]⚠️ No devices found during scan[/yellow]")
-            else:
-                self._console.print(f"[green]✅ Found {len(devices)} devices[/green]")
-
-            return devices
-
-        except Exception as e:
-            self._console.print(f"[red]❌ Error during scan export: {e}[/red]")
-            raise
-
-    async def _export_scan_results(
-        self, devices: list[Any], output_path: Path, request: ExportRequest
-    ) -> bool:
-        """Export scan results to file."""
-        self._console.print(
-            f"[blue]💾 Exporting scan results to {request.output}...[/blue]"
-        )
-
-        try:
-            # TODO: Implement actual export functionality
-            success = True  # Placeholder
-
-            if success:
-                self._console.print(
-                    f"[green]✅ Exported scan results to {request.output}[/green]"
-                )
-                return True
-            else:
-                self._console.print("[red]❌ Export failed[/red]")
-                return False
-
-        except Exception as e:
-            self._console.print(f"[red]❌ Error during export: {e}[/red]")
-            return False
-
-    async def _export_empty_results(
-        self, output_path: Path, request: ExportRequest
-    ) -> None:
-        """Export empty scan results."""
-        empty_data = {
+    def _prepare_export_data(
+        self,
+        devices: list[DeviceStatus],
+        request: ExportRequest,
+        config_data: dict[str, dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Prepare devices data for export."""
+        export_data: dict[str, Any] = {
+            "metadata": {
+                "export_timestamp": datetime.now().isoformat(),
+                "export_type": "device_export",
+                "format": request.format,
+                "include_config": request.include_config,
+                "total_devices": len(devices),
+            },
             "devices": [],
-            "scan_info": {"device_count": 0, "network": request.network or "auto"},
         }
 
-        with open(output_path, "w") as f:
-            if request.format == "json":
-                json.dump(empty_data, f, indent=2 if request.pretty else None)
-            elif request.format == "yaml":
-                import yaml
+        if request.scan:
+            export_data["metadata"]["scan_settings"] = {
+                "network": request.network or "auto-detected",
+                "timeout": request.timeout,
+            }
 
-                yaml.dump(empty_data, f, default_flow_style=False)
-            else:  # CSV
-                f.write("ip,name,model,firmware_version,mac_address,status\n")
+        for device in devices:
+            device_config = config_data.get(device.device_ip) if config_data else None
+            device_data = self._device_to_dict(device, device_config)
+            export_data["devices"].append(device_data)
 
-        self._console.print(
-            f"[green]✅ Empty scan results exported to {request.output}[/green]"
-        )
+        return export_data
 
-    def _display_scan_summary(
-        self,
-        output_path: Path,
-        request: ExportRequest,
-        device_count: int,
-        file_size: int,
+    def _device_to_dict(
+        self, device: DeviceStatus, device_config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Convert DeviceStatus object to dictionary."""
+
+        device_dict: dict[str, Any] = {
+            "ip": device.device_ip,
+            "device_name": device.device_name,
+            "device_type": device.device_type,
+            "firmware_version": device.firmware_version,
+            "mac_address": device.mac_address,
+            "last_updated": (
+                device.last_updated.isoformat() if device.last_updated else None
+            ),
+        }
+
+        summary = device.get_device_summary()
+        device_dict["summary"] = {
+            "switch_count": summary["switch_count"],
+            "input_count": summary["input_count"],
+            "cover_count": summary["cover_count"],
+            "total_power": summary["total_power"],
+            "any_switch_on": summary["any_switch_on"],
+            "cloud_connected": summary["cloud_connected"],
+            "has_updates": summary["has_updates"],
+            "restart_required": summary["restart_required"],
+        }
+
+        if device_config:
+            device_dict["configuration"] = device_config
+
+        return device_dict
+
+    def _write_json_export(
+        self, data: dict[str, Any], output_path: Path, pretty: bool = False
     ) -> None:
-        """Display scan export summary table."""
-        self._console.print("\n[bold blue]📋 Scan Export Summary[/bold blue]")
+        """Write export data as JSON."""
+        with open(output_path, "w", encoding="utf-8") as f:
+            if pretty:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            else:
+                json.dump(data, f, ensure_ascii=False)
 
-        table = Table(show_header=True, header_style="bold magenta")
-        table.add_column("Property", style="cyan")
-        table.add_column("Value", style="green")
+    def _write_yaml_export(self, data: dict[str, Any], output_path: Path) -> None:
+        """Write export data as YAML."""
+        try:
+            import yaml
+        except ImportError as e:
+            raise ImportError(
+                "PyYAML is required for YAML export. Install with: pip install pyyaml"
+            ) from e
 
-        table.add_row("Output File", str(output_path))
-        table.add_row("Format", request.format.upper())
-        table.add_row("Devices Found", str(device_count))
-        table.add_row("Network", request.network or "Auto-detected")
-        table.add_row("Scan Timeout", f"{request.timeout}s")
-        table.add_row("File Size", f"{file_size} bytes")
+        with open(output_path, "w", encoding="utf-8") as f:
+            yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
 
-        self._console.print(table)
+    def _write_csv_export(
+        self, device_data: list[dict[str, Any]], output_path: Path
+    ) -> None:
+        """Write prepared device data as CSV (tabular summary)."""
+        with open(output_path, "w", newline="", encoding="utf-8") as f:
+            fieldnames = [
+                "ip",
+                "device_name",
+                "device_type",
+                "firmware_version",
+                "mac_address",
+                "status",
+                "last_updated",
+                "switch_count",
+                "input_count",
+                "cover_count",
+                "total_power",
+                "cloud_connected",
+                "has_updates",
+                "restart_required",
+            ]
+
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+
+            for device_dict in device_data:
+
+                csv_device = device_dict.copy()
+
+                if "summary" in csv_device:
+                    summary = csv_device.pop("summary")
+                    csv_device.update(summary)
+
+                csv_row = {field: csv_device.get(field, "") for field in fieldnames}
+                writer.writerow(csv_row)
