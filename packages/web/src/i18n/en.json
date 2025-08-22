@@ -86,13 +86,27 @@
       "rebootDevices": "Restart selected devices",
       "factoryReset": "Reset devices to factory defaults",
       "checkStatus": "Fetch status for selected devices",
-      "exportConfigurations": "Download device configurations",
-      "applyConfiguration": "Apply configuration template"
+      "exportConfigurations": "Export component configurations from selected devices",
+      "applyConfiguration": "Apply configuration to component types on selected devices"
     },
     "warnings": {
       "factoryReset": "⚠️ Destructive Action",
       "factoryResetDescription": "This will permanently erase all device settings, WiFi credentials, and configurations. Devices will need to be reconfigured from scratch."
     },
+    "componentSelection": "Component Selection",
+    "selectComponentTypes": "Select component types to export configurations from",
+    "selectSingleComponentType": "Select a single component type to apply configuration to",
+    "configurationEditor": "Configuration Editor",
+    "pasteJsonConfig": "Paste your JSON configuration here",
+    "uploadConfigFile": "Upload Config File",
+    "downloadConfig": "Download Configuration",
+    "fileUpload": "File Upload",
+    "dragDropFile": "Drag and drop a JSON file here, or click to select",
+    "configPreview": "Configuration Preview",
+    "safetyWarning": "⚠️ Safety Warning",
+    "backupResponsibility": "Creating device backups before applying configurations is your responsibility. Consider making a backup if you haven't already.",
+    "configurationDiff": "Configuration Changes",
+    "applyToComponents": "This configuration will be applied to all {{componentType}} components on the selected devices",
     "messages": {
       "updateSuccess": "Successfully updated {{count}} devices",
       "updatePartial": "Updated {{successful}} devices, {{failed}} failed",
@@ -100,6 +114,13 @@
       "rebootPartial": "Rebooted {{successful}} devices, {{failed}} failed",
       "factoryResetSuccess": "Successfully reset {{count}} devices",
       "factoryResetPartial": "Reset {{successful}} devices, {{failed}} failed",
+      "exportSuccess": "Successfully exported configurations from {{count}} devices",
+      "exportPartial": "Exported configurations from {{successful}} devices, {{failed}} failed",
+      "applySuccess": "Successfully applied configuration to {{count}} components",
+      "applyPartial": "Applied configuration to {{successful}} components, {{failed}} failed",
+      "invalidJsonConfig": "Invalid JSON configuration. Please check your syntax.",
+      "noComponentTypesSelected": "Please select at least one component type",
+      "noConfigurationProvided": "Please provide a configuration to apply",
       "actionNotImplemented": "Action not implemented yet"
     },
     "comingSoonDescription": "This feature is currently under development and will be available in a future release."

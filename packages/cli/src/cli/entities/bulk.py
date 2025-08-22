@@ -10,8 +10,6 @@ from .common import OperationResult
 
 
 class BulkOperationRequest(BaseModel):
-    """Base request for bulk operations."""
-
     devices: list[str] = Field(default_factory=list)
     from_config: bool = Field(default=False)
     scan: bool = Field(default=False, description="Scan network for devices")
@@ -33,8 +31,6 @@ class BulkOperationRequest(BaseModel):
 
 
 class BulkRebootRequest(BulkOperationRequest):
-    """Request for bulk device reboots."""
-
     force: bool = Field(default=False, description="Skip confirmation prompt")
     stagger_delay: float = Field(
         default=0.0, ge=0, description="Delay between device reboots in seconds"
@@ -42,8 +38,6 @@ class BulkRebootRequest(BulkOperationRequest):
 
 
 class BulkConfigRequest(BulkOperationRequest):
-    """Request for bulk configuration operations."""
-
     config_key: str = Field(description="Configuration key to modify")
     config_value: Any = Field(description="Value to set")
     create_backup: bool = Field(
@@ -55,8 +49,6 @@ class BulkConfigRequest(BulkOperationRequest):
 
 
 class BulkCommandRequest(BulkOperationRequest):
-    """Request for executing bulk commands."""
-
     command: str = Field(description="Command to execute on devices")
     command_args: dict[str, Any] = Field(
         default_factory=dict, description="Arguments to pass with the command"
@@ -67,8 +59,6 @@ class BulkCommandRequest(BulkOperationRequest):
 
 
 class BulkOperationResult(OperationResult):
-    """Result of a bulk operation."""
-
     total_devices: int = Field(default=0)
     successful_operations: int = Field(default=0)
     failed_operations: int = Field(default=0)
@@ -84,8 +74,6 @@ class BulkOperationResult(OperationResult):
 
 
 class BulkRebootResult(BulkOperationResult):
-    """Result of bulk reboot operations."""
-
     operation_type: str = Field(default="bulk_reboot")
     stagger_delay_used: float = Field(default=0.0)
     reboot_order: list[str] = Field(
@@ -94,8 +82,6 @@ class BulkRebootResult(BulkOperationResult):
 
 
 class BulkConfigResult(BulkOperationResult):
-    """Result of bulk configuration operations."""
-
     operation_type: str = Field(default="bulk_config")
     config_key: str = Field(description="Configuration key that was modified")
     config_value: Any = Field(description="Value that was set")
@@ -109,8 +95,6 @@ class BulkConfigResult(BulkOperationResult):
 
 
 class BulkCommandResult(BulkOperationResult):
-    """Result of bulk command operations."""
-
     operation_type: str = Field(default="bulk_command")
     command: str = Field(description="Command that was executed")
     command_responses: dict[str, Any] = Field(
@@ -118,4 +102,37 @@ class BulkCommandResult(BulkOperationResult):
     )
     validation_failures: list[str] = Field(
         default_factory=list, description="Devices that didn't return expected response"
+    )
+
+
+class BulkConfigExportRequest(BulkOperationRequest):
+    component_types: list[str] = Field(
+        description="Component types to export (e.g., switch, input)"
+    )
+    output_file: str = Field(description="Output file path for exported configuration")
+
+
+class BulkConfigApplyRequest(BulkOperationRequest):
+    component_type: str = Field(description="Single component type to apply config to")
+    config_file: str | None = Field(
+        default=None, description="Path to configuration file"
+    )
+    config_data: dict[str, Any] | None = Field(
+        default=None, description="Configuration data directly"
+    )
+
+
+class BulkConfigExportResult(BulkOperationResult):
+    operation_type: str = Field(default="bulk_config_export")
+    component_types: list[str] = Field(description="Component types that were exported")
+    output_file: str = Field(description="File where configuration was saved")
+    devices_exported: int = Field(default=0, description="Number of devices exported")
+
+
+class BulkConfigApplyResult(BulkOperationResult):
+    operation_type: str = Field(default="bulk_config_apply")
+    component_type: str = Field(description="Component type that was configured")
+    config_source: str = Field(description="Source of configuration (file or direct)")
+    components_configured: int = Field(
+        default=0, description="Number of components configured"
     )

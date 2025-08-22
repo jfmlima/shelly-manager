@@ -15,7 +15,6 @@ class TestDeviceStatusZigbeeIntegration:
     """Test DeviceStatus with Zigbee component integration."""
 
     def test_it_creates_device_status_with_zigbee_data(self):
-        """Test creating DeviceStatus with Zigbee data."""
         device_ip = "192.168.1.100"
         response_data = {
             "components": [
@@ -37,7 +36,7 @@ class TestDeviceStatusZigbeeIntegration:
         )
 
         assert device_status.device_ip == device_ip
-        assert len(device_status.components) == 2  # switch + zigbee
+        assert len(device_status.components) == 2
 
         switch_comp = device_status.get_component_by_key("switch:0")
         assert switch_comp is not None
@@ -49,7 +48,6 @@ class TestDeviceStatusZigbeeIntegration:
         assert zigbee_comp.network_state == "joined"
 
     def test_it_creates_device_status_without_zigbee_data(self):
-        """Test creating DeviceStatus without Zigbee data."""
         device_ip = "192.168.1.100"
         response_data = {
             "components": [
@@ -68,7 +66,7 @@ class TestDeviceStatusZigbeeIntegration:
         device_status = DeviceStatus.from_raw_response(device_ip, response_data)
 
         assert device_status.device_ip == device_ip
-        assert len(device_status.components) == 1  # only switch
+        assert len(device_status.components) == 1
 
         switch_comp = device_status.get_component_by_key("switch:0")
         assert switch_comp is not None
@@ -78,7 +76,6 @@ class TestDeviceStatusZigbeeIntegration:
         assert zigbee_comp is None
 
     def test_it_gets_zigbee_info_method(self):
-        """Test the get_zigbee_info convenience method."""
         zigbee_comp = ZigbeeComponent(
             key="zigbee", component_type="zigbee", network_state="joined", enabled=True
         )
@@ -94,14 +91,12 @@ class TestDeviceStatusZigbeeIntegration:
         assert zigbee_info.enabled is True
 
     def test_it_gets_zigbee_info_method_no_zigbee(self):
-        """Test get_zigbee_info when no zigbee component exists."""
         device_status = DeviceStatus(device_ip="192.168.1.100", components=[])
 
         zigbee_info = device_status.get_zigbee_info()
         assert zigbee_info is None
 
     def test_it_includes_zigbee_info_in_device_summary(self):
-        """Test that device summary includes Zigbee connectivity information."""
         system_comp = SystemComponent(
             key="sys",
             component_type="sys",
@@ -130,7 +125,6 @@ class TestDeviceStatusZigbeeIntegration:
         assert summary["zigbee_network_state"] == "joined"
 
     def test_it_handles_device_summary_no_zigbee(self):
-        """Test device summary when no zigbee component exists."""
         device_status = DeviceStatus(device_ip="192.168.1.100", components=[])
 
         summary = device_status.get_device_summary()
@@ -141,7 +135,6 @@ class TestDeviceStatusZigbeeIntegration:
         assert summary["zigbee_network_state"] is None
 
     def test_it_creates_zigbee_component_from_raw_data(self):
-        """Test that zigbee component is created with correct structure."""
         device_ip = "192.168.1.100"
         response_data = {"components": []}
         zigbee_data = {"network_state": "left", "some_other_field": "value"}
@@ -167,7 +160,6 @@ class TestDeviceStatusBackwardCompatibility:
     """Test that existing DeviceStatus functionality remains unchanged."""
 
     def test_it_maintains_existing_convenience_methods(self):
-        """Test that existing convenience methods continue to work."""
         switch_comp = SwitchComponent(
             key="switch:0", component_type="switch", output=True, power=100.0
         )
@@ -185,7 +177,6 @@ class TestDeviceStatusBackwardCompatibility:
         assert isinstance(switch_by_key, SwitchComponent)
 
     def test_it_maintains_existing_device_summary_fields(self):
-        """Test that existing device summary fields are preserved."""
         system_comp = SystemComponent(
             key="sys", component_type="sys", device_name="Test Device"
         )
@@ -203,3 +194,154 @@ class TestDeviceStatusBackwardCompatibility:
         assert "switch_count" in summary
         assert "input_count" in summary
         assert "cover_count" in summary
+
+    def test_it_creates_device_status_with_device_info_data(self):
+        device_ip = "192.168.1.100"
+        response_data = {
+            "components": [
+                {
+                    "key": "sys",
+                    "status": {},
+                    "config": {"device": {"name": "Old Name"}},
+                    "attrs": {},
+                }
+            ],
+            "cfg_rev": 1,
+        }
+        device_info_data = {
+            "name": "New Device Name",
+            "model": "SNSW-001X16EU",
+            "fw_id": "20231026-112640/v1.14.1-ga898e3a",
+            "mac": "AA:BB:CC:DD:EE:FF",
+            "app": "switch",
+        }
+
+        device_status = DeviceStatus.from_raw_response(
+            device_ip, response_data, device_info_data=device_info_data
+        )
+
+        assert device_status.device_name == "New Device Name"
+        assert device_status.device_type == "SNSW-001X16EU"
+        assert device_status.firmware_version == "20231026-112640/v1.14.1-ga898e3a"
+        assert device_status.mac_address == "AA:BB:CC:DD:EE:FF"
+        assert device_status.app_name == "switch"
+
+    def test_it_uses_device_info_data_in_summary(self):
+        device_ip = "192.168.1.100"
+        response_data = {
+            "components": [
+                {
+                    "key": "sys",
+                    "status": {},
+                    "config": {"device": {"name": "Old Name"}},
+                    "attrs": {},
+                }
+            ],
+            "cfg_rev": 1,
+        }
+        device_info_data = {
+            "name": "Fresh Device Name",
+            "model": "SNSW-001X16EU",
+            "fw_id": "20231026-112640/v1.14.1-ga898e3a",
+            "mac": "FF:EE:DD:CC:BB:AA",
+            "app": "switch",
+        }
+
+        device_status = DeviceStatus.from_raw_response(
+            device_ip, response_data, device_info_data=device_info_data
+        )
+
+        summary = device_status.get_device_summary()
+
+        assert summary["device_name"] == "Fresh Device Name"
+        assert summary["mac_address"] == "FF:EE:DD:CC:BB:AA"
+        assert summary["firmware_version"] == "20231026-112640/v1.14.1-ga898e3a"
+
+    def test_it_falls_back_to_sys_component_when_device_info_missing(self):
+        device_ip = "192.168.1.100"
+        response_data = {
+            "components": [
+                {
+                    "key": "sys",
+                    "status": {
+                        "mac": "AA:BB:CC:DD:EE:FF",
+                    },
+                    "config": {
+                        "device": {
+                            "name": "Sys Component Name",
+                            "fw_id": "20230913-112003/v1.14.0-gcb84623",
+                        }
+                    },
+                    "attrs": {},
+                }
+            ],
+            "cfg_rev": 1,
+        }
+
+        device_status = DeviceStatus.from_raw_response(device_ip, response_data)
+
+        summary = device_status.get_device_summary()
+
+        assert summary["device_name"] == "Sys Component Name"
+        assert summary["mac_address"] == "AA:BB:CC:DD:EE:FF"
+        assert summary["firmware_version"] == "20230913-112003/v1.14.0-gcb84623"
+
+    def test_it_handles_partial_device_info_data(self):
+        device_ip = "192.168.1.100"
+        response_data = {
+            "components": [
+                {
+                    "key": "sys",
+                    "status": {
+                        "mac": "AA:BB:CC:DD:EE:FF",
+                    },
+                    "config": {
+                        "device": {
+                            "name": "Sys Name",
+                            "fw_id": "20230913-112003",
+                        }
+                    },
+                    "attrs": {},
+                }
+            ],
+            "cfg_rev": 1,
+        }
+        device_info_data = {
+            "name": "DeviceInfo Name",
+        }
+
+        device_status = DeviceStatus.from_raw_response(
+            device_ip, response_data, device_info_data=device_info_data
+        )
+
+        summary = device_status.get_device_summary()
+
+        assert summary["device_name"] == "DeviceInfo Name"
+        assert summary["mac_address"] == "AA:BB:CC:DD:EE:FF"
+        assert summary["firmware_version"] == "20230913-112003"
+
+    def test_it_handles_empty_device_info_data(self):
+        device_ip = "192.168.1.100"
+        response_data = {
+            "components": [
+                {
+                    "key": "sys",
+                    "status": {
+                        "mac": "AA:BB:CC:DD:EE:FF",
+                    },
+                    "config": {"device": {"name": "Sys Name"}},
+                    "attrs": {},
+                }
+            ],
+            "cfg_rev": 1,
+        }
+        device_info_data = {}
+
+        device_status = DeviceStatus.from_raw_response(
+            device_ip, response_data, device_info_data=device_info_data
+        )
+
+        summary = device_status.get_device_summary()
+
+        assert summary["device_name"] == "Sys Name"
+        assert summary["mac_address"] == "AA:BB:CC:DD:EE:FF"

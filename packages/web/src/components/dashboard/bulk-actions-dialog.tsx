@@ -59,8 +59,8 @@ type BulkActionType =
   | "reboot"
   | "factory_reset"
   | "status"
-  | "export"
-  | "config";
+  | "export_config"
+  | "apply_config";
 
 interface BulkProgress {
   total: number;
@@ -87,11 +87,41 @@ export function BulkActionsDialog({
   const [showDetails, setShowDetails] = useState(false);
   const [confirmFactoryReset, setConfirmFactoryReset] = useState(false);
 
+  // Configuration-specific state
+  const [selectedComponentTypes, setSelectedComponentTypes] = useState<
+    string[]
+  >([]);
+  const [selectedComponentType, setSelectedComponentType] =
+    useState<string>("");
+  const [configurationJson, setConfigurationJson] = useState<string>("");
+  const [configError, setConfigError] = useState<string>("");
+
+  // Hardcoded list of component types that support GetConfig/SetConfig
+  const CONFIGURABLE_COMPONENT_TYPES = [
+    "switch",
+    "input",
+    "cover",
+    "sys",
+    "cloud",
+    "wifi",
+    "ble",
+    "mqtt",
+    "ws",
+    "script",
+    "knx",
+    "modbus",
+    "zigbee",
+  ];
+
   const resetDialog = () => {
     setSelectedAction(null);
     setProgress(null);
     setShowDetails(false);
     setConfirmFactoryReset(false);
+    setSelectedComponentTypes([]);
+    setSelectedComponentType("");
+    setConfigurationJson("");
+    setConfigError("");
   };
 
   const handleClose = () => {
@@ -208,6 +238,103 @@ export function BulkActionsDialog({
     },
   });
 
+  const bulkExportConfigMutation = useMutation({
+    mutationFn: async () => {
+      const deviceIps = selectedDevices.map((device) => device.ip);
+      return deviceApi.bulkExportConfig(deviceIps, selectedComponentTypes);
+    },
+    onSuccess: (result) => {
+      // Download the exported configuration
+      const blob = new Blob([JSON.stringify(result, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `shelly-config-export-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      const deviceCount = Object.keys(result.devices || {}).length;
+      toast.success(
+        t("bulkActions.messages.exportSuccess", { count: deviceCount }),
+      );
+
+      setProgress({
+        total: selectedDevices.length,
+        completed: deviceCount,
+        failed: selectedDevices.length - deviceCount,
+        results: [],
+        isRunning: false,
+      });
+
+      onComplete?.();
+    },
+    onError: (error) => {
+      toast.error(handleApiError(error));
+      setProgress((prev) => (prev ? { ...prev, isRunning: false } : null));
+    },
+  });
+
+  const bulkApplyConfigMutation = useMutation({
+    mutationFn: async () => {
+      const deviceIps = selectedDevices.map((device) => device.ip);
+      const config = JSON.parse(configurationJson);
+      return deviceApi.bulkApplyConfig(
+        deviceIps,
+        selectedComponentType,
+        config,
+      );
+    },
+    onSuccess: (results) => {
+      const successful = results.filter((r) => r.success).length;
+      const failed = results.filter((r) => !r.success).length;
+
+      setProgress({
+        total: results.length,
+        completed: successful,
+        failed,
+        results,
+        isRunning: false,
+      });
+
+      if (failed === 0) {
+        toast.success(
+          t("bulkActions.messages.applySuccess", { count: successful }),
+        );
+      } else {
+        toast.warning(
+          t("bulkActions.messages.applyPartial", { successful, failed }),
+        );
+      }
+
+      onComplete?.();
+    },
+    onError: (error) => {
+      toast.error(handleApiError(error));
+      setProgress((prev) => (prev ? { ...prev, isRunning: false } : null));
+    },
+  });
+
+  // Validate JSON configuration
+  const validateConfiguration = (jsonString: string): boolean => {
+    if (!jsonString.trim()) {
+      setConfigError(t("bulkActions.messages.noConfigurationProvided"));
+      return false;
+    }
+
+    try {
+      JSON.parse(jsonString);
+      setConfigError("");
+      return true;
+    } catch {
+      setConfigError(t("bulkActions.messages.invalidJsonConfig"));
+      return false;
+    }
+  };
+
   const executeAction = async () => {
     if (!selectedAction) return;
 
@@ -219,6 +346,28 @@ export function BulkActionsDialog({
       isRunning: true,
     });
 
+    // Validation for config actions
+    if (selectedAction === "export_config") {
+      if (selectedComponentTypes.length === 0) {
+        toast.error(t("bulkActions.messages.noComponentTypesSelected"));
+        setProgress((prev) => (prev ? { ...prev, isRunning: false } : null));
+        return;
+      }
+    }
+
+    if (selectedAction === "apply_config") {
+      if (!selectedComponentType) {
+        toast.error(t("bulkActions.messages.noComponentTypesSelected"));
+        setProgress((prev) => (prev ? { ...prev, isRunning: false } : null));
+        return;
+      }
+
+      if (!validateConfiguration(configurationJson)) {
+        setProgress((prev) => (prev ? { ...prev, isRunning: false } : null));
+        return;
+      }
+    }
+
     switch (selectedAction) {
       case "update":
         bulkUpdateMutation.mutate();
@@ -228,6 +377,12 @@ export function BulkActionsDialog({
         break;
       case "factory_reset":
         bulkFactoryResetMutation.mutate();
+        break;
+      case "export_config":
+        bulkExportConfigMutation.mutate();
+        break;
+      case "apply_config":
+        bulkApplyConfigMutation.mutate();
         break;
       default:
         toast.error(t("bulkActions.messages.actionNotImplemented"));
@@ -245,10 +400,10 @@ export function BulkActionsDialog({
         return <AlertCircle className="h-4 w-4" />;
       case "status":
         return <RefreshCw className="h-4 w-4" />;
-      case "export":
+      case "export_config":
         return <Upload className="h-4 w-4" />;
-      case "config":
-        return <Upload className="h-4 w-4" />;
+      case "apply_config":
+        return <Download className="h-4 w-4" />;
     }
   };
 
@@ -286,16 +441,16 @@ export function BulkActionsDialog({
       icon: <RefreshCw className="h-6 w-6" />,
     },
     {
-      id: "export" as BulkActionType,
+      id: "export_config" as BulkActionType,
       title: t("bulkActions.exportConfigurations"),
       description: t("bulkActions.descriptions.exportConfigurations"),
       icon: <Upload className="h-6 w-6" />,
     },
     {
-      id: "config" as BulkActionType,
+      id: "apply_config" as BulkActionType,
       title: t("bulkActions.applyConfiguration"),
       description: t("bulkActions.descriptions.applyConfiguration"),
-      icon: <Upload className="h-6 w-6" />,
+      icon: <Download className="h-6 w-6" />,
     },
   ];
 
@@ -335,10 +490,7 @@ export function BulkActionsDialog({
           {!selectedAction && !progress && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {actionCards.map((action) => {
-                const isComingSoon =
-                  action.id === "export" ||
-                  action.id === "config" ||
-                  action.id === "status";
+                const isComingSoon = action.id === "status";
                 return (
                   <Card
                     key={action.id}
@@ -447,11 +599,151 @@ export function BulkActionsDialog({
                   </div>
                 )}
 
+                {/* Component Selection for Export Config */}
+                {selectedAction === "export_config" && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        {t("bulkActions.componentSelection")}
+                      </label>
+                      <p className="text-sm text-muted-foreground">
+                        {t("bulkActions.selectComponentTypes")}
+                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {CONFIGURABLE_COMPONENT_TYPES.map((componentType) => (
+                          <div
+                            key={componentType}
+                            className="flex items-center space-x-2"
+                          >
+                            <Checkbox
+                              id={`component-${componentType}`}
+                              checked={selectedComponentTypes.includes(
+                                componentType,
+                              )}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedComponentTypes([
+                                    ...selectedComponentTypes,
+                                    componentType,
+                                  ]);
+                                } else {
+                                  setSelectedComponentTypes(
+                                    selectedComponentTypes.filter(
+                                      (t) => t !== componentType,
+                                    ),
+                                  );
+                                }
+                              }}
+                            />
+                            <label
+                              htmlFor={`component-${componentType}`}
+                              className="text-sm font-medium capitalize"
+                            >
+                              {componentType}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Component Selection and Configuration for Apply Config */}
+                {selectedAction === "apply_config" && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        {t("bulkActions.componentSelection")}
+                      </label>
+                      <p className="text-sm text-muted-foreground">
+                        {t("bulkActions.selectSingleComponentType")}
+                      </p>
+                      <Select
+                        value={selectedComponentType}
+                        onValueChange={setSelectedComponentType}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select component type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CONFIGURABLE_COMPONENT_TYPES.map((componentType) => (
+                            <SelectItem
+                              key={componentType}
+                              value={componentType}
+                            >
+                              <span className="capitalize">
+                                {componentType}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        {t("bulkActions.configurationEditor")}
+                      </label>
+                      <p className="text-sm text-muted-foreground">
+                        {t("bulkActions.pasteJsonConfig")}
+                      </p>
+                      <textarea
+                        className="w-full h-32 p-3 border rounded-lg font-mono text-sm"
+                        placeholder='{"example": "configuration"}'
+                        value={configurationJson}
+                        onChange={(e) => {
+                          setConfigurationJson(e.target.value);
+                          if (configError) {
+                            validateConfiguration(e.target.value);
+                          }
+                        }}
+                        onBlur={() => validateConfiguration(configurationJson)}
+                      />
+                      {configError && (
+                        <p className="text-sm text-red-600">{configError}</p>
+                      )}
+                    </div>
+
+                    {selectedComponentType && (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <AlertCircle className="h-5 w-5 text-blue-600" />
+                          <span className="font-medium text-blue-800">
+                            {t("bulkActions.configurationDiff")}
+                          </span>
+                        </div>
+                        <p className="text-sm text-blue-700 mt-2">
+                          {t("bulkActions.applyToComponents", {
+                            componentType: selectedComponentType,
+                          })}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                      <div className="flex items-center space-x-2">
+                        <AlertCircle className="h-5 w-5 text-orange-600" />
+                        <span className="font-medium text-orange-800">
+                          {t("bulkActions.safetyWarning")}
+                        </span>
+                      </div>
+                      <p className="text-sm text-orange-700 mt-2">
+                        {t("bulkActions.backupResponsibility")}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex space-x-2">
                   <Button
                     onClick={executeAction}
                     disabled={
-                      selectedAction === "factory_reset" && !confirmFactoryReset
+                      (selectedAction === "factory_reset" &&
+                        !confirmFactoryReset) ||
+                      (selectedAction === "export_config" &&
+                        selectedComponentTypes.length === 0) ||
+                      (selectedAction === "apply_config" &&
+                        (!selectedComponentType || !configurationJson.trim()))
                     }
                   >
                     {t("common.confirm")}

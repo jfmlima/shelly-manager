@@ -99,3 +99,20 @@ class ErrorResponse(BaseModel):
     message: str
     timestamp: datetime = Field(default_factory=datetime.now)
     request_id: str | None = None
+
+
+class BulkExportConfigResponse(BaseModel):
+    export_metadata: dict[str, Any] = Field(
+        ..., description="Export metadata including timestamp and device count"
+    )
+    devices: dict[str, Any] = Field(
+        ..., description="Configuration data organized by device IP"
+    )
+
+
+class BulkApplyConfigResponse(BaseModel):
+    ip: str
+    component_key: str
+    success: bool
+    message: str
+    error: str | None = None

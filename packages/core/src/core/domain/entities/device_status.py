@@ -1,7 +1,3 @@
-"""
-Device components entity to hold component data.
-"""
-
 from datetime import datetime
 from typing import Any
 
@@ -20,8 +16,6 @@ from .components import (
 
 
 class DeviceStatus(BaseModel):
-    """Entity containing all components of a Shelly device."""
-
     device_ip: str = Field(..., description="Device IP address")
     components: list[ComponentType] = Field(
         default_factory=list, description="List of device components"
@@ -36,6 +30,16 @@ class DeviceStatus(BaseModel):
         default_factory=datetime.now, description="Last update timestamp"
     )
 
+    device_name: str | None = Field(None, description="Device name from device info")
+    device_type: str | None = Field(
+        None, description="Device type/model from device info"
+    )
+    firmware_version: str | None = Field(
+        None, description="Firmware version from device info"
+    )
+    mac_address: str | None = Field(None, description="MAC address from device info")
+    app_name: str | None = Field(None, description="App name from device info")
+
     @classmethod
     def from_raw_response(
         cls,
@@ -43,8 +47,8 @@ class DeviceStatus(BaseModel):
         response_data: dict[str, Any],
         zigbee_data: dict[str, Any] | None = None,
         available_methods: list[str] | None = None,
+        device_info_data: dict[str, Any] | None = None,
     ) -> "DeviceStatus":
-        """Create DeviceStatus from raw shelly.getcomponents response and optional Zigbee data."""
         components_data = response_data.get("components", [])
         components = []
         methods = available_methods or []
@@ -67,6 +71,8 @@ class DeviceStatus(BaseModel):
             )
             components.append(zigbee_component)
 
+        device_info = device_info_data or {}
+
         return cls(
             device_ip=device_ip,
             components=components,
@@ -75,60 +81,55 @@ class DeviceStatus(BaseModel):
             offset=response_data.get("offset", 0),
             available_methods=methods,
             last_updated=datetime.now(),
+            device_name=device_info.get("name"),
+            device_type=device_info.get("model"),
+            firmware_version=device_info.get("fw_id"),
+            mac_address=device_info.get("mac"),
+            app_name=device_info.get("app"),
         )
 
     def get_switches(self) -> list[SwitchComponent]:
-        """Get all switch components."""
         return [comp for comp in self.components if isinstance(comp, SwitchComponent)]
 
     def get_inputs(self) -> list[InputComponent]:
-        """Get all input components."""
         return [comp for comp in self.components if isinstance(comp, InputComponent)]
 
     def get_covers(self) -> list[CoverComponent]:
-        """Get all cover components."""
         return [comp for comp in self.components if isinstance(comp, CoverComponent)]
 
     def get_system_info(self) -> SystemComponent | None:
-        """Get system component (device information)."""
         for comp in self.components:
             if isinstance(comp, SystemComponent):
                 return comp
         return None
 
     def get_cloud_info(self) -> CloudComponent | None:
-        """Get cloud component (connectivity information)."""
         for comp in self.components:
             if isinstance(comp, CloudComponent):
                 return comp
         return None
 
     def get_zigbee_info(self) -> ZigbeeComponent | None:
-        """Get zigbee component (network connectivity information)."""
         for comp in self.components:
             if isinstance(comp, ZigbeeComponent):
                 return comp
         return None
 
     def get_component_by_key(self, key: str) -> ComponentType | None:
-        """Get component by its key."""
         for comp in self.components:
             if comp.key == key:
                 return comp
         return None
 
     def get_components_by_type(self, component_type: str) -> list[ComponentType]:
-        """Get all components of a specific type."""
         return [
             comp for comp in self.components if comp.component_type == component_type
         ]
 
     def has_component_type(self, component_type: str) -> bool:
-        """Check if device has components of a specific type."""
         return any(comp.component_type == component_type for comp in self.components)
 
     def get_device_summary(self) -> dict[str, Any]:
-        """Get a summary of device capabilities for UI."""
         sys_info = self.get_system_info()
         cloud_info = self.get_cloud_info()
         zigbee_info = self.get_zigbee_info()
@@ -147,9 +148,12 @@ class DeviceStatus(BaseModel):
                     }
 
         return {
-            "device_name": sys_info.device_name if sys_info else None,
-            "mac_address": sys_info.mac_address if sys_info else None,
-            "firmware_version": sys_info.firmware_version if sys_info else None,
+            "device_name": self.device_name
+            or (sys_info.device_name if sys_info else None),
+            "mac_address": self.mac_address
+            or (sys_info.mac_address if sys_info else None),
+            "firmware_version": self.firmware_version
+            or (sys_info.firmware_version if sys_info else None),
             "uptime": sys_info.uptime if sys_info else 0,
             "cloud_connected": cloud_info.connected if cloud_info else False,
             "zigbee_connected": (

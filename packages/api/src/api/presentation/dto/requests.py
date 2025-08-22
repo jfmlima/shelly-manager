@@ -24,10 +24,7 @@ class ScanDevicesRequest(BaseModel):
     @classmethod
     def validate_ip(cls, v: str | None) -> str | None:
         if v is not None:
-            try:
-                ipaddress.IPv4Address(v)
-            except ipaddress.AddressValueError as e:
-                raise ValueError(f"Invalid IP address: {v}") from e
+            _validate_ip_address(v)
         return v
 
     @field_validator("end_ip")
@@ -91,12 +88,7 @@ class BulkActionRequest(BaseModel):
     @field_validator("device_ips")
     @classmethod
     def validate_ips(cls, v: list[str]) -> list[str]:
-        for ip in v:
-            try:
-                ipaddress.IPv4Address(ip)
-            except ipaddress.AddressValueError as e:
-                raise ValueError(f"Invalid IP address: {ip}") from e
-        return v
+        return _validate_ip_addresses(v)
 
 
 class UpdateConfigRequest(BaseModel):
@@ -116,11 +108,7 @@ class UpdateConfigRequest(BaseModel):
     @classmethod
     def validate_predefined_ips(cls, v: list[str] | None) -> list[str] | None:
         if v is not None:
-            for ip in v:
-                try:
-                    ipaddress.IPv4Address(ip)
-                except ipaddress.AddressValueError as e:
-                    raise ValueError(f"Invalid IP address: {ip}") from e
+            _validate_ip_addresses(v)
         return v
 
 
@@ -131,11 +119,7 @@ class AddIPRequest(BaseModel):
     @field_validator("ip")
     @classmethod
     def validate_ip(cls, v: str) -> str:
-        try:
-            ipaddress.IPv4Address(v)
-        except ipaddress.AddressValueError as e:
-            raise ValueError(f"Invalid IP address: {v}") from e
-        return v
+        return _validate_ip_address(v)
 
 
 class RemoveIPRequest(BaseModel):
@@ -145,13 +129,112 @@ class RemoveIPRequest(BaseModel):
     @field_validator("ip")
     @classmethod
     def validate_ip(cls, v: str) -> str:
-        try:
-            ipaddress.IPv4Address(v)
-        except ipaddress.AddressValueError as e:
-            raise ValueError(f"Invalid IP address: {v}") from e
-        return v
+        return _validate_ip_address(v)
 
 
 class UpdateDeviceConfigRequest(BaseModel):
 
     config: dict[str, Any] = Field(..., description="Device configuration object")
+
+
+class BulkExportConfigRequest(BaseModel):
+    """Request for bulk configuration export."""
+
+    device_ips: list[str] = Field(
+        ..., min_length=1, description="List of device IP addresses"
+    )
+    component_types: list[str] = Field(
+        ..., min_length=1, description="List of component types to export"
+    )
+
+    @field_validator("device_ips")
+    @classmethod
+    def validate_device_ips(cls, v: list[str]) -> list[str]:
+        return _validate_ip_addresses(v)
+
+    @field_validator("component_types")
+    @classmethod
+    def validate_component_types(cls, v: list[str]) -> list[str]:
+        return _validate_component_types(v)
+
+
+class BulkApplyConfigRequest(BaseModel):
+    """Request for bulk configuration apply."""
+
+    device_ips: list[str] = Field(
+        ..., min_length=1, description="List of device IP addresses"
+    )
+    component_type: str = Field(
+        ..., description="Single component type to apply configuration to"
+    )
+    config: dict[str, Any] = Field(..., description="Configuration object to apply")
+
+    @field_validator("device_ips")
+    @classmethod
+    def validate_device_ips(cls, v: list[str]) -> list[str]:
+        return _validate_ip_addresses(v)
+
+    @field_validator("component_type")
+    @classmethod
+    def validate_component_type(cls, v: str) -> str:
+        return _validate_component_type(v)
+
+    @field_validator("config")
+    @classmethod
+    def validate_config(cls, v: dict[str, Any]) -> dict[str, Any]:
+        if not v:
+            raise ValueError("Configuration cannot be empty")
+        return v
+
+
+def _validate_ip_address(ip: str) -> str:
+    try:
+        ipaddress.IPv4Address(ip)
+    except ipaddress.AddressValueError as e:
+        raise ValueError(f"Invalid IP address: {ip}") from e
+    return ip
+
+
+def _validate_ip_addresses(ips: list[str]) -> list[str]:
+    for ip in ips:
+        _validate_ip_address(ip)
+    return ips
+
+
+def _get_valid_component_types() -> list[str]:
+    return [
+        "switch",
+        "input",
+        "cover",
+        "sys",
+        "cloud",
+        "wifi",
+        "ble",
+        "mqtt",
+        "ws",
+        "script",
+        "knx",
+        "modbus",
+        "zigbee",
+        "button",
+        "text",
+        "number",
+        "group",
+        "enum",
+        "boolean",
+    ]
+
+
+def _validate_component_type(component_type: str) -> str:
+    valid_components = _get_valid_component_types()
+    if component_type not in valid_components:
+        raise ValueError(f"Invalid component type: {component_type}")
+    return component_type
+
+
+def _validate_component_types(component_types: list[str]) -> list[str]:
+    valid_components = _get_valid_component_types()
+    invalid_types = [comp for comp in component_types if comp not in valid_components]
+    if invalid_types:
+        raise ValueError(f"Invalid component types: {invalid_types}")
+    return component_types

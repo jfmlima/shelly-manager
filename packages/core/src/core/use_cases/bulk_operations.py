@@ -1,8 +1,6 @@
-"""
-Bulk operations use case for executing actions on multiple devices.
-"""
-
 import asyncio
+from datetime import UTC, datetime
+from typing import Any
 
 from ..domain.entities.device_status import DeviceStatus
 from ..domain.entities.discovered_device import DiscoveredDevice
@@ -140,3 +138,99 @@ class BulkOperationsUseCase:
                 print(f"Error getting status for {ip}: {str(e)}")
 
         return results
+
+    async def export_bulk_config(
+        self,
+        device_ips: list[str],
+        component_types: list[str],
+    ) -> dict[str, Any]:
+        """
+        Export component configurations organized per device.
+
+        Args:
+            device_ips: List of device IP addresses
+            component_types: List of component types to export
+
+        Returns:
+            Dictionary containing export metadata and device configurations
+        """
+        result = {
+            "export_metadata": {
+                "timestamp": datetime.now(UTC).isoformat() + "Z",
+                "total_devices": len(device_ips),
+                "component_types": component_types,
+            },
+            "devices": {},
+        }
+
+        for device_ip in device_ips:
+
+            device_status = await self._device_gateway.get_device_status(device_ip)
+            if not device_status:
+                continue
+
+            device_data: dict[str, Any] = {
+                "device_info": {
+                    "device_name": device_status.device_name,
+                    "device_type": device_status.device_type,
+                    "firmware_version": device_status.firmware_version,
+                    "mac_address": device_status.mac_address,
+                    "app_name": device_status.app_name,
+                },
+                "components": {},
+            }
+
+            for component in device_status.components:
+                if component.component_type in component_types:
+
+                    config_result = await self._device_gateway.execute_component_action(
+                        device_ip, component.key, "GetConfig", {}
+                    )
+
+                    device_data["components"][component.key] = {
+                        "type": component.component_type,
+                        "success": config_result.success,
+                        "config": config_result.data if config_result.success else None,
+                        "error": (
+                            config_result.error if not config_result.success else None
+                        ),
+                    }
+
+            result["devices"][device_ip] = device_data
+
+        return result
+
+    async def apply_bulk_config(
+        self,
+        device_ips: list[str],
+        component_type: str,
+        config: dict[str, Any],
+    ) -> list[ActionResult]:
+        """
+        Apply component configuration to multiple devices.
+
+        Args:
+            device_ips: List of device IP addresses
+            component_type: Type of component to apply configuration to
+            config: Configuration to apply
+
+        Returns:
+            List of action results
+        """
+        all_results = []
+
+        for device_ip in device_ips:
+
+            device_status = await self._device_gateway.get_device_status(device_ip)
+            if not device_status:
+                continue
+
+            for component in device_status.components:
+                if component.component_type == component_type:
+
+                    result = await self._device_gateway.execute_component_action(
+                        device_ip, component.key, "SetConfig", {"config": config}
+                    )
+                    all_results.append(result)
+
+        return all_results

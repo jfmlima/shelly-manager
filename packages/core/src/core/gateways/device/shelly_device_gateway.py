@@ -94,6 +94,18 @@ class ShellyDeviceGateway(DeviceGateway):
             DeviceStatus with all component data, or None if unreachable
         """
         try:
+            # Get device info for enhanced status
+            device_info_data = None
+            try:
+                device_info_response, _ = await self._rpc_client.make_rpc_request(
+                    ip, "Shelly.GetDeviceInfo", timeout=self.timeout
+                )
+                device_info_data = device_info_response.get(
+                    "result", device_info_response
+                )
+            except Exception as e:
+                logger.error(f"Error getting device info: {e}", exc_info=True)
+
             components_response, _ = await self._rpc_client.make_rpc_request(
                 ip, "Shelly.GetComponents", params={"offset": 0}, timeout=self.timeout
             )
@@ -112,7 +124,7 @@ class ShellyDeviceGateway(DeviceGateway):
             components_data = components_response.get("result", components_response)
 
             return DeviceStatus.from_raw_response(
-                ip, components_data, zigbee_data, available_methods
+                ip, components_data, zigbee_data, available_methods, device_info_data
             )
 
         except Exception as e:

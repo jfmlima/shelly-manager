@@ -1,4 +1,22 @@
+---
+description: Comprehensive Python development standards with Litestar framework guidelines, testing patterns, and best practices
+globs:
+  [
+    "**/*.py",
+    "**/*.pyi",
+    "**/requirements*.txt",
+    "**/pyproject.toml",
+    "**/setup.py",
+  ]
+alwaysApply: true
+---
+
+# Python Development Standards
+
+You are an expert Python developer focused on writing clean, maintainable, and robust code following modern Python best practices.
+
 ## Core Python Standards
+
 - Use Python 3.10+ features and syntax
 - Follow PEP 8 style guide strictly
 - Use type hints for all function signatures, class attributes, and variables
@@ -7,6 +25,7 @@
 - Implement proper error handling with specific exception types
 
 ## Code Organization & Structure
+
 - Follow single responsibility principle for classes and functions
 - Keep functions under 20 lines when possible
 - Use dependency injection pattern throughout the application
@@ -15,6 +34,7 @@
 - Structure modules with clear separation of concerns
 
 ## Litestar Framework Guidelines
+
 - Use Litestar's dependency injection system for all dependencies
 - Leverage Litestar's route handlers with proper type annotations
 - Use Litestar's built-in validation with Pydantic models
@@ -24,8 +44,9 @@
 - Use Litestar's state management for application-wide state
 
 ## Testing Standards
+
 - Write tests using pytest framework
-- Always use dependency injection in tests - NEVER use patch, mock.patch, or unittest.mock
+- **CRITICAL**: Always use dependency injection in tests - NEVER use patch, mock.patch, or unittest.mock
 - Create fixture factories for test data generation
 - Use pytest fixtures for dependency injection in tests
 - Structure tests with Arrange-Act-Assert pattern
@@ -35,6 +56,7 @@
 - Prefer integration tests over unit tests for business logic
 
 ## Variable & Function Naming
+
 - Use snake_case for variables, functions, and module names
 - Use PascalCase for class names
 - Use SCREAMING_SNAKE_CASE for constants
@@ -43,6 +65,7 @@
 - Use verbs for functions, nouns for variables and classes
 
 ## Error Handling & Logging
+
 - Create custom exception classes that inherit from appropriate base exceptions
 - Use structured logging with appropriate log levels
 - Log at entry and exit points of important functions
@@ -51,6 +74,7 @@
 - Validate inputs early and fail fast
 
 ## Database & ORM Guidelines
+
 - Use SQLAlchemy 2.0+ async syntax
 - Define database models with proper relationships and constraints
 - Use Alembic for database migrations
@@ -59,6 +83,7 @@
 - Always use parameterized queries to prevent SQL injection
 
 ## API Development Best Practices
+
 - Use HTTP status codes correctly (200, 201, 400, 401, 403, 404, 422, 500)
 - Implement proper request/response models with Pydantic
 - Use meaningful endpoint names that reflect resources and actions
@@ -67,6 +92,7 @@
 - Return consistent error response format
 
 ## Performance & Optimization
+
 - Use async/await for I/O bound operations
 - Implement proper connection pooling for databases
 - Use lazy loading for expensive operations
@@ -75,6 +101,7 @@
 - Use generators for large data processing
 
 ## Documentation Standards
+
 - Write clear docstrings for all public functions and classes using Google style
 - Document complex algorithms and business logic
 - Keep README files updated with setup and usage instructions
@@ -82,6 +109,7 @@
 - Avoid unnecessary inline comments - code should be self-documenting
 
 ## Security Guidelines
+
 - Validate all inputs at API boundaries
 - Use environment variables for sensitive configuration
 - Implement proper authentication and session management
@@ -90,6 +118,7 @@
 - Follow principle of least privilege for permissions
 
 ## Code Quality Rules
+
 - Maintain cyclomatic complexity under 10 per function
 - Keep line length under 88 characters (Black formatter standard)
 - Use meaningful variable names even for short-lived variables
@@ -98,6 +127,7 @@
 - Implement proper separation between business logic and framework code
 
 ## Development Workflow
+
 - Use virtual environments for all projects
 - Pin dependency versions in requirements files
 - Use pre-commit hooks for code quality checks
@@ -106,6 +136,7 @@
 - Use feature branches for new development
 
 ## Anti-Patterns to Avoid
+
 - No global variables or shared mutable state
 - No monkey patching in production code
 - No bare except clauses
@@ -115,9 +146,11 @@
 - No magic numbers or strings
 - No deep inheritance hierarchies (prefer composition)
 
-## Specific Litestar Patterns
+## Litestar Pattern Examples
+
+### Dependency Injection
+
 ```python
-# Dependency injection example
 async def get_user_service() -> UserService:
     return UserService()
 
@@ -127,8 +160,11 @@ async def get_user(
     user_service: UserService = Dependency(get_user_service)
 ) -> UserResponse:
     return await user_service.get_user(user_id)
+```
 
-# Route handler with proper validation
+### Route Handler with Validation
+
+```python
 @post("/users")
 async def create_user(
     data: UserCreateRequest,
@@ -138,8 +174,10 @@ async def create_user(
 ```
 
 ## Testing Pattern Examples
+
+### Dependency Injection in Tests
+
 ```python
-# Dependency injection in tests
 @pytest.fixture
 def user_service():
     return UserService(repository=FakeUserRepository())
@@ -156,4 +194,10 @@ async def test_create_user_success(user_service):
     assert result.email == "test@example.com"
 ```
 
-Remember: Clean code is not just about following rules, but about making code that is easy to read, understand, and maintain. Always consider the next developer who will work with your code.
+## Key Principles
+
+- Clean code is not just about following rules, but about making code that is easy to read, understand, and maintain
+- Always consider the next developer who will work with your code
+- Prioritize code clarity and maintainability over clever solutions
+- Use dependency injection consistently throughout the application
+- Never use mocking in tests - always use real implementations or test doubles through dependency injection

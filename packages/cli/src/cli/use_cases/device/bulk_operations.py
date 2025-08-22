@@ -34,7 +34,6 @@ class BulkOperationsUseCase:
         self._result_formatter = ResultFormatter(console)
 
     async def execute_bulk_reboot(self, request: BulkRebootRequest) -> BulkRebootResult:
-        """Execute bulk reboot operation."""
         start_time = time.time()
 
         device_ips = await self._resolve_device_ips(request)
@@ -117,7 +116,6 @@ class BulkOperationsUseCase:
     async def execute_bulk_update(
         self, request: BulkOperationRequest, channel: str = "stable"
     ) -> BulkOperationResult:
-        """Execute bulk firmware update operation."""
         start_time = time.time()
 
         device_ips = await self._resolve_device_ips(request)
@@ -200,7 +198,6 @@ class BulkOperationsUseCase:
                 )
 
     async def _resolve_device_ips(self, request: BulkOperationRequest) -> list[str]:
-        """Resolve device IPs from various sources based on request parameters."""
         device_ips: list[str] = []
 
         if request.devices:
@@ -233,5 +230,18 @@ class BulkOperationsUseCase:
         return unique_ips
 
     def display_bulk_results(self, result: BulkOperationResult) -> None:
-        """Display bulk operation results in a formatted table."""
         self._result_formatter.display_bulk_operation_result(result)
+
+    async def export_bulk_config(
+        self, device_ips: list[str], component_types: list[str]
+    ) -> dict:
+        return await self._bulk_operations_interactor.export_bulk_config(
+            device_ips, component_types
+        )
+
+    async def apply_bulk_config(
+        self, device_ips: list[str], component_type: str, config: dict
+    ) -> list:
+        return await self._bulk_operations_interactor.apply_bulk_config(
+            device_ips, component_type, config
+        )

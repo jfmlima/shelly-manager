@@ -171,6 +171,30 @@ export const deviceApi = {
     );
     return response.data;
   },
+
+  bulkExportConfig: async (
+    deviceIps: string[],
+    componentTypes: string[],
+  ): Promise<Record<string, unknown>> => {
+    const response = await apiClient.post("/devices/bulk/export-config", {
+      device_ips: deviceIps,
+      component_types: componentTypes,
+    });
+    return response.data;
+  },
+
+  bulkApplyConfig: async (
+    deviceIps: string[],
+    componentType: string,
+    config: Record<string, unknown>,
+  ): Promise<ActionResult[]> => {
+    const response = await apiClient.post("/devices/bulk/apply-config", {
+      device_ips: deviceIps,
+      component_type: componentType,
+      config: config,
+    });
+    return response.data;
+  },
 };
 
 export const handleApiError = (error: unknown): string => {

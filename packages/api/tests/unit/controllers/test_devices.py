@@ -1,6 +1,8 @@
 from datetime import datetime
 
 from api.controllers.devices import (
+    bulk_apply_config,
+    bulk_export_config,
     execute_bulk_operations,
     execute_component_action,
     get_component_actions,
@@ -14,6 +16,7 @@ from core.domain.entities.device_status import DeviceStatus
 from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.enums.enums import Status
 from core.domain.value_objects.action_result import ActionResult
+from core.use_cases.bulk_operations import BulkOperationsUseCase
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
 from core.use_cases.get_component_actions import GetComponentActionsUseCase
@@ -328,7 +331,7 @@ class TestDevicesController:
 
         class MockBulkOperationsUseCase(BulkOperationsUseCase):
             def __init__(self):
-                pass  # Skip parent constructor
+                pass
 
             async def execute_bulk_update(self, device_ips, channel="stable"):
                 return [
@@ -514,3 +517,354 @@ class TestDevicesController:
             assert "Device Not Found" in data["error"]
             assert "192.168.1.200" in data["message"]
             assert data["ip"] == "192.168.1.200"
+
+    def test_it_exports_bulk_config_successfully(self):
+
+        class MockBulkOperationsUseCase(BulkOperationsUseCase):
+            def __init__(self):
+                pass
+
+            async def export_bulk_config(self, device_ips, component_types):
+                return {
+                    "export_metadata": {
+                        "timestamp": "2024-01-01T12:00:00Z",
+                        "total_devices": len(device_ips),
+                        "component_types": component_types,
+                    },
+                    "devices": {
+                        "192.168.1.100": {
+                            "device_info": {
+                                "device_name": "Test Device",
+                                "device_type": "shelly1pm",
+                                "firmware_version": "20230913-112003",
+                                "mac_address": "AA:BB:CC:DD:EE:FF",
+                                "app_name": "switch",
+                            },
+                            "components": {
+                                "switch:0": {
+                                    "type": "switch",
+                                    "success": True,
+                                    "config": {
+                                        "in_mode": "flip",
+                                        "initial_state": "restore_last",
+                                    },
+                                    "error": None,
+                                }
+                            },
+                        }
+                    },
+                }
+
+        with create_test_client(
+            route_handlers=[bulk_export_config],
+            dependencies={
+                "bulk_operations_use_case": Provide(
+                    lambda: MockBulkOperationsUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.post(
+                "/bulk/export-config",
+                json={
+                    "device_ips": ["192.168.1.100"],
+                    "component_types": ["switch"],
+                },
+            )
+
+            assert response.status_code == 201
+            data = response.json()
+
+            # Verify response structure
+            assert "export_metadata" in data
+            assert "devices" in data
+            assert data["export_metadata"]["total_devices"] == 1
+            assert data["export_metadata"]["component_types"] == ["switch"]
+
+            # Verify device data
+            device_data = data["devices"]["192.168.1.100"]
+            assert device_data["device_info"]["device_name"] == "Test Device"
+            assert "switch:0" in device_data["components"]
+            assert device_data["components"]["switch:0"]["success"] is True
+
+    def test_it_validates_bulk_export_config_errors(self):
+
+        class MockBulkOperationsUseCase(BulkOperationsUseCase):
+            def __init__(self):
+                pass
+
+        with create_test_client(
+            route_handlers=[bulk_export_config],
+            dependencies={
+                "bulk_operations_use_case": Provide(
+                    lambda: MockBulkOperationsUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            # Test missing device_ips
+            response = client.post(
+                "/bulk/export-config",
+                json={"component_types": ["switch"]},
+            )
+            assert response.status_code == 400
+
+            # Test missing component_types
+            response = client.post(
+                "/bulk/export-config",
+                json={"device_ips": ["192.168.1.100"]},
+            )
+            assert response.status_code == 400
+
+            # Test empty lists
+            response = client.post(
+                "/bulk/export-config",
+                json={"device_ips": [], "component_types": []},
+            )
+            assert response.status_code == 400
+
+            # Test invalid IP address
+            response = client.post(
+                "/bulk/export-config",
+                json={"device_ips": ["invalid-ip"], "component_types": ["switch"]},
+            )
+            assert response.status_code == 400
+
+            # Test invalid component type
+            response = client.post(
+                "/bulk/export-config",
+                json={
+                    "device_ips": ["192.168.1.100"],
+                    "component_types": ["invalid_component"],
+                },
+            )
+            assert response.status_code == 400
+
+    def test_it_applies_bulk_config_successfully(self):
+
+        class MockBulkOperationsUseCase(BulkOperationsUseCase):
+            def __init__(self):
+                pass
+
+            async def apply_bulk_config(self, device_ips, component_type, config):
+                return [
+                    ActionResult(
+                        success=True,
+                        action_type="switch.SetConfig",
+                        device_ip="192.168.1.100",
+                        message="Configuration applied successfully",
+                    ),
+                    ActionResult(
+                        success=True,
+                        action_type="switch.SetConfig",
+                        device_ip="192.168.1.101",
+                        message="Configuration applied successfully",
+                    ),
+                ]
+
+        with create_test_client(
+            route_handlers=[bulk_apply_config],
+            dependencies={
+                "bulk_operations_use_case": Provide(
+                    lambda: MockBulkOperationsUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.post(
+                "/bulk/apply-config",
+                json={
+                    "device_ips": ["192.168.1.100", "192.168.1.101"],
+                    "component_type": "switch",
+                    "config": {"in_mode": "button", "initial_state": "off"},
+                },
+            )
+
+            assert response.status_code == 201
+            data = response.json()
+
+            # Should return list of results
+            assert isinstance(data, list)
+            assert len(data) == 2
+
+            # Verify result structure
+            for result in data:
+                assert "ip" in result
+                assert "component_key" in result
+                assert "success" in result
+                assert "message" in result
+                assert result["success"] is True
+
+    def test_it_applies_bulk_config_with_failures(self):
+
+        class MockBulkOperationsUseCase(BulkOperationsUseCase):
+            def __init__(self):
+                pass
+
+            async def apply_bulk_config(self, device_ips, component_type, config):
+                return [
+                    ActionResult(
+                        success=True,
+                        action_type="switch.SetConfig",
+                        device_ip="192.168.1.100",
+                        message="Configuration applied successfully",
+                    ),
+                    ActionResult(
+                        success=False,
+                        action_type="switch.SetConfig",
+                        device_ip="192.168.1.101",
+                        message="Configuration apply failed",
+                        error="Device unreachable",
+                    ),
+                ]
+
+        with create_test_client(
+            route_handlers=[bulk_apply_config],
+            dependencies={
+                "bulk_operations_use_case": Provide(
+                    lambda: MockBulkOperationsUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.post(
+                "/bulk/apply-config",
+                json={
+                    "device_ips": ["192.168.1.100", "192.168.1.101"],
+                    "component_type": "switch",
+                    "config": {"in_mode": "button"},
+                },
+            )
+
+            assert response.status_code == 201
+            data = response.json()
+
+            assert len(data) == 2
+            assert data[0]["success"] is True
+            assert data[1]["success"] is False
+            assert data[1]["error"] == "Device unreachable"
+
+    def test_it_validates_bulk_apply_config_errors(self):
+
+        class MockBulkOperationsUseCase(BulkOperationsUseCase):
+            def __init__(self):
+                pass
+
+        with create_test_client(
+            route_handlers=[bulk_apply_config],
+            dependencies={
+                "bulk_operations_use_case": Provide(
+                    lambda: MockBulkOperationsUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            # Test missing device_ips
+            response = client.post(
+                "/bulk/apply-config",
+                json={"component_type": "switch", "config": {"in_mode": "button"}},
+            )
+            assert response.status_code == 400
+
+            # Test missing component_type
+            response = client.post(
+                "/bulk/apply-config",
+                json={"device_ips": ["192.168.1.100"], "config": {"in_mode": "button"}},
+            )
+            assert response.status_code == 400
+
+            # Test missing config
+            response = client.post(
+                "/bulk/apply-config",
+                json={"device_ips": ["192.168.1.100"], "component_type": "switch"},
+            )
+            assert response.status_code == 400
+
+            # Test empty device_ips
+            response = client.post(
+                "/bulk/apply-config",
+                json={
+                    "device_ips": [],
+                    "component_type": "switch",
+                    "config": {"in_mode": "button"},
+                },
+            )
+            assert response.status_code == 400
+
+            # Test empty config
+            response = client.post(
+                "/bulk/apply-config",
+                json={
+                    "device_ips": ["192.168.1.100"],
+                    "component_type": "switch",
+                    "config": {},
+                },
+            )
+            assert response.status_code == 400
+
+            # Test invalid IP address
+            response = client.post(
+                "/bulk/apply-config",
+                json={
+                    "device_ips": ["invalid-ip"],
+                    "component_type": "switch",
+                    "config": {"in_mode": "button"},
+                },
+            )
+            assert response.status_code == 400
+
+            # Test invalid component type
+            response = client.post(
+                "/bulk/apply-config",
+                json={
+                    "device_ips": ["192.168.1.100"],
+                    "component_type": "invalid_component",
+                    "config": {"in_mode": "button"},
+                },
+            )
+            assert response.status_code == 400
+
+    def test_it_handles_bulk_config_internal_server_errors(self):
+
+        class MockBulkOperationsUseCase(BulkOperationsUseCase):
+            def __init__(self):
+                pass
+
+            async def export_bulk_config(self, device_ips, component_types):
+                raise Exception("Internal error")
+
+            async def apply_bulk_config(self, device_ips, component_type, config):
+                raise Exception("Internal error")
+
+        with create_test_client(
+            route_handlers=[bulk_export_config, bulk_apply_config],
+            dependencies={
+                "bulk_operations_use_case": Provide(
+                    lambda: MockBulkOperationsUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            # Test export error
+            response = client.post(
+                "/bulk/export-config",
+                json={"device_ips": ["192.168.1.100"], "component_types": ["switch"]},
+            )
+            assert response.status_code == 500
+            # Response might be text or JSON, so check both
+            try:
+                detail = response.json()["detail"]
+            except Exception:
+                detail = response.text
+            assert "Internal error" in detail
+
+            # Test apply error
+            response = client.post(
+                "/bulk/apply-config",
+                json={
+                    "device_ips": ["192.168.1.100"],
+                    "component_type": "switch",
+                    "config": {"in_mode": "button"},
+                },
+            )
+            assert response.status_code == 500
+            # Response might be text or JSON, so check both
+            try:
+                detail = response.json()["detail"]
+            except Exception:
+                detail = response.text
+            assert "Internal error" in detail

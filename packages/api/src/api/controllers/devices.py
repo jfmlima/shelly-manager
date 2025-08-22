@@ -27,6 +27,11 @@ from litestar import Router, get, post
 from litestar.exceptions import HTTPException
 from litestar.params import Body
 
+from ..presentation.dto.requests import BulkApplyConfigRequest, BulkExportConfigRequest
+from ..presentation.dto.responses import (
+    BulkApplyConfigResponse,
+    BulkExportConfigResponse,
+)
 from ..presentation.exceptions import DeviceNotFoundHTTPException
 
 T = TypeVar("T")
@@ -459,6 +464,59 @@ async def execute_bulk_operations(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@post("/bulk/export-config")
+async def bulk_export_config(
+    data: BulkExportConfigRequest,
+    bulk_operations_use_case: BulkOperationsUseCase | None = None,
+) -> BulkExportConfigResponse:
+    """Export component configurations from multiple devices."""
+    bulk_operations_use_case = _require(
+        "bulk_operations_use_case", bulk_operations_use_case
+    )
+
+    try:
+        result = await bulk_operations_use_case.export_bulk_config(
+            data.device_ips, data.component_types
+        )
+        return BulkExportConfigResponse(
+            export_metadata=result["export_metadata"], devices=result["devices"]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@post("/bulk/apply-config")
+async def bulk_apply_config(
+    data: BulkApplyConfigRequest,
+    bulk_operations_use_case: BulkOperationsUseCase | None = None,
+) -> list[BulkApplyConfigResponse]:
+    """Apply component configuration to multiple devices."""
+    bulk_operations_use_case = _require(
+        "bulk_operations_use_case", bulk_operations_use_case
+    )
+
+    try:
+        results = await bulk_operations_use_case.apply_bulk_config(
+            data.device_ips, data.component_type, data.config
+        )
+        return [
+            BulkApplyConfigResponse(
+                ip=result.device_ip,
+                component_key=(
+                    result.action_type.split(".")[0]
+                    if "." in result.action_type
+                    else ""
+                ),
+                success=result.success,
+                message=result.message,
+                error=result.error,
+            )
+            for result in results
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 devices_router = Router(
     path="/devices",
     route_handlers=[
@@ -471,5 +529,7 @@ devices_router = Router(
         update_device,
         reboot_device,
         execute_bulk_operations,
+        bulk_export_config,
+        bulk_apply_config,
     ],
 )
