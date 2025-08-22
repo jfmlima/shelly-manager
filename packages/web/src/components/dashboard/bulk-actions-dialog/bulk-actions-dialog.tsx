@@ -59,7 +59,6 @@ export function BulkActionsDialog({
     bulkFactoryResetMutation,
     bulkExportConfigMutation,
     bulkApplyConfigMutation,
-    validateConfiguration,
   } = useBulkActions({
     selectedDevices,
     onComplete,
@@ -85,9 +84,8 @@ export function BulkActionsDialog({
 
   const handleConfigurationJsonChange = (json: string) => {
     setConfigurationJson(json);
-    if (configError && json.trim()) {
-      const error = validateConfiguration(json);
-      setConfigError(error);
+    if (configError) {
+      setConfigError("");
     }
   };
 
@@ -111,9 +109,8 @@ export function BulkActionsDialog({
         return;
       }
 
-      const error = validateConfiguration(configurationJson);
-      if (error) {
-        setConfigError(error);
+      if (!configurationJson.trim()) {
+        toast.error(t("bulkActions.messages.noConfigurationProvided"));
         resetProgress();
         return;
       }

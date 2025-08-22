@@ -152,7 +152,7 @@ export const deviceApi = {
   ): Promise<ComponentActionResult> => {
     const response = await apiClient.post(
       `/devices/${ip}/components/${componentKey}/actions/${action}`,
-      { parameters },
+      parameters,
     );
     return response.data;
   },

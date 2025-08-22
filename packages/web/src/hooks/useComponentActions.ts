@@ -250,5 +250,19 @@ export function isComingSoonAction(action: string): boolean {
     ? action.split(".").pop() || action
     : action;
 
-  return /^(set|put)/i.test(cleanAction);
+  // Only disable specific actions that are not yet implemented
+  // SetConfig is now enabled and fully implemented
+  const comingSoonActions = [
+    "SetAuth",
+    "PutCode",
+    "PutTLSClientKey",
+    "PutTLSClientCert",
+    "PutUserCA",
+    "InstallAlt",
+    "SetTime",
+    "SetProfile",
+    "Identify",
+  ];
+
+  return comingSoonActions.includes(cleanAction);
 }

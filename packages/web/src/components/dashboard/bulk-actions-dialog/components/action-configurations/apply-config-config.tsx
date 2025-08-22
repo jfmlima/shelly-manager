@@ -8,6 +8,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ActionConfigWrapper } from "./action-config-wrapper";
+import {
+  JsonConfigEditor,
+  useConfiguration,
+} from "@/components/shared/configuration";
 import type { ApplyConfigActionProps } from "../../types";
 import { CONFIGURABLE_COMPONENT_TYPES, BULK_ACTION_STYLES } from "../../types";
 
@@ -16,13 +20,24 @@ export function ApplyConfigConfig({
   onSelectedComponentTypeChange,
   configurationJson,
   onConfigurationJsonChange,
-  configError,
   onExecute,
   onCancel,
 }: ApplyConfigActionProps) {
   const { t } = useTranslation();
 
-  const isExecuteDisabled = !selectedComponentType || !configurationJson.trim();
+  const configuration = useConfiguration({
+    initialValue: configurationJson,
+    componentType: selectedComponentType,
+  });
+
+  if (configuration.value !== configurationJson) {
+    onConfigurationJsonChange(configuration.value);
+  }
+
+  const isExecuteDisabled =
+    !selectedComponentType ||
+    !configuration.value.trim() ||
+    !configuration.isValid;
 
   return (
     <ActionConfigWrapper
@@ -58,22 +73,20 @@ export function ApplyConfigConfig({
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">
-            {t("bulkActions.configurationEditor")}
-          </label>
-          <p className="text-sm text-muted-foreground">
-            {t("bulkActions.pasteJsonConfig")}
-          </p>
-          <textarea
-            className="w-full h-32 p-3 border rounded-lg font-mono text-sm"
+          <JsonConfigEditor
+            value={configuration.value}
+            onChange={(value) => {
+              configuration.setValue(value);
+              onConfigurationJsonChange(value);
+            }}
+            label={t("bulkActions.configurationEditor")}
+            description={t("bulkActions.pasteJsonConfig")}
+            examples={configuration.examples}
             placeholder={`{
   "in_mode": "flip",
   "initial_state": "restore_last"
 }`}
-            value={configurationJson}
-            onChange={(e) => onConfigurationJsonChange(e.target.value)}
           />
-          {configError && <p className="text-sm text-red-600">{configError}</p>}
         </div>
 
         {selectedComponentType && (

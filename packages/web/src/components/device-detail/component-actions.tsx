@@ -56,6 +56,7 @@ import {
   getComponentKeyForAction,
 } from "@/utils/action-responses";
 import { ActionResponseModal } from "./action-response-modal";
+import { SetConfigModal } from "./set-config-modal";
 import type { Component } from "@/types/api";
 
 interface ComponentActionsProps {
@@ -133,6 +134,7 @@ export function ComponentActions({
   >({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showAllActions, setShowAllActions] = useState(false);
+  const [showSetConfigModal, setShowSetConfigModal] = useState(false);
 
   const { responseModalState, openResponseModal, closeResponseModal } =
     useActionResponseModal();
@@ -167,6 +169,11 @@ export function ComponentActions({
   const handleActionClick = (action: string) => {
     setSelectedAction(action);
     setActionParameters({});
+
+    if (action.includes("SetConfig")) {
+      setShowSetConfigModal(true);
+      return;
+    }
 
     if (isDestructiveAction(action)) {
       setShowConfirmation(true);
@@ -212,7 +219,7 @@ export function ComponentActions({
           <Button
             variant={isDestructive ? "destructive" : "outline"}
             size="sm"
-            onClick={() => {}} // No action for coming soon
+            onClick={() => {}}
             disabled={true}
             className="flex items-center space-x-2 opacity-60 cursor-not-allowed"
           >
@@ -441,6 +448,15 @@ export function ComponentActions({
         onClose={closeResponseModal}
         response={responseModalState.response}
         componentType={component.type}
+      />
+
+      {/* SetConfig Modal */}
+      <SetConfigModal
+        isOpen={showSetConfigModal}
+        onClose={() => setShowSetConfigModal(false)}
+        component={component}
+        deviceIp={deviceIp}
+        onSuccess={onActionExecuted}
       />
     </div>
   );

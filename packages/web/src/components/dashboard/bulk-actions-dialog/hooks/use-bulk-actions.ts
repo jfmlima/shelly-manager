@@ -215,25 +215,11 @@ export function useBulkActions({
     },
   });
 
-  const validateConfiguration = (jsonString: string): string => {
-    if (!jsonString.trim()) {
-      return t("bulkActions.messages.noConfigurationProvided");
-    }
-
-    try {
-      JSON.parse(jsonString);
-      return "";
-    } catch {
-      return t("bulkActions.messages.invalidJsonConfig");
-    }
-  };
-
   return {
     bulkUpdateMutation,
     bulkRebootMutation,
     bulkFactoryResetMutation,
     bulkExportConfigMutation,
     bulkApplyConfigMutation,
-    validateConfiguration,
   };
 }

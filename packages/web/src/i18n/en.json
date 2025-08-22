@@ -365,6 +365,53 @@
     "confirm": "Confirm",
     "cancel": "Cancel",
     "showMoreActions": "Show {{count}} more action(s)",
-    "showFewerActions": "Show fewer actions"
+    "showFewerActions": "Show fewer actions",
+    "setConfig": {
+      "title": "Configure Component",
+      "modalDescription": "Configure the settings for {{componentKey}}. You can load the current configuration and modify only the fields you want to change.",
+      "currentConfig": "Current Configuration",
+      "loadCurrentDescription": "Load the current component configuration as a starting point",
+      "getConfigNotAvailable": "GetConfig is not available for this component",
+      "invalidConfig": "Please fix the configuration errors before applying",
+      "applySuccess": "Configuration applied successfully",
+      "applyError": "Failed to apply configuration",
+      "applying": "Applying...",
+      "apply": "Apply Configuration",
+      "label": "Configuration (JSON)",
+      "description": "Enter the component configuration as JSON. Only changed fields need to be included.",
+      "loadCurrent": "Load Current Configuration",
+      "loadSuccess": "Current configuration loaded successfully",
+      "loadError": "Failed to load current configuration",
+      "examples": {
+        "title": "Quick Examples",
+        "enable": "Enable component",
+        "disable": "Disable component",
+        "setName": "Set display name",
+        "switchOn": "Turn switch on",
+        "autoOff": "Set auto-off after 60s",
+        "flipMode": "Set input mode to flip",
+        "restoreLast": "Set initial state to restore last",
+        "buttonType": "Set as button type",
+        "invertInput": "Invert input logic",
+        "enableFactoryReset": "Enable factory reset",
+        "enablePositioning": "Enable positioning",
+        "motorThreshold": "Set motor power threshold",
+        "setDeviceName": "Set device name",
+        "ecoMode": "Enable eco mode",
+        "setLocation": "Set location",
+        "hideFromDiscovery": "Hide from discovery",
+        "enableCloud": "Enable cloud connection",
+        "disableCloud": "Disable cloud connection",
+        "customServer": "Set custom server",
+        "enableBluetooth": "Enable Bluetooth",
+        "enableRpcBle": "Enable RPC over BLE",
+        "disableBluetooth": "Disable Bluetooth"
+      },
+      "validation": {
+        "invalidJson": "Invalid JSON format. Please check your syntax.",
+        "errors": "Configuration Errors",
+        "warnings": "Configuration Warnings"
+      }
+    }
   }
 }
