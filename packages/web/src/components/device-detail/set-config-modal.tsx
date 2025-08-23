@@ -24,7 +24,6 @@ interface SetConfigModalProps {
   onClose: () => void;
   component: Component;
   deviceIp: string;
-  onSuccess?: () => void;
 }
 
 export function SetConfigModal({
@@ -32,7 +31,6 @@ export function SetConfigModal({
   onClose,
   component,
   deviceIp,
-  onSuccess,
 }: SetConfigModalProps) {
   const { t } = useTranslation();
   const [isLoadingCurrent, setIsLoadingCurrent] = useState(false);
@@ -130,7 +128,6 @@ export function SetConfigModal({
             "Configuration applied successfully",
           ),
         );
-        onSuccess?.();
         onClose();
       } else {
         toast.error(

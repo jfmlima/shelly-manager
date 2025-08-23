@@ -14,14 +14,9 @@ import type { InputComponent as InputComponentType } from "@/types/api";
 interface InputComponentProps {
   component: InputComponentType;
   deviceIp: string;
-  onRefresh?: () => void;
 }
 
-export function InputComponent({
-  component,
-  deviceIp,
-  onRefresh,
-}: InputComponentProps) {
+export function InputComponent({ component, deviceIp }: InputComponentProps) {
   return (
     <Card className="border-l-4 border-l-green-500">
       <CardHeader className="pb-3">
@@ -64,11 +59,7 @@ export function InputComponent({
 
         {/* Component Actions */}
         <div className="mt-4 pt-4 border-t">
-          <ComponentActions
-            component={component}
-            deviceIp={deviceIp}
-            onActionExecuted={onRefresh}
-          />
+          <ComponentActions component={component} deviceIp={deviceIp} />
         </div>
       </CardContent>
     </Card>

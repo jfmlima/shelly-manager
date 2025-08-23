@@ -62,7 +62,6 @@ import type { Component } from "@/types/api";
 interface ComponentActionsProps {
   component: Component;
   deviceIp: string;
-  onActionExecuted?: () => void;
 }
 
 const PRIORITY_ACTION_PATTERNS = [
@@ -125,7 +124,6 @@ function sortActionsByPriority(actions: string[]): string[] {
 export function ComponentActions({
   component,
   deviceIp,
-  onActionExecuted,
 }: ComponentActionsProps) {
   const { t } = useTranslation();
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
@@ -197,7 +195,6 @@ export function ComponentActions({
       },
       {
         onSuccess: () => {
-          onActionExecuted?.();
           setSelectedAction(null);
           setShowConfirmation(false);
         },
@@ -456,7 +453,6 @@ export function ComponentActions({
         onClose={() => setShowSetConfigModal(false)}
         component={component}
         deviceIp={deviceIp}
-        onSuccess={onActionExecuted}
       />
     </div>
   );

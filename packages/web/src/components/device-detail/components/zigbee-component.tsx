@@ -15,14 +15,9 @@ import type { ZigbeeComponent as ZigbeeComponentType } from "@/types/api";
 interface ZigbeeComponentProps {
   component: ZigbeeComponentType;
   deviceIp: string;
-  onRefresh?: () => void;
 }
 
-export function ZigbeeComponent({
-  component,
-  deviceIp,
-  onRefresh,
-}: ZigbeeComponentProps) {
+export function ZigbeeComponent({ component, deviceIp }: ZigbeeComponentProps) {
   const { t } = useTranslation();
 
   const getStatusVariant = (networkState: string) => {
@@ -75,11 +70,7 @@ export function ZigbeeComponent({
 
         {/* Component Actions */}
         <div className="mt-4 pt-4 border-t">
-          <ComponentActions
-            component={component}
-            deviceIp={deviceIp}
-            onActionExecuted={onRefresh}
-          />
+          <ComponentActions component={component} deviceIp={deviceIp} />
         </div>
       </CardContent>
     </Card>

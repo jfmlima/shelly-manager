@@ -15,14 +15,9 @@ import type { BleComponent } from "@/types/api";
 interface BleComponentProps {
   component: BleComponent;
   deviceIp: string;
-  onRefresh?: () => void;
 }
 
-export function BleComponent({
-  component,
-  deviceIp,
-  onRefresh,
-}: BleComponentProps) {
+export function BleComponent({ component, deviceIp }: BleComponentProps) {
   const { t } = useTranslation();
 
   const isEnabled = component.config.enable;
@@ -64,11 +59,7 @@ export function BleComponent({
 
         {/* Component Actions */}
         <div className="mt-4 pt-4 border-t">
-          <ComponentActions
-            component={component}
-            deviceIp={deviceIp}
-            onActionExecuted={onRefresh}
-          />
+          <ComponentActions component={component} deviceIp={deviceIp} />
         </div>
       </CardContent>
     </Card>

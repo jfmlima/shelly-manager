@@ -11,13 +11,11 @@ import type { Component } from "@/types/api";
 interface GenericComponentProps {
   component: Component;
   deviceIp: string;
-  onRefresh?: () => void;
 }
 
 export function GenericComponent({
   component,
   deviceIp,
-  onRefresh,
 }: GenericComponentProps) {
   return (
     <Card className="border-l-4 border-l-gray-300">
@@ -34,11 +32,7 @@ export function GenericComponent({
 
         {/* Component Actions */}
         <div className="mt-4 pt-4 border-t">
-          <ComponentActions
-            component={component}
-            deviceIp={deviceIp}
-            onActionExecuted={onRefresh}
-          />
+          <ComponentActions component={component} deviceIp={deviceIp} />
         </div>
       </CardContent>
     </Card>

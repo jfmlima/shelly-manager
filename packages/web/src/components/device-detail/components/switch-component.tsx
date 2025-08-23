@@ -14,14 +14,9 @@ import type { SwitchComponent as SwitchComponentType } from "@/types/api";
 interface SwitchComponentProps {
   component: SwitchComponentType;
   deviceIp: string;
-  onRefresh?: () => void;
 }
 
-export function SwitchComponent({
-  component,
-  deviceIp,
-  onRefresh,
-}: SwitchComponentProps) {
+export function SwitchComponent({ component, deviceIp }: SwitchComponentProps) {
   return (
     <Card className="border-l-4 border-l-blue-500">
       <CardHeader className="pb-3">
@@ -94,11 +89,7 @@ export function SwitchComponent({
 
         {/* Component Actions */}
         <div className="mt-4 pt-4 border-t">
-          <ComponentActions
-            component={component}
-            deviceIp={deviceIp}
-            onActionExecuted={onRefresh}
-          />
+          <ComponentActions component={component} deviceIp={deviceIp} />
         </div>
       </CardContent>
     </Card>

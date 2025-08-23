@@ -12,14 +12,9 @@ import type { CloudComponent as CloudComponentType } from "@/types/api";
 interface CloudComponentProps {
   component: CloudComponentType;
   deviceIp: string;
-  onRefresh?: () => void;
 }
 
-export function CloudComponent({
-  component,
-  deviceIp,
-  onRefresh,
-}: CloudComponentProps) {
+export function CloudComponent({ component, deviceIp }: CloudComponentProps) {
   return (
     <Card className="border-l-4 border-l-cyan-500">
       <CardHeader className="pb-3">
@@ -56,11 +51,7 @@ export function CloudComponent({
 
         {/* Component Actions */}
         <div className="mt-4 pt-4 border-t">
-          <ComponentActions
-            component={component}
-            deviceIp={deviceIp}
-            onActionExecuted={onRefresh}
-          />
+          <ComponentActions component={component} deviceIp={deviceIp} />
         </div>
       </CardContent>
     </Card>

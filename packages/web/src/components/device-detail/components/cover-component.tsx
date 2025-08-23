@@ -12,14 +12,9 @@ import type { CoverComponent as CoverComponentType } from "@/types/api";
 interface CoverComponentProps {
   component: CoverComponentType;
   deviceIp: string;
-  onRefresh?: () => void;
 }
 
-export function CoverComponent({
-  component,
-  deviceIp,
-  onRefresh,
-}: CoverComponentProps) {
+export function CoverComponent({ component, deviceIp }: CoverComponentProps) {
   return (
     <Card className="border-l-4 border-l-purple-500">
       <CardHeader className="pb-3">
@@ -70,11 +65,7 @@ export function CoverComponent({
 
         {/* Component Actions */}
         <div className="mt-4 pt-4 border-t">
-          <ComponentActions
-            component={component}
-            deviceIp={deviceIp}
-            onActionExecuted={onRefresh}
-          />
+          <ComponentActions component={component} deviceIp={deviceIp} />
         </div>
       </CardContent>
     </Card>

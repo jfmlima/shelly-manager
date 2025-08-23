@@ -15,14 +15,9 @@ import type { SystemComponent as SystemComponentType } from "@/types/api";
 interface SystemComponentProps {
   component: SystemComponentType;
   deviceIp: string;
-  onRefresh?: () => void;
 }
 
-export function SystemComponent({
-  component,
-  deviceIp,
-  onRefresh,
-}: SystemComponentProps) {
+export function SystemComponent({ component, deviceIp }: SystemComponentProps) {
   const { t } = useTranslation();
 
   return (
@@ -77,11 +72,7 @@ export function SystemComponent({
 
         {/* Component Actions */}
         <div className="mt-4 pt-4 border-t">
-          <ComponentActions
-            component={component}
-            deviceIp={deviceIp}
-            onActionExecuted={onRefresh}
-          />
+          <ComponentActions component={component} deviceIp={deviceIp} />
         </div>
       </CardContent>
     </Card>
