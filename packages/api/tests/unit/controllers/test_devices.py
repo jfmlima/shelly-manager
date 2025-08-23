@@ -458,7 +458,7 @@ class TestDevicesController:
             },
         ) as client:
             response = client.post(
-                "/bulk/export-config",
+                "/bulk/config/export",
                 json={
                     "device_ips": ["192.168.1.100"],
                     "component_types": ["switch"],
@@ -496,35 +496,35 @@ class TestDevicesController:
         ) as client:
             # Test missing device_ips
             response = client.post(
-                "/bulk/export-config",
+                "/bulk/config/export",
                 json={"component_types": ["switch"]},
             )
             assert response.status_code == 400
 
             # Test missing component_types
             response = client.post(
-                "/bulk/export-config",
+                "/bulk/config/export",
                 json={"device_ips": ["192.168.1.100"]},
             )
             assert response.status_code == 400
 
             # Test empty lists
             response = client.post(
-                "/bulk/export-config",
+                "/bulk/config/export",
                 json={"device_ips": [], "component_types": []},
             )
             assert response.status_code == 400
 
             # Test invalid IP address
             response = client.post(
-                "/bulk/export-config",
+                "/bulk/config/export",
                 json={"device_ips": ["invalid-ip"], "component_types": ["switch"]},
             )
             assert response.status_code == 400
 
             # Test invalid component type
             response = client.post(
-                "/bulk/export-config",
+                "/bulk/config/export",
                 json={
                     "device_ips": ["192.168.1.100"],
                     "component_types": ["invalid_component"],
@@ -563,7 +563,7 @@ class TestDevicesController:
             },
         ) as client:
             response = client.post(
-                "/bulk/apply-config",
+                "/bulk/config/apply",
                 json={
                     "device_ips": ["192.168.1.100", "192.168.1.101"],
                     "component_type": "switch",
@@ -618,7 +618,7 @@ class TestDevicesController:
             },
         ) as client:
             response = client.post(
-                "/bulk/apply-config",
+                "/bulk/config/apply",
                 json={
                     "device_ips": ["192.168.1.100", "192.168.1.101"],
                     "component_type": "switch",
@@ -650,28 +650,28 @@ class TestDevicesController:
         ) as client:
             # Test missing device_ips
             response = client.post(
-                "/bulk/apply-config",
+                "/bulk/config/apply",
                 json={"component_type": "switch", "config": {"in_mode": "button"}},
             )
             assert response.status_code == 400
 
             # Test missing component_type
             response = client.post(
-                "/bulk/apply-config",
+                "/bulk/config/apply",
                 json={"device_ips": ["192.168.1.100"], "config": {"in_mode": "button"}},
             )
             assert response.status_code == 400
 
             # Test missing config
             response = client.post(
-                "/bulk/apply-config",
+                "/bulk/config/apply",
                 json={"device_ips": ["192.168.1.100"], "component_type": "switch"},
             )
             assert response.status_code == 400
 
             # Test empty device_ips
             response = client.post(
-                "/bulk/apply-config",
+                "/bulk/config/apply",
                 json={
                     "device_ips": [],
                     "component_type": "switch",
@@ -682,7 +682,7 @@ class TestDevicesController:
 
             # Test empty config
             response = client.post(
-                "/bulk/apply-config",
+                "/bulk/config/apply",
                 json={
                     "device_ips": ["192.168.1.100"],
                     "component_type": "switch",
@@ -693,7 +693,7 @@ class TestDevicesController:
 
             # Test invalid IP address
             response = client.post(
-                "/bulk/apply-config",
+                "/bulk/config/apply",
                 json={
                     "device_ips": ["invalid-ip"],
                     "component_type": "switch",
@@ -704,7 +704,7 @@ class TestDevicesController:
 
             # Test invalid component type
             response = client.post(
-                "/bulk/apply-config",
+                "/bulk/config/apply",
                 json={
                     "device_ips": ["192.168.1.100"],
                     "component_type": "invalid_component",
@@ -735,7 +735,7 @@ class TestDevicesController:
         ) as client:
             # Test export error
             response = client.post(
-                "/bulk/export-config",
+                "/bulk/config/export",
                 json={"device_ips": ["192.168.1.100"], "component_types": ["switch"]},
             )
             assert response.status_code == 500
@@ -748,7 +748,7 @@ class TestDevicesController:
 
             # Test apply error
             response = client.post(
-                "/bulk/apply-config",
+                "/bulk/config/apply",
                 json={
                     "device_ips": ["192.168.1.100"],
                     "component_type": "switch",

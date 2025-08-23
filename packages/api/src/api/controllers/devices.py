@@ -392,7 +392,7 @@ async def execute_bulk_operations(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@post("/bulk/export-config")
+@post("/bulk/config/export")
 async def bulk_export_config(
     data: BulkExportConfigRequest,
     bulk_operations_use_case: BulkOperationsUseCase | None = None,
@@ -413,7 +413,7 @@ async def bulk_export_config(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@post("/bulk/apply-config")
+@post("/bulk/config/apply")
 async def bulk_apply_config(
     data: BulkApplyConfigRequest,
     bulk_operations_use_case: BulkOperationsUseCase | None = None,

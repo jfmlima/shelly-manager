@@ -161,7 +161,7 @@ export const deviceApi = {
     deviceIps: string[],
     componentTypes: string[],
   ): Promise<Record<string, unknown>> => {
-    const response = await apiClient.post("/devices/bulk/export-config", {
+    const response = await apiClient.post("/devices/bulk/config/export", {
       device_ips: deviceIps,
       component_types: componentTypes,
     });
@@ -173,7 +173,7 @@ export const deviceApi = {
     componentType: string,
     config: Record<string, unknown>,
   ): Promise<ActionResult[]> => {
-    const response = await apiClient.post("/devices/bulk/apply-config", {
+    const response = await apiClient.post("/devices/bulk/config/apply", {
       device_ips: deviceIps,
       component_type: componentType,
       config: config,
