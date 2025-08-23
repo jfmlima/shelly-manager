@@ -69,7 +69,6 @@ function sortComponentsByType(components: Component[]): Component[] {
 export function DeviceComponents({
   deviceStatus,
   isLoading,
-  onRefresh,
 }: DeviceComponentsProps) {
   const { t } = useTranslation();
   const [showAllComponents, setShowAllComponents] = useState(false);
@@ -115,7 +114,6 @@ export function DeviceComponents({
           key={component.key}
           component={component}
           deviceIp={deviceIp}
-          onRefresh={onRefresh}
         />
       );
     }
@@ -126,7 +124,6 @@ export function DeviceComponents({
           key={component.key}
           component={component}
           deviceIp={deviceIp}
-          onRefresh={onRefresh}
         />
       );
     }
@@ -137,7 +134,6 @@ export function DeviceComponents({
           key={component.key}
           component={component}
           deviceIp={deviceIp}
-          onRefresh={onRefresh}
         />
       );
     }
@@ -148,7 +144,6 @@ export function DeviceComponents({
           key={component.key}
           component={component}
           deviceIp={deviceIp}
-          onRefresh={onRefresh}
         />
       );
     }
@@ -159,7 +154,6 @@ export function DeviceComponents({
           key={component.key}
           component={component}
           deviceIp={deviceIp}
-          onRefresh={onRefresh}
         />
       );
     }
@@ -170,7 +164,6 @@ export function DeviceComponents({
           key={component.key}
           component={component}
           deviceIp={deviceIp}
-          onRefresh={onRefresh}
         />
       );
     }
@@ -181,7 +174,6 @@ export function DeviceComponents({
           key={component.key}
           component={component}
           deviceIp={deviceIp}
-          onRefresh={onRefresh}
         />
       );
     }
@@ -191,7 +183,6 @@ export function DeviceComponents({
         key={component.key}
         component={component}
         deviceIp={deviceIp}
-        onRefresh={onRefresh}
       />
     );
   };
