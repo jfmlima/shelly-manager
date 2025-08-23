@@ -17,6 +17,14 @@ const getApiBaseUrl = (): string => {
 
 const baseURL = getApiBaseUrl();
 
+export const getBulkOperationTimeout = (deviceCount: number): number => {
+  const baseTimeout = 30000;
+  const perDeviceTimeout = 5000;
+  const maxTimeout = 300000;
+
+  return Math.min(baseTimeout + deviceCount * perDeviceTimeout, maxTimeout);
+};
+
 export const apiClient = axios.create({
   baseURL: `${baseURL}/api`,
   headers: {
@@ -118,11 +126,16 @@ export const deviceApi = {
     operation: "update" | "reboot" | "factory_reset",
     parameters: Record<string, unknown> = {},
   ): Promise<ActionResult[]> => {
-    const response = await apiClient.post("/devices/bulk", {
-      device_ips: deviceIps,
-      operation,
-      ...parameters,
-    });
+    const timeout = getBulkOperationTimeout(deviceIps.length);
+    const response = await apiClient.post(
+      "/devices/bulk",
+      {
+        device_ips: deviceIps,
+        operation,
+        ...parameters,
+      },
+      { timeout },
+    );
     return response.data;
   },
 
@@ -161,10 +174,15 @@ export const deviceApi = {
     deviceIps: string[],
     componentTypes: string[],
   ): Promise<Record<string, unknown>> => {
-    const response = await apiClient.post("/devices/bulk/config/export", {
-      device_ips: deviceIps,
-      component_types: componentTypes,
-    });
+    const timeout = getBulkOperationTimeout(deviceIps.length);
+    const response = await apiClient.post(
+      "/devices/bulk/config/export",
+      {
+        device_ips: deviceIps,
+        component_types: componentTypes,
+      },
+      { timeout },
+    );
     return response.data;
   },
 
@@ -173,11 +191,16 @@ export const deviceApi = {
     componentType: string,
     config: Record<string, unknown>,
   ): Promise<ActionResult[]> => {
-    const response = await apiClient.post("/devices/bulk/config/apply", {
-      device_ips: deviceIps,
-      component_type: componentType,
-      config: config,
-    });
+    const timeout = getBulkOperationTimeout(deviceIps.length);
+    const response = await apiClient.post(
+      "/devices/bulk/config/apply",
+      {
+        device_ips: deviceIps,
+        component_type: componentType,
+        config: config,
+      },
+      { timeout },
+    );
     return response.data;
   },
 };

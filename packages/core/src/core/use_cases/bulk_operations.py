@@ -220,17 +220,9 @@ class BulkOperationsUseCase:
         all_results = []
 
         for device_ip in device_ips:
-
-            device_status = await self._device_gateway.get_device_status(device_ip)
-            if not device_status:
-                continue
-
-            for component in device_status.components:
-                if component.component_type == component_type:
-
-                    result = await self._device_gateway.execute_component_action(
-                        device_ip, component.key, "SetConfig", {"config": config}
-                    )
-                    all_results.append(result)
+            result = await self._device_gateway.execute_component_action(
+                device_ip, component_type, "SetConfig", {"config": config}
+            )
+            all_results.append(result)
 
         return all_results

@@ -507,12 +507,21 @@ class TestBulkOperationsUseCase:
 
         results = await use_case.apply_bulk_config(device_ips, component_type, config)
 
+        # Should have 2 results (1 per device, each device has 1 switch component)
         assert len(results) == 2
         assert all(result.success for result in results)
 
-        mock_device_gateway.execute_component_action.assert_called_with(
+        # Verify the method was called correctly for both devices
+        assert mock_device_gateway.execute_component_action.call_count == 2
+        mock_device_gateway.execute_component_action.assert_any_call(
+            "192.168.1.100",
+            "switch",
+            "SetConfig",
+            {"config": config},
+        )
+        mock_device_gateway.execute_component_action.assert_any_call(
             "192.168.1.101",
-            "switch:0",
+            "switch",
             "SetConfig",
             {"config": config},
         )
@@ -524,23 +533,33 @@ class TestBulkOperationsUseCase:
         component_type = "switch"
         config = {"in_mode": "button"}
 
-        mock_device_gateway.get_device_status = AsyncMock(
-            side_effect=[mock_device_status_with_components, None]
-        )
-
+        # First device succeeds, second device fails
         mock_device_gateway.execute_component_action = AsyncMock(
-            return_value=ActionResult(
-                success=True,
-                action_type="switch.SetConfig",
-                device_ip="192.168.1.100",
-                message="Config applied",
-            )
+            side_effect=[
+                ActionResult(
+                    success=True,
+                    action_type="switch.SetConfig",
+                    device_ip="192.168.1.100",
+                    message="Config applied",
+                ),
+                ActionResult(
+                    success=False,
+                    action_type="switch.SetConfig",
+                    device_ip="192.168.1.101",
+                    message="Device unreachable",
+                    error="Connection failed",
+                ),
+            ]
         )
 
         results = await use_case.apply_bulk_config(device_ips, component_type, config)
 
-        assert len(results) == 1
+        # Should have 2 results (all results are included, both success and failure)
+        assert len(results) == 2
         assert results[0].device_ip == "192.168.1.100"
+        assert results[0].success is True
+        assert results[1].device_ip == "192.168.1.101"
+        assert results[1].success is False
 
     async def test_it_applies_bulk_config_with_component_failures(
         self, use_case, mock_device_gateway, mock_device_status_with_components
@@ -548,10 +567,6 @@ class TestBulkOperationsUseCase:
         device_ips = ["192.168.1.100"]
         component_type = "switch"
         config = {"in_mode": "button"}
-
-        mock_device_gateway.get_device_status = AsyncMock(
-            return_value=mock_device_status_with_components
-        )
 
         mock_device_gateway.execute_component_action = AsyncMock(
             return_value=ActionResult(
@@ -565,6 +580,7 @@ class TestBulkOperationsUseCase:
 
         results = await use_case.apply_bulk_config(device_ips, component_type, config)
 
+        # Should have 1 result (all results are included, even failed ones)
         assert len(results) == 1
         assert results[0].success is False
         assert results[0].error == "Invalid configuration"
@@ -576,33 +592,31 @@ class TestBulkOperationsUseCase:
         component_type = "cover"
         config = {"motor": {"idle_power_thr": 2.0}}
 
-        mock_device_gateway.get_device_status = AsyncMock(
-            return_value=DeviceStatus(
+        # Mock the execute_component_action to return a failure for "cover" component type
+        mock_device_gateway.execute_component_action = AsyncMock(
+            return_value=ActionResult(
+                success=False,
+                action_type="cover.SetConfig",
                 device_ip="192.168.1.100",
-                components=[
-                    SwitchComponent(
-                        key="switch:0",
-                        component_type="switch",
-                        status={},
-                        config={},
-                        attrs={},
-                    ),
-                    InputComponent(
-                        key="input:0",
-                        component_type="input",
-                        status={},
-                        config={},
-                        attrs={},
-                    ),
-                ],
+                message="Component type not found",
+                error="No cover component found",
             )
         )
 
         results = await use_case.apply_bulk_config(device_ips, component_type, config)
 
-        assert len(results) == 0
+        # Should have 1 result (the failed attempt to configure cover)
+        assert len(results) == 1
+        assert results[0].success is False
+        assert results[0].action_type == "cover.SetConfig"
 
-        mock_device_gateway.execute_component_action.assert_not_called()
+        # Should be called once with the cover component type
+        mock_device_gateway.execute_component_action.assert_called_once_with(
+            "192.168.1.100",
+            "cover",
+            "SetConfig",
+            {"config": config},
+        )
 
     async def test_it_applies_bulk_config_multiple_components_same_type(
         self, use_case, mock_device_gateway
@@ -610,28 +624,6 @@ class TestBulkOperationsUseCase:
         device_ips = ["192.168.1.100"]
         component_type = "switch"
         config = {"in_mode": "button"}
-
-        mock_device_gateway.get_device_status = AsyncMock(
-            return_value=DeviceStatus(
-                device_ip="192.168.1.100",
-                components=[
-                    SwitchComponent(
-                        key="switch:0",
-                        component_type="switch",
-                        status={},
-                        config={},
-                        attrs={},
-                    ),
-                    SwitchComponent(
-                        key="switch:1",
-                        component_type="switch",
-                        status={},
-                        config={},
-                        attrs={},
-                    ),
-                ],
-            )
-        )
 
         mock_device_gateway.execute_component_action = AsyncMock(
             return_value=ActionResult(
@@ -644,7 +636,15 @@ class TestBulkOperationsUseCase:
 
         results = await use_case.apply_bulk_config(device_ips, component_type, config)
 
-        assert len(results) == 2
+        # Should have 1 result (1 per device, regardless of number of components)
+        assert len(results) == 1
         assert all(result.success for result in results)
 
-        assert mock_device_gateway.execute_component_action.call_count == 2
+        # Should be called once per device
+        assert mock_device_gateway.execute_component_action.call_count == 1
+        mock_device_gateway.execute_component_action.assert_called_with(
+            "192.168.1.100",
+            "switch",
+            "SetConfig",
+            {"config": config},
+        )

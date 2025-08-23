@@ -145,7 +145,6 @@ class ShellyDeviceGateway(DeviceGateway):
                 ip, "Shelly.ListMethods", timeout=self.timeout
             )
             result = methods_response.get("result", methods_response)
-
             if isinstance(result, dict) and "methods" in result:
                 methods = result["methods"]
 
