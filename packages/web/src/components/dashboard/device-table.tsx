@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type {
   ColumnDef,
-  ColumnFiltersState,
   SortingState,
   VisibilityState,
 } from "@tanstack/react-table";
@@ -55,7 +54,7 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [globalFilter, setGlobalFilter] = useState<string>("");
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
 
@@ -230,16 +229,17 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
     data: devices,
     columns,
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    globalFilterFn: "includesString",
+    onGlobalFilterChange: setGlobalFilter,
     state: {
       sorting,
-      columnFilters,
+      globalFilter,
       columnVisibility,
       rowSelection,
     },
@@ -274,10 +274,8 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0 sm:space-x-4">
             <Input
               placeholder={t("dashboard.deviceTable.filterDevices")}
-              value={(table.getColumn("ip")?.getFilterValue() as string) ?? ""}
-              onChange={(event) =>
-                table.getColumn("ip")?.setFilterValue(event.target.value)
-              }
+              value={globalFilter}
+              onChange={(e) => table.setGlobalFilter(String(e.target.value))}
               className="w-full sm:max-w-sm"
             />
             <div className="flex items-center space-x-2 flex-shrink-0">
