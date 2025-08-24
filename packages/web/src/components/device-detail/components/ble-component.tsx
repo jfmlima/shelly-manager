@@ -19,6 +19,8 @@ interface BleComponentProps {
 
 export function BleComponent({ component, deviceIp }: BleComponentProps) {
   const { t } = useTranslation();
+  const tUpper = (key: string) =>
+    t(`deviceDetail.components.ble.${key}`).toUpperCase();
 
   const isEnabled = component.config.enable;
   const rpcEnabled = component.config.rpc?.enable;
@@ -32,9 +34,7 @@ export function BleComponent({ component, deviceIp }: BleComponentProps) {
             <span>Bluetooth</span>
           </div>
           <Badge variant={isEnabled ? "default" : "secondary"}>
-            {isEnabled
-              ? t("deviceDetail.components.ble.enabled")
-              : t("deviceDetail.components.ble.disabled")}
+            {isEnabled ? tUpper("enabled") : tUpper("disabled")}
           </Badge>
         </CardTitle>
         <CardDescription>

@@ -183,8 +183,8 @@
       "showMore": "Show {{count}} more component(s)",
       "showLess": "Show less",
       "switch": {
-        "on": "ON",
-        "off": "OFF",
+        "on": "On",
+        "off": "Off",
         "voltage": "Voltage",
         "current": "Current",
         "frequency": "Frequency",
@@ -192,8 +192,8 @@
         "energy": "Energy"
       },
       "input": {
-        "active": "ACTIVE",
-        "inactive": "INACTIVE",
+        "active": "Active",
+        "inactive": "Inactive",
         "type": "Type",
         "enabled": "Enabled",
         "inverted": "Inverted",
@@ -213,22 +213,22 @@
         "timezone": "Timezone"
       },
       "cloud": {
-        "connected": "CONNECTED",
-        "disconnected": "DISCONNECTED",
+        "connected": "Connected",
+        "disconnected": "Disconnected",
         "description": "Shelly Cloud connectivity status",
         "enabled": "Enabled",
         "server": "Server"
       },
       "zigbee": {
-        "joined": "JOINED",
-        "joining": "JOINING",
-        "disconnected": "DISCONNECTED",
+        "joined": "Joined",
+        "joining": "Joining",
+        "disconnected": "Disconnected",
         "description": "Zigbee network connectivity status",
         "networkState": "Network State"
       },
       "ble": {
-        "enabled": "ENABLED",
-        "disabled": "DISABLED",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
         "description": "Bluetooth Low Energy connectivity status",
         "rpcEnabled": "RPC Enabled"
       },

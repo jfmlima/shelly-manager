@@ -60,7 +60,11 @@ class Component(BaseModel):
         Returns:
             List of action methods relevant to this component type
         """
-        return []
+        return [
+            m
+            for m in all_methods
+            if m.lower().startswith(self.component_type.lower() + ".")
+        ]
 
     def can_perform_action(self, action: str) -> bool:
         """Check if component supports specific action.

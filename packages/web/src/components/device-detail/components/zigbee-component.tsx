@@ -19,6 +19,8 @@ interface ZigbeeComponentProps {
 
 export function ZigbeeComponent({ component, deviceIp }: ZigbeeComponentProps) {
   const { t } = useTranslation();
+  const tUpper = (key: string) =>
+    t(`deviceDetail.components.zigbee.${key}`).toUpperCase();
 
   const getStatusVariant = (networkState: string) => {
     switch (networkState.toLowerCase()) {
@@ -34,11 +36,11 @@ export function ZigbeeComponent({ component, deviceIp }: ZigbeeComponentProps) {
   const getStatusLabel = (networkState: string) => {
     switch (networkState.toLowerCase()) {
       case "joined":
-        return t("deviceDetail.components.zigbee.joined");
+        return tUpper("joined");
       case "joining":
-        return t("deviceDetail.components.zigbee.joining");
+        return tUpper("joining");
       default:
-        return t("deviceDetail.components.zigbee.disconnected");
+        return tUpper("disconnected");
     }
   };
 

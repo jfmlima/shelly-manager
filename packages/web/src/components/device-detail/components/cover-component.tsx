@@ -23,7 +23,9 @@ export function CoverComponent({ component, deviceIp }: CoverComponentProps) {
             <div className="h-4 w-4">🏠</div>
             <span>Cover {component.id}</span>
           </div>
-          <Badge variant="outline">{component.status.state}</Badge>
+          <Badge variant="outline">
+            {component.status.state?.toUpperCase()}
+          </Badge>
         </CardTitle>
         <CardDescription>
           {component.config.name || `Cover ${component.id}`}

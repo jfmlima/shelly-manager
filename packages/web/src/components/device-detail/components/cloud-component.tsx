@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { CloudComponent as CloudComponentType } from "@/types/api";
+import { useTranslation } from "react-i18next";
 
 interface CloudComponentProps {
   component: CloudComponentType;
@@ -15,6 +16,10 @@ interface CloudComponentProps {
 }
 
 export function CloudComponent({ component, deviceIp }: CloudComponentProps) {
+  const { t } = useTranslation();
+  const tUpper = (key: string) =>
+    t(`deviceDetail.components.cloud.${key}`).toUpperCase();
+
   return (
     <Card className="border-l-4 border-l-cyan-500">
       <CardHeader className="pb-3">
@@ -26,7 +31,9 @@ export function CloudComponent({ component, deviceIp }: CloudComponentProps) {
           <Badge
             variant={component.status.connected ? "default" : "destructive"}
           >
-            {component.status.connected ? "CONNECTED" : "DISCONNECTED"}
+            {component.status.connected
+              ? tUpper("connected")
+              : tUpper("disconnected")}
           </Badge>
         </CardTitle>
         <CardDescription>Shelly Cloud connectivity status</CardDescription>

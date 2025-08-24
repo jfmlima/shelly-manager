@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { SwitchComponent as SwitchComponentType } from "@/types/api";
+import { useTranslation } from "react-i18next";
 
 interface SwitchComponentProps {
   component: SwitchComponentType;
@@ -17,6 +18,10 @@ interface SwitchComponentProps {
 }
 
 export function SwitchComponent({ component, deviceIp }: SwitchComponentProps) {
+  const { t } = useTranslation();
+  const tUpper = (key: string) =>
+    t(`deviceDetail.components.switch.${key}`).toUpperCase();
+
   return (
     <Card className="border-l-4 border-l-blue-500">
       <CardHeader className="pb-3">
@@ -26,7 +31,7 @@ export function SwitchComponent({ component, deviceIp }: SwitchComponentProps) {
             <span>Switch {component.id}</span>
           </div>
           <Badge variant={component.status.output ? "default" : "outline"}>
-            {component.status.output ? "ON" : "OFF"}
+            {component.status.output ? tUpper("on") : tUpper("off")}
           </Badge>
         </CardTitle>
         <CardDescription>
