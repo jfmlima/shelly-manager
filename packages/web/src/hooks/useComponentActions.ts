@@ -2,10 +2,6 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { deviceApi } from "@/lib/api";
-import {
-  shouldShowResponseData,
-  hasResponseData,
-} from "@/utils/action-responses";
 import type { ComponentActionResult } from "@/types/api";
 
 interface ExecuteComponentActionParams {
@@ -265,4 +261,87 @@ export function isComingSoonAction(action: string): boolean {
   ];
 
   return comingSoonActions.includes(cleanAction);
+}
+
+/**
+ * Determines if an action response should display data to the user
+ */
+export function shouldShowResponseData(action: string): boolean {
+  const getActions = [
+    "GetStatus",
+    "GetConfig",
+    "GetInfo",
+    "GetDeviceInfo",
+    "GetComponents",
+    "ListMethods",
+    "CheckForUpdate",
+    "GetCustomMethods",
+  ];
+
+  return getActions.some(
+    (getAction) => action.includes(getAction) || action.endsWith(getAction),
+  );
+}
+
+/**
+ * Checks if a response contains meaningful data to display
+ */
+export function hasResponseData(response: ComponentActionResult): boolean {
+  return !!(
+    response.data &&
+    typeof response.data === "object" &&
+    Object.keys(response.data).length > 0
+  );
+}
+
+export function getComponentKeyForAction(
+  action: string,
+  component: {
+    key: string;
+    type: string;
+    id: number | null;
+    available_actions: string[];
+  },
+): string {
+  // Extract component type from action (e.g., "Switch.Toggle" -> "switch")
+  const actionParts = action.split(".");
+  if (actionParts.length < 2) {
+    // If no dot, fallback to component.key
+    return component.key;
+  }
+
+  const componentTypeFromAction = actionParts[0];
+  const availableMethods = component?.available_actions;
+
+  // For components that need ID (switch, input, cover, etc.)
+  if (component.id !== null && component.id !== undefined) {
+    const keyWithId = `${componentTypeFromAction}:${component.id}`;
+
+    // If we have available methods, verify the key exists
+    if (availableMethods) {
+      const methodExists = availableMethods.some(
+        (method) => method.startsWith(keyWithId + ".") || method === keyWithId,
+      );
+      if (methodExists) {
+        return keyWithId;
+      }
+    }
+
+    return keyWithId;
+  }
+
+  // For components without ID (sys, cloud, zigbee, etc.)
+  if (availableMethods) {
+    const methodExists = availableMethods.some(
+      (method) =>
+        method.startsWith(componentTypeFromAction + ".") ||
+        method === componentTypeFromAction,
+    );
+    if (methodExists) {
+      return componentTypeFromAction;
+    }
+  }
+
+  // Fallback to original component.key
+  return component.key;
 }

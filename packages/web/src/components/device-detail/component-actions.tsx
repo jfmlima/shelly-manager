@@ -49,12 +49,10 @@ import {
   getActionIcon,
   isDestructiveAction,
   isComingSoonAction,
-} from "@/hooks/useComponentActions";
-import {
   shouldShowResponseData,
   hasResponseData,
   getComponentKeyForAction,
-} from "@/utils/action-responses";
+} from "@/hooks/useComponentActions";
 import { ActionResponseModal } from "./action-response-modal";
 import { SetConfigModal } from "./set-config-modal";
 import type { Component } from "@/types/api";
