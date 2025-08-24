@@ -22,7 +22,6 @@ jobs:
           name: "🚀 Shelly Manager ${{ github.ref_name }}"
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
-          draft: true
 
           body: |
             ## 🐳 Docker Images
