@@ -17,22 +17,22 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Create GitHub Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
-          body: |
-            ## Docker Images
+          name: "🚀 Shelly Manager ${{ github.ref_name }}"
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          draft: true
 
-            🐳 **Available Docker Images:**
+          body: |
+            ## 🐳 Docker Images
+
+            **Available Docker Images:**
             - `${{ env.IMAGE_PREFIX }}-api:${{ github.ref_name }}`
             - `${{ env.IMAGE_PREFIX }}-cli:${{ github.ref_name }}`
             - `${{ env.IMAGE_PREFIX }}-web:${{ github.ref_name }}`
 
-            ## Quick Start
-
+            ## 🚀 Quick Start
             ```bash
             # Run API server
             docker run -p 8000:8000 ${{ env.IMAGE_PREFIX }}-api:${{ github.ref_name }}
@@ -44,11 +44,10 @@ jobs:
             docker run -p 8080:8080 ${{ env.IMAGE_PREFIX }}-web:${{ github.ref_name }}
             ```
 
-            ## Changes
+            ## 📋 What's Changed
 
-            See the commits since the previous release for detailed changes.
-          draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-and-push-all:
     runs-on: ubuntu-latest
