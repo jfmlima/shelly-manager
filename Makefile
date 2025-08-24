@@ -56,7 +56,7 @@ lint:
 
 lint-web:
 	@echo "Running web linting..."
-	cd packages/web && npm run lint
+	cd packages/web && npm run lint && npm run type-check
 
 # Test commands using uv
 test: test-core test-api test-cli
