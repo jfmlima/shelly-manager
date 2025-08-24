@@ -185,7 +185,7 @@ class TestShellyDeviceGateway:
             "cfg_rev": 1,
             "total": 1,
         }
-        zigbee_data = {"network_state": "joined"}
+        zigbee_data = {"result": {"network_state": "joined"}}
 
         mock_rpc_client.make_rpc_request = AsyncMock(
             side_effect=[

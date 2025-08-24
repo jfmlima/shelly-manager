@@ -115,7 +115,7 @@ class ShellyDeviceGateway(DeviceGateway):
                 zigbee_response, _ = await self._rpc_client.make_rpc_request(
                     ip, "Zigbee.GetStatus", timeout=self.timeout
                 )
-                zigbee_data = zigbee_response.get("result", zigbee_response)
+                zigbee_data = zigbee_response.get("result")
             except Exception as e:
                 logger.error(f"Error getting Zigbee data: {e}", exc_info=True)
                 pass
