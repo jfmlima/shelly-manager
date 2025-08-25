@@ -29,6 +29,7 @@ def device_commands() -> None:
 
 @device_commands.command()
 @click.argument("ip_ranges", nargs=-1, callback=validate_ip_range)
+@click.option("--use-mdns", is_flag=True, help="Use mDNS to discover devices")
 @device_targeting_options
 @common_options
 @click.pass_context
@@ -37,6 +38,7 @@ async def scan(
     ctx: click.Context,
     ip_ranges: tuple[str, ...],
     from_config: bool,
+    use_mdns: bool,
     devices: tuple[str, ...],
     timeout: int,
     workers: int,
@@ -63,6 +65,7 @@ async def scan(
         devices=list(devices),
         timeout=timeout,
         workers=workers,
+        use_mdns=use_mdns,
         task_description="Scanning for devices...",
     )
 

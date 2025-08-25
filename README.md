@@ -12,7 +12,7 @@ Manage Shelly devices on your local network without connecting them to the Shell
 
 ## Features
 
-- Device discovery by network scanning
+- Device discovery using mDNS and Network Scanning
 - Firmware update management (stable/beta channels)
 - Device configuration changes
 - Bulk operations across multiple devices
@@ -59,6 +59,11 @@ Available as:
 ## Quick Start
 
 ### Docker
+
+> ⚠️ **mDNS Discovery**
+> Currently, mDNS discovery only works when services are running directly on the host machine.
+> Containers cannot access the host’s network interfaces in a way that allows multicast traffic to reach them.
+> As a result, containers cannot detect devices on the local network via mDNS.
 
 **Web UI + API Stack**:
 

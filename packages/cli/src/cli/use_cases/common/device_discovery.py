@@ -28,6 +28,16 @@ class DeviceDiscoveryUseCase:
 
     def _create_scan_request(self, request: DeviceDiscoveryRequest) -> ScanRequest:
         """Create a ScanRequest from the discovery request."""
+        if request.use_mdns:
+            return ScanRequest(
+                use_predefined=False,
+                start_ip=None,
+                end_ip=None,
+                timeout=request.timeout,
+                max_workers=request.workers,
+                use_mdns=request.use_mdns,
+            )
+
         if request.from_config:
             return ScanRequest(
                 use_predefined=True,
@@ -45,6 +55,7 @@ class DeviceDiscoveryUseCase:
                 use_predefined=False,
                 timeout=request.timeout,
                 max_workers=request.workers,
+                use_mdns=request.use_mdns,
             )
 
         if request.devices:

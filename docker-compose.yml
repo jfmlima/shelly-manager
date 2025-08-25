@@ -19,7 +19,7 @@ services:
     ports:
       - "8000:8000"
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1" ]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -58,5 +58,5 @@ services:
       - ./packages/core/src:/app/packages/core/src:rw
     profiles:
       - cli
-    entrypoint: [ "tail", "-f", "/dev/null" ]
+    entrypoint: ["tail", "-f", "/dev/null"]
     restart: unless-stopped

@@ -20,6 +20,9 @@ class DeviceDiscoveryRequest(BaseModel):
     from_config: bool = Field(
         default=False, description="Whether to discover devices from configuration"
     )
+    use_mdns: bool = Field(
+        default=False, description="Whether to discover devices via mDNS"
+    )
     timeout: float = Field(default=3.0, gt=0, description="Request timeout in seconds")
     workers: int = Field(
         default=50, gt=0, le=200, description="Maximum number of concurrent workers"

@@ -53,6 +53,7 @@ GET /api/devices/scan              # Scan network for devices
   ?start_ip=192.168.1.1            # Start IP address
   &end_ip=192.168.1.254            # End IP address
   &use_predefined=true             # Use predefined ranges
+  &use_mdns=false                  # Use mDNS discovery
   &timeout=3.0                     # Timeout per device
   &max_workers=50                  # Concurrent workers
 ```

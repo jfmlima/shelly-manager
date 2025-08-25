@@ -28,6 +28,8 @@
       "startIp": "Start IP",
       "endIp": "End IP",
       "usePredefined": "Use Predefined IPs",
+      "useMdns": "Use mDNS Discovery",
+      "useMdnsWarning": "mDNS discovery may not work properly in Docker containers due to network isolation.",
       "timeout": "Timeout (seconds)",
       "maxWorkers": "Max Workers",
       "scanButton": "Scan Devices",

@@ -3,6 +3,7 @@
 from typing import Any
 
 from core.gateways.device.shelly_device_gateway import ShellyDeviceGateway
+from core.gateways.network import MDNSGateway, ZeroconfMDNSClient
 from core.use_cases.bulk_operations import BulkOperationsUseCase
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
@@ -13,6 +14,7 @@ from core.use_cases.scan_devices import ScanDevicesUseCase
 class BaseContainer:
     def __init__(self) -> None:
         self._device_gateway: ShellyDeviceGateway | None = None
+        self._mdns_client: MDNSGateway | None = None
         self._scan_interactor: ScanDevicesUseCase | None = None
         self._execute_component_action_interactor: (
             ExecuteComponentActionUseCase | None
@@ -32,11 +34,17 @@ class BaseContainer:
             self._device_gateway = ShellyDeviceGateway(self.get_rpc_client())
         return self._device_gateway
 
+    def get_mdns_client(self) -> MDNSGateway:
+        if self._mdns_client is None:
+            self._mdns_client = ZeroconfMDNSClient()
+        return self._mdns_client
+
     def get_scan_interactor(self) -> ScanDevicesUseCase:
         if self._scan_interactor is None:
             self._scan_interactor = ScanDevicesUseCase(
                 device_gateway=self.get_device_gateway(),
                 config_gateway=self.get_config_gateway(),
+                mdns_client=self.get_mdns_client(),
             )
         return self._scan_interactor
 

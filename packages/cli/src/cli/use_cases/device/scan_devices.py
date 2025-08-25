@@ -48,6 +48,7 @@ class DeviceScanUseCase:
             from_config=request.from_config,
             timeout=request.timeout,
             workers=request.workers,
+            use_mdns=request.use_mdns,
         )
 
         async with self._progress_tracker.track_progress(

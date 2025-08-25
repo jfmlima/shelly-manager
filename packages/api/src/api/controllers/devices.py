@@ -42,6 +42,7 @@ async def scan_devices(
     start_ip: str | None = None,
     end_ip: str | None = None,
     use_predefined: bool = True,
+    use_mdns: bool = False,
     timeout: float = 3.0,
     max_workers: int = 50,
     scan_interactor: ScanDevicesUseCase | None = None,
@@ -56,6 +57,7 @@ async def scan_devices(
         start_ip: Starting IP address for scan range (e.g., "192.168.1.1")
         end_ip: Ending IP address for scan range (e.g., "192.168.1.254")
         use_predefined: Whether to use predefined IP ranges from config
+        use_mdns: Whether to use mDNS to discover devices
         timeout: Timeout in seconds for each device probe
         max_workers: Maximum concurrent workers for scanning
 
@@ -68,6 +70,7 @@ async def scan_devices(
         start_ip=start_ip,
         end_ip=end_ip,
         use_predefined=use_predefined,
+        use_mdns=use_mdns,
         timeout=timeout,
         max_workers=max_workers,
     )

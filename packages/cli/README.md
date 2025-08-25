@@ -83,6 +83,7 @@ shelly-manager scan --from-config --export csv --export-file devices.csv
 - `--range`: CIDR notation (e.g., 192.168.1.0/24)
 - `--start/--end`: IP range endpoints
 - `--from-config`: Use predefined ranges from config file
+- `--use-mdns`: Use mDNS service discovery
 - `--timeout`: Timeout per device (default: 3.0s)
 - `--workers`: Concurrent workers (default: 50)
 - `--export`: Export format (json, csv)

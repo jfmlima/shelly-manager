@@ -44,6 +44,12 @@ class APIContainer(BaseContainer):
             except Exception:
                 pass
 
+        if self._mdns_client is not None:
+            try:
+                await self._mdns_client.close()
+            except Exception:
+                pass
+
 
 def get_dependencies(container: APIContainer) -> dict:
     return {

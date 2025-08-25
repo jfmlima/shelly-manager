@@ -176,7 +176,18 @@ def create_scan_request(
     from_config: bool,
     timeout: float,
     workers: int,
+    use_mdns: bool = False,
 ) -> ScanRequest:
+
+    if use_mdns:
+        return ScanRequest(
+            use_predefined=False,
+            start_ip=None,
+            end_ip=None,
+            timeout=timeout,
+            max_workers=workers,
+            use_mdns=use_mdns,
+        )
 
     if from_config:
         return ScanRequest(
@@ -185,6 +196,7 @@ def create_scan_request(
             end_ip=None,
             timeout=timeout,
             max_workers=workers,
+            use_mdns=use_mdns,
         )
 
     if ip_ranges:
@@ -195,6 +207,7 @@ def create_scan_request(
             use_predefined=False,
             timeout=timeout,
             max_workers=workers,
+            use_mdns=use_mdns,
         )
 
     if devices:

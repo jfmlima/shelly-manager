@@ -1,9 +1,6 @@
-"""
-Device scanning use case.
-"""
-
 import asyncio
 import ipaddress
+import logging
 from datetime import datetime
 
 from ..domain.entities.discovered_device import DiscoveredDevice
@@ -12,15 +9,22 @@ from ..domain.enums.enums import Status
 from ..domain.value_objects.scan_request import ScanRequest
 from ..gateways.configuration import ConfigurationGateway
 from ..gateways.device import DeviceGateway
+from ..gateways.network import MDNSGateway
+
+logger = logging.getLogger(__name__)
 
 
 class ScanDevicesUseCase:
 
     def __init__(
-        self, device_gateway: DeviceGateway, config_gateway: ConfigurationGateway
+        self,
+        device_gateway: DeviceGateway,
+        config_gateway: ConfigurationGateway,
+        mdns_client: MDNSGateway | None = None,
     ):
         self._device_gateway = device_gateway
         self._config_gateway = config_gateway
+        self._mdns_client = mdns_client
 
     async def execute(self, request: ScanRequest) -> list[DiscoveredDevice]:
         """
@@ -59,6 +63,9 @@ class ScanDevicesUseCase:
         return discovered_devices
 
     def _validate_scan_request(self, request: ScanRequest) -> None:
+        if request.use_mdns:
+            return
+
         if request.use_predefined:
             return
 
@@ -88,6 +95,9 @@ class ScanDevicesUseCase:
             )
 
     async def _get_scan_ips(self, request: ScanRequest) -> list[str]:
+        if request.use_mdns:
+            return await self._discover_devices_via_mdns(request)
+
         if request.use_predefined:
             return await self._config_gateway.get_predefined_ips()
         else:
@@ -129,7 +139,6 @@ class ScanDevicesUseCase:
             ) from e
 
     def _validate_ip_address(self, ip: str) -> bool:
-        """Validate IP address format."""
         try:
             ipaddress.IPv4Address(ip)
             return True
@@ -139,7 +148,6 @@ class ScanDevicesUseCase:
     def _validate_device_credentials(
         self, username: str | None, password: str | None
     ) -> bool:
-        """Validate device credentials."""
         if (username is None) != (password is None):
             return False
 
@@ -152,7 +160,6 @@ class ScanDevicesUseCase:
         return True
 
     def _validate_scan_range(self, start_ip: str, end_ip: str) -> bool:
-        """Validate IP scan range."""
         try:
             start = ipaddress.IPv4Address(start_ip)
             end = ipaddress.IPv4Address(end_ip)
@@ -163,19 +170,6 @@ class ScanDevicesUseCase:
     async def _discover_device(
         self, ip: str, timeout: float = 3.0
     ) -> DiscoveredDevice | None:
-        """
-        Discover a device with business logic validation.
-
-        Args:
-            ip: Device IP address
-            timeout: Discovery timeout
-
-        Returns:
-            DiscoveredDevice if found and valid, None otherwise
-
-        Raises:
-            DeviceValidationError: If device validation fails
-        """
         try:
             device = await self._device_gateway.discover_device(ip)
 
@@ -191,7 +185,6 @@ class ScanDevicesUseCase:
             ) from e
 
     def _validate_discovered_device(self, device: DiscoveredDevice) -> None:
-        """Validate discovered device properties."""
         if not device.device_type:
             raise DeviceValidationError(
                 device.ip, f"Device {device.ip} has no device type"
@@ -203,10 +196,26 @@ class ScanDevicesUseCase:
             )
 
     def _apply_device_status_rules(self, device: DiscoveredDevice) -> None:
-        """Apply business rules to device status."""
         if device.auth_required and device.status in [
             Status.DETECTED,
             Status.UPDATE_AVAILABLE,
             Status.NO_UPDATE_NEEDED,
         ]:
             device.status = Status.AUTH_REQUIRED
+
+    async def _discover_devices_via_mdns(self, request: ScanRequest) -> list[str]:
+        if self._mdns_client is None:
+            logger.warning("mDNS discovery requested but no mDNS gateway available")
+            return []
+
+        try:
+            logger.info("Starting mDNS device discovery...")
+            discovered_ips = await self._mdns_client.discover_device_ips(
+                timeout=request.timeout
+            )
+            logger.info(f"mDNS discovery found {len(discovered_ips)} potential devices")
+            return discovered_ips
+
+        except Exception as e:
+            logger.error(f"mDNS discovery failed: {e}", exc_info=True)
+            return []

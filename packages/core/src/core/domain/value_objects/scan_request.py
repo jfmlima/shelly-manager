@@ -14,6 +14,7 @@ class ScanRequest(BaseModel):
     use_predefined: bool = Field(
         True, description="Use predefined IPs from configuration"
     )
+    use_mdns: bool = Field(False, description="Use mDNS to discover devices")
     timeout: float = Field(
         3.0, ge=0.1, le=30.0, description="Timeout for each device scan"
     )

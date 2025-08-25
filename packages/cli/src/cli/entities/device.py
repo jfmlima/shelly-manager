@@ -13,6 +13,7 @@ class DeviceScanRequest(BaseModel):
     ip_ranges: list[str] = Field(default_factory=list)
     from_config: bool = Field(default=False)
     devices: list[str] = Field(default_factory=list)
+    use_mdns: bool = Field(default=False)
     timeout: float = Field(default=3.0, gt=0)
     workers: int = Field(default=50, gt=0, le=200)
     task_description: str = Field(
