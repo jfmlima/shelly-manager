@@ -60,8 +60,8 @@ Available as:
 
 ### Docker
 
-> ⚠️ **mDNS Discovery**
-> Currently, mDNS discovery only works when services are running directly on the host machine.
+> ⚠️ Currently **mDNS Discovery**
+> only works when services are running directly on the host machine.
 > Containers cannot access the host’s network interfaces in a way that allows multicast traffic to reach them.
 > As a result, containers cannot detect devices on the local network via mDNS.
 
