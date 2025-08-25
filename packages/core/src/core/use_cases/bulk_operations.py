@@ -1,13 +1,9 @@
-import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
 from ..domain.entities.device_status import DeviceStatus
-from ..domain.entities.discovered_device import DiscoveredDevice
 from ..domain.entities.exceptions import BulkOperationError
-from ..domain.enums.enums import Status
 from ..domain.value_objects.action_result import ActionResult
-from ..domain.value_objects.bulk_scan_request import BulkScanRequest
 from ..gateways.device import DeviceGateway
 
 
@@ -18,39 +14,6 @@ class BulkOperationsUseCase:
         device_gateway: DeviceGateway,
     ):
         self._device_gateway = device_gateway
-
-    async def execute_bulk_scan(
-        self, request: BulkScanRequest
-    ) -> list[DiscoveredDevice]:
-        """
-        Scan multiple IP addresses for devices.
-
-        Args:
-            request: BulkScanRequest with validated IPs and timeout
-
-        Returns:
-            List of discovered devices
-        """
-        results = []
-
-        try:
-            tasks = [self._device_gateway.discover_device(ip) for ip in request.ips]
-
-            devices = await asyncio.gather(*tasks, return_exceptions=True)
-
-            for device in devices:
-                if (
-                    isinstance(device, DiscoveredDevice)
-                    and device.status == Status.DETECTED
-                ):
-                    results.append(device)
-
-        except Exception as e:
-            raise BulkOperationError(
-                "bulk_scan", request.ips, f"Bulk scan failed: {str(e)}"
-            ) from e
-
-        return results
 
     async def execute_bulk_update(
         self, device_ips: list[str], channel: str = "stable"

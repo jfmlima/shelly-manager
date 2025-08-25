@@ -7,11 +7,8 @@ from core.domain.entities.components import (
     SystemComponent,
 )
 from core.domain.entities.device_status import DeviceStatus
-from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.entities.exceptions import BulkOperationError
-from core.domain.enums.enums import Status
 from core.domain.value_objects.action_result import ActionResult
-from core.domain.value_objects.bulk_scan_request import BulkScanRequest
 from core.use_cases.bulk_operations import BulkOperationsUseCase
 
 
@@ -20,78 +17,6 @@ class TestBulkOperationsUseCase:
     @pytest.fixture
     def use_case(self, mock_device_gateway):
         return BulkOperationsUseCase(device_gateway=mock_device_gateway)
-
-    async def test_it_scans_multiple_devices_successfully(
-        self, use_case, mock_device_gateway
-    ):
-        ips = ["192.168.1.100", "192.168.1.101", "192.168.1.102"]
-        devices = [
-            DiscoveredDevice(
-                ip="192.168.1.100", status=Status.DETECTED, device_id="device1"
-            ),
-            DiscoveredDevice(
-                ip="192.168.1.101", status=Status.DETECTED, device_id="device2"
-            ),
-            None,
-        ]
-        mock_device_gateway.discover_device = AsyncMock()
-        mock_device_gateway.discover_device.side_effect = devices
-
-        result = await use_case.execute_bulk_scan(BulkScanRequest(ips=ips))
-
-        assert len(result) == 2
-        assert result[0].ip == "192.168.1.100"
-        assert result[1].ip == "192.168.1.101"
-        assert all(device.status == Status.DETECTED for device in result)
-
-    async def test_it_handles_bulk_scan_with_no_devices(
-        self, use_case, mock_device_gateway
-    ):
-        ips = ["192.168.1.100", "192.168.1.101"]
-        mock_device_gateway.discover_device = AsyncMock(return_value=None)
-
-        result = await use_case.execute_bulk_scan(BulkScanRequest(ips=ips))
-
-        assert result == []
-        assert mock_device_gateway.discover_device.call_count == 2
-
-    async def test_it_filters_non_detected_devices_in_bulk_scan(
-        self, use_case, mock_device_gateway
-    ):
-        ips = ["192.168.1.100", "192.168.1.101", "192.168.1.102"]
-        devices = [
-            DiscoveredDevice(
-                ip="192.168.1.100", status=Status.DETECTED, device_id="device1"
-            ),
-            DiscoveredDevice(
-                ip="192.168.1.101", status=Status.UNREACHABLE, device_id="device2"
-            ),
-            DiscoveredDevice(
-                ip="192.168.1.102",
-                status=Status.AUTH_REQUIRED,
-                device_id="device3",
-            ),
-        ]
-        mock_device_gateway.discover_device = AsyncMock()
-        mock_device_gateway.discover_device.side_effect = devices
-
-        result = await use_case.execute_bulk_scan(BulkScanRequest(ips=ips))
-
-        assert len(result) == 1
-        assert result[0].ip == "192.168.1.100"
-        assert result[0].status == Status.DETECTED
-
-    async def test_it_handles_scan_failures_gracefully(
-        self, use_case, mock_device_gateway
-    ):
-        ips = ["192.168.1.100"]
-        mock_device_gateway.discover_device = AsyncMock(
-            side_effect=Exception("Network error")
-        )
-
-        result = await use_case.execute_bulk_scan(BulkScanRequest(ips=ips))
-
-        assert result == []
 
     async def test_it_updates_multiple_devices_successfully(
         self, use_case, mock_device_gateway
@@ -264,53 +189,11 @@ class TestBulkOperationsUseCase:
         assert results[2].success is True
         assert results[1].error == "Device offline"
 
-    async def test_it_handles_scan_exceptions_gracefully(
-        self, use_case, mock_device_gateway
-    ):
-        ips = ["192.168.1.100", "192.168.1.101"]
-        devices = [
-            DiscoveredDevice(
-                ip="192.168.1.100", status=Status.DETECTED, device_id="device1"
-            ),
-            Exception("Network error for second device"),
-        ]
-        mock_device_gateway.discover_device = AsyncMock()
-        mock_device_gateway.discover_device.side_effect = devices
-
-        result = await use_case.execute_bulk_scan(BulkScanRequest(ips=ips))
-
-        assert len(result) == 1
-        assert result[0].ip == "192.168.1.100"
-
-    async def test_it_uses_custom_timeout_for_bulk_scan(
-        self, use_case, mock_device_gateway
-    ):
-        ips = ["192.168.1.100"]
-        devices = [
-            DiscoveredDevice(
-                ip="192.168.1.100", status=Status.DETECTED, device_id="device1"
-            )
-        ]
-        mock_device_gateway.discover_device = AsyncMock()
-        mock_device_gateway.discover_device.side_effect = devices
-
-        result = await use_case.execute_bulk_scan(
-            BulkScanRequest(ips=ips, timeout=10.0)
-        )
-
-        assert len(result) == 1
-        mock_device_gateway.discover_device.assert_called_with("192.168.1.100")
-
     async def test_it_handles_empty_device_list_for_bulk_operations(
         self, use_case, mock_device_gateway
     ):
         empty_ips = []
         mock_device_gateway.execute_bulk_action = AsyncMock(return_value=[])
-
-        from pydantic import ValidationError
-
-        with pytest.raises(ValidationError, match="List should have at least 1 item"):
-            BulkScanRequest(ips=empty_ips)
 
         update_result = await use_case.execute_bulk_update(empty_ips)
         reboot_result = await use_case.execute_bulk_reboot(empty_ips)
