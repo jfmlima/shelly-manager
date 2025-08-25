@@ -33,25 +33,37 @@ Available as:
   <tr>
     <td width="50%">
       <h3>Dashboard Overview</h3>
-      <img src="docs/images/dashboard.png" width="100%" alt="Dashboard">
+      <img src="docs/images/dashboard-1.png" width="100%" alt="Dashboard">
       <em>Device discovery and management with real-time status monitoring</em>
     </td>
     <td width="50%">
+      <h3>Settings & Configuration</h3>
+      <img src="docs/images/settings-1.png" width="100%" alt="Settings">
+      <em>API configuration for mobile access and application preferences</em>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
       <h3>Device Management</h3>
-      <img src="docs/images/device.png" width="100%" alt="Device Details">
+      <img src="docs/images/device-1.png" width="100%" alt="Device Details">
       <em>Individual device control with component actions and status</em>
+    </td>
+      <td width="50%">
+      <h3>Device Action</h3>
+      <img src="docs/images/device-action-1.png" width="100%" alt="Device Details">
+      <em>Component actions and configurations</em>
     </td>
   </tr>
   <tr>
     <td width="50%">
       <h3>Bulk Operations</h3>
-      <img src="docs/images/bulk-actions.png" width="100%" alt="Bulk Actions">
+      <img src="docs/images/bulk-actions-1.png" width="100%" alt="Bulk Actions">
       <em>Perform operations on multiple devices simultaneously</em>
     </td>
     <td width="50%">
-      <h3>Settings & Configuration</h3>
-      <img src="docs/images/settings.png" width="100%" alt="Settings">
-      <em>API configuration for mobile access and application preferences</em>
+      <h3>Bulk Configuration Apply</h3>
+      <img src="docs/images/bulk-apply-1.png" width="100%" alt="Bulk Actions">
+      <em>Apply configurations in bulk to multipled evices</em>
     </td>
   </tr>
 </table>
