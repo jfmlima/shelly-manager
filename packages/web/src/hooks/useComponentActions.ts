@@ -4,6 +4,17 @@ import { toast } from "sonner";
 import { deviceApi } from "@/lib/api";
 import type { ComponentActionResult } from "@/types/api";
 
+const GET_ACTIONS = [
+  "GetStatus",
+  "GetConfig",
+  "GetInfo",
+  "GetDeviceInfo",
+  "GetComponents",
+  "ListMethods",
+  "CheckForUpdate",
+  "GetCustomMethods",
+  "DetectLocation",
+];
 interface ExecuteComponentActionParams {
   deviceIp: string;
   componentKey: string;
@@ -72,9 +83,13 @@ export function useExecuteComponentAction(
       );
     },
     onSuccess: (result, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["device", "status", variables.deviceIp],
-      });
+      if (
+        !GET_ACTIONS.some((getAction) => variables.action.includes(getAction))
+      ) {
+        queryClient.invalidateQueries({
+          queryKey: ["device", "status", variables.deviceIp],
+        });
+      }
 
       options?.onResponseReceived?.(result);
 
@@ -133,10 +148,13 @@ function formatActionName(action: string): string {
   );
 }
 
-export function getActionDisplayName(action: string): string {
-  const cleanAction = action.includes(".")
-    ? action.split(".").pop() || action
-    : action;
+export function getActionDisplayName(
+  action: string,
+  availableActions?: string[],
+): string {
+  const parts = action.split(".");
+  const cleanAction = parts[parts.length - 1];
+  const actionPrefix = parts.length > 1 ? parts[0] : "";
 
   const actionMap: Record<string, string> = {
     // System actions
@@ -188,6 +206,19 @@ export function getActionDisplayName(action: string): string {
     PutUserCA: "Put User CA",
     InstallAlt: "Install Alternative",
   };
+
+  if (availableActions) {
+    const suffixCounts = new Map<string, number>();
+
+    for (const act of availableActions) {
+      const suffix = act.split(".").pop() || act;
+      suffixCounts.set(suffix, (suffixCounts.get(suffix) || 0) + 1);
+    }
+
+    if ((suffixCounts.get(cleanAction) || 0) > 1) {
+      return `${actionPrefix} ${formatActionName(cleanAction)}`;
+    }
+  }
 
   // Check custom mappings first, then fall back to automatic formatting
   return actionMap[cleanAction] || formatActionName(cleanAction);
@@ -267,18 +298,7 @@ export function isComingSoonAction(action: string): boolean {
  * Determines if an action response should display data to the user
  */
 export function shouldShowResponseData(action: string): boolean {
-  const getActions = [
-    "GetStatus",
-    "GetConfig",
-    "GetInfo",
-    "GetDeviceInfo",
-    "GetComponents",
-    "ListMethods",
-    "CheckForUpdate",
-    "GetCustomMethods",
-  ];
-
-  return getActions.some(
+  return GET_ACTIONS.some(
     (getAction) => action.includes(getAction) || action.endsWith(getAction),
   );
 }
