@@ -1,4 +1,4 @@
-import { Cloud } from "lucide-react";
+import { Zap } from "lucide-react";
 
 import { ComponentActions } from "../component-actions";
 import { Badge } from "@/components/ui/badge";
@@ -9,26 +9,29 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { CloudComponent as CloudComponentType } from "@/types/api";
+import type { WebSocketComponent as WebSocketComponentType } from "@/types/api";
 import { useTranslation } from "react-i18next";
 
-interface CloudComponentProps {
-  component: CloudComponentType;
+interface WebSocketComponentProps {
+  component: WebSocketComponentType;
   deviceIp: string;
 }
 
-export function CloudComponent({ component, deviceIp }: CloudComponentProps) {
+export function WebSocketComponent({
+  component,
+  deviceIp,
+}: WebSocketComponentProps) {
   const { t } = useTranslation();
   const tUpper = (key: string) =>
-    t(`deviceDetail.components.cloud.${key}`).toUpperCase();
+    t(`deviceDetail.components.websocket.${key}`).toUpperCase();
 
   return (
-    <Card className="border-l-4 border-l-cyan-500">
+    <Card className="border-l-4 border-l-teal-500">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between text-base">
           <div className="flex items-center space-x-2">
-            <Cloud className="h-4 w-4" />
-            <span>Cloud</span>
+            <Zap className="h-4 w-4" />
+            <span>WebSocket</span>
           </div>
           <Badge
             variant={component.status.connected ? "default" : "destructive"}
@@ -38,24 +41,16 @@ export function CloudComponent({ component, deviceIp }: CloudComponentProps) {
               : tUpper("disconnected")}
           </Badge>
         </CardTitle>
-        <CardDescription>Shelly Cloud connectivity status</CardDescription>
+        <CardDescription>WebSocket connection status</CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
         <div className="space-y-2 text-sm">
           <div className="flex items-center justify-between">
-            <span>Enabled</span>
+            <span>Connection Status</span>
             <span className="font-medium">
-              {component.config.enable ? "Yes" : "No"}
+              {component.status.connected ? "Connected" : "Disconnected"}
             </span>
           </div>
-          {component.config.server && (
-            <div className="flex items-center justify-between">
-              <span>Server</span>
-              <span className="font-medium text-xs">
-                {component.config.server}
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Component Actions */}

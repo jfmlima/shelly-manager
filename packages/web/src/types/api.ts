@@ -128,6 +128,84 @@ export interface BleComponent extends Component {
   };
 }
 
+export interface EthernetComponent extends Component {
+  type: "eth";
+  status: {
+    ip?: string;
+    ip6?: string[];
+  };
+  config: {
+    enable: boolean;
+    server_mode: boolean;
+    ipv4mode: string;
+    netmask?: string;
+    gw?: string;
+    nameserver?: string;
+  };
+}
+
+export interface BluetoothHomeComponent extends Component {
+  type: "bthome";
+  status: {
+    errors?: string[];
+  };
+  config: {
+    enable: boolean;
+  };
+}
+
+export interface KnxComponent extends Component {
+  type: "knx";
+  status: Record<string, unknown>;
+  config: {
+    enable: boolean;
+    ia?: string;
+    routing?: {
+      addr: string;
+    };
+  };
+}
+
+export interface MqttComponent extends Component {
+  type: "mqtt";
+  status: {
+    connected: boolean;
+  };
+  config: {
+    enable: boolean;
+    server?: string;
+    client_id?: string;
+    user?: string;
+    topic_prefix?: string;
+    rpc_ntf: boolean;
+    status_ntf: boolean;
+    use_client_cert: boolean;
+    enable_rpc: boolean;
+    enable_control: boolean;
+  };
+}
+
+export interface WifiComponent extends Component {
+  type: "wifi";
+  status: {
+    sta_ip?: string;
+    sta_ip6?: string[];
+    status: string;
+    ssid?: string;
+    bssid?: string;
+    rssi: number;
+  };
+  config: Record<string, unknown>;
+}
+
+export interface WebSocketComponent extends Component {
+  type: "ws";
+  status: {
+    connected: boolean;
+  };
+  config: Record<string, unknown>;
+}
+
 export interface UpdateInfo {
   version: string;
   build_id: string;
@@ -226,7 +304,13 @@ export type ComponentType =
   | SystemComponent
   | CloudComponent
   | ZigbeeComponent
-  | BleComponent;
+  | BleComponent
+  | EthernetComponent
+  | BluetoothHomeComponent
+  | KnxComponent
+  | MqttComponent
+  | WifiComponent
+  | WebSocketComponent;
 
 export function isSwitchComponent(
   component: Component,
@@ -268,4 +352,40 @@ export function isBleComponent(
   component: Component,
 ): component is BleComponent {
   return component.type === "ble";
+}
+
+export function isEthernetComponent(
+  component: Component,
+): component is EthernetComponent {
+  return component.type === "eth";
+}
+
+export function isBluetoothHomeComponent(
+  component: Component,
+): component is BluetoothHomeComponent {
+  return component.type === "bthome";
+}
+
+export function isKnxComponent(
+  component: Component,
+): component is KnxComponent {
+  return component.type === "knx";
+}
+
+export function isMqttComponent(
+  component: Component,
+): component is MqttComponent {
+  return component.type === "mqtt";
+}
+
+export function isWifiComponent(
+  component: Component,
+): component is WifiComponent {
+  return component.type === "wifi";
+}
+
+export function isWebSocketComponent(
+  component: Component,
+): component is WebSocketComponent {
+  return component.type === "ws";
 }

@@ -1,3 +1,5 @@
+import { PanelTopClose } from "lucide-react";
+
 import { ComponentActions } from "../component-actions";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,7 +22,7 @@ export function CoverComponent({ component, deviceIp }: CoverComponentProps) {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between text-base">
           <div className="flex items-center space-x-2">
-            <div className="h-4 w-4">🏠</div>
+            <PanelTopClose className="h-4 w-4" />
             <span>Cover {component.id}</span>
           </div>
           <Badge variant="outline">

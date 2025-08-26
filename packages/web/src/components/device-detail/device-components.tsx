@@ -10,6 +10,12 @@ import {
   CloudComponent,
   ZigbeeComponent,
   BleComponent,
+  EthernetComponent,
+  WifiComponent,
+  MqttComponent,
+  BluetoothHomeComponent,
+  KnxComponent,
+  WebSocketComponent,
   GenericComponent,
 } from "./components";
 
@@ -30,6 +36,12 @@ import {
   isCloudComponent,
   isZigbeeComponent,
   isBleComponent,
+  isEthernetComponent,
+  isWifiComponent,
+  isMqttComponent,
+  isBluetoothHomeComponent,
+  isKnxComponent,
+  isWebSocketComponent,
 } from "@/types/api";
 import type { DeviceStatus, Component } from "@/types/api";
 
@@ -40,15 +52,30 @@ interface DeviceComponentsProps {
 }
 
 const PRIORITY_COMPONENT_TYPES = [
-  "cloud",
-  "cover",
   "switch",
-  "sys",
+  "cover",
   "zigbee",
-  "ble",
+  "wifi",
+  "eth",
+  "cloud",
+  "sys",
+  "mqtt",
 ];
 
-const TYPE_ORDER = ["switch", "cover", "cloud", "sys", "zigbee", "ble"];
+const TYPE_ORDER = [
+  "switch",
+  "cover",
+  "zigbee",
+  "wifi",
+  "eth",
+  "cloud",
+  "sys",
+  "mqtt",
+  "ws",
+  "ble",
+  "bthome",
+  "knx",
+];
 
 function sortComponentsByType(components: Component[]): Component[] {
   return [...components].sort((a, b) => {
@@ -171,6 +198,66 @@ export function DeviceComponents({
     if (isBleComponent(component)) {
       return (
         <BleComponent
+          key={component.key}
+          component={component}
+          deviceIp={deviceIp}
+        />
+      );
+    }
+
+    if (isEthernetComponent(component)) {
+      return (
+        <EthernetComponent
+          key={component.key}
+          component={component}
+          deviceIp={deviceIp}
+        />
+      );
+    }
+
+    if (isWifiComponent(component)) {
+      return (
+        <WifiComponent
+          key={component.key}
+          component={component}
+          deviceIp={deviceIp}
+        />
+      );
+    }
+
+    if (isMqttComponent(component)) {
+      return (
+        <MqttComponent
+          key={component.key}
+          component={component}
+          deviceIp={deviceIp}
+        />
+      );
+    }
+
+    if (isBluetoothHomeComponent(component)) {
+      return (
+        <BluetoothHomeComponent
+          key={component.key}
+          component={component}
+          deviceIp={deviceIp}
+        />
+      );
+    }
+
+    if (isKnxComponent(component)) {
+      return (
+        <KnxComponent
+          key={component.key}
+          component={component}
+          deviceIp={deviceIp}
+        />
+      );
+    }
+
+    if (isWebSocketComponent(component)) {
+      return (
+        <WebSocketComponent
           key={component.key}
           component={component}
           deviceIp={deviceIp}

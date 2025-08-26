@@ -14,7 +14,10 @@ const GET_ACTIONS = [
   "CheckForUpdate",
   "GetCustomMethods",
   "DetectLocation",
+  "Scan",
+  "ListAPClients",
 ];
+
 interface ExecuteComponentActionParams {
   deviceIp: string;
   componentKey: string;
@@ -150,7 +153,7 @@ function formatActionName(action: string): string {
 
 export function getActionDisplayName(
   action: string,
-  availableActions?: string[],
+  componentKey?: string,
 ): string {
   const parts = action.split(".");
   const cleanAction = parts[parts.length - 1];
@@ -207,15 +210,9 @@ export function getActionDisplayName(
     InstallAlt: "Install Alternative",
   };
 
-  if (availableActions) {
-    const suffixCounts = new Map<string, number>();
-
-    for (const act of availableActions) {
-      const suffix = act.split(".").pop() || act;
-      suffixCounts.set(suffix, (suffixCounts.get(suffix) || 0) + 1);
-    }
-
-    if ((suffixCounts.get(cleanAction) || 0) > 1) {
+  if (componentKey) {
+    const key = componentKey.split(":")[0];
+    if (!action.toLowerCase().includes(key.toLowerCase())) {
       return `${actionPrefix} ${formatActionName(cleanAction)}`;
     }
   }
@@ -330,7 +327,7 @@ export function getComponentKeyForAction(
     return component.key;
   }
 
-  const componentTypeFromAction = actionParts[0];
+  const componentTypeFromAction = actionParts[0].toLowerCase();
   const availableMethods = component?.available_actions;
 
   // For components that need ID (switch, input, cover, etc.)

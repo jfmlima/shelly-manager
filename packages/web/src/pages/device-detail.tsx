@@ -16,6 +16,7 @@ export function DeviceDetail() {
   const {
     data: deviceStatus,
     isLoading,
+    isFetching,
     error,
     refetch,
   } = useQuery({
@@ -113,7 +114,7 @@ export function DeviceDetail() {
         ip={ip}
         deviceStatus={deviceStatus || null}
         onRefresh={() => refetch()}
-        isRefreshing={isLoading}
+        isRefreshing={isFetching}
       />
 
       {/* Device Components */}

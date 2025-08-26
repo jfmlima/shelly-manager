@@ -207,7 +207,6 @@ export function ComponentActions({
     const isLoading = executeAction.isPending && selectedAction === action;
     const isDestructive = isDestructiveAction(action);
     const isComingSoon = isComingSoonAction(action);
-    const availableActions = component.available_actions || [];
 
     if (isComingSoon) {
       return (
@@ -220,7 +219,7 @@ export function ComponentActions({
             className="flex items-center space-x-2 opacity-60 cursor-not-allowed"
           >
             <IconComponent className="h-3 w-3" />
-            <span>{getActionDisplayName(action, availableActions)}</span>
+            <span>{getActionDisplayName(action, component.key)}</span>
           </Button>
           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
             {t("common.comingSoon")}
@@ -243,7 +242,7 @@ export function ComponentActions({
         ) : (
           <IconComponent className="h-3 w-3" />
         )}
-        <span>{getActionDisplayName(action, availableActions)}</span>
+        <span>{getActionDisplayName(action, component.key)}</span>
       </Button>
     );
   };

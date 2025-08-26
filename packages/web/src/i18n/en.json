@@ -234,6 +234,60 @@
         "description": "Bluetooth Low Energy connectivity status",
         "rpcEnabled": "RPC Enabled"
       },
+      "ethernet": {
+        "connected": "Connected",
+        "disconnected": "Disconnected",
+        "description": "Wired network connectivity status",
+        "enabled": "Enabled",
+        "ipAddress": "IP Address",
+        "ipv4Mode": "IPv4 Mode",
+        "gateway": "Gateway",
+        "dns": "DNS",
+        "ipv6Addresses": "IPv6 Addresses"
+      },
+      "wifi": {
+        "connected": "Connected",
+        "disconnected": "Disconnected",
+        "description": "Wireless network connectivity status",
+        "network": "Network (SSID)",
+        "ipAddress": "IP Address",
+        "signalStrength": "Signal Strength",
+        "status": "Status",
+        "bssid": "BSSID",
+        "ipv6Addresses": "IPv6 Addresses"
+      },
+      "mqtt": {
+        "connected": "Connected",
+        "disconnected": "Disconnected",
+        "description": "MQTT messaging service status",
+        "enabled": "Enabled",
+        "server": "Server",
+        "clientId": "Client ID",
+        "topicPrefix": "Topic Prefix",
+        "rpcEnabled": "RPC Enabled",
+        "controlEnabled": "Control Enabled",
+        "statusNotifications": "Status Notifications",
+        "clientCertificate": "Client Certificate"
+      },
+      "bluetoothHome": {
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "error": "Error",
+        "description": "Bluetooth Home integration status"
+      },
+      "knx": {
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "description": "KNX building automation protocol",
+        "individualAddress": "Individual Address",
+        "routingAddress": "Routing Address"
+      },
+      "websocket": {
+        "connected": "Connected",
+        "disconnected": "Disconnected",
+        "description": "WebSocket connection status",
+        "connectionStatus": "Connection Status"
+      },
       "generic": {
         "componentType": "Component type"
       }
