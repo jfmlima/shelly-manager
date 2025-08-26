@@ -11,7 +11,7 @@ from ...domain.value_objects.action_result import ActionResult
 
 
 class DeviceGateway(ABC):
-    timeout: float = 3.0
+    timeout: float = 10.0
 
     @abstractmethod
     async def discover_device(self, ip: str) -> DiscoveredDevice | None:

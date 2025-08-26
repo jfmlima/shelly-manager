@@ -24,7 +24,7 @@ SHELLY_SYSTEM_ACTIONS = {"Update", "Reboot", "FactoryReset"}
 
 class ShellyDeviceGateway(DeviceGateway):
 
-    def __init__(self, rpc_client: Any, timeout: float = 3.0) -> None:
+    def __init__(self, rpc_client: Any, timeout: float = 10.0) -> None:
         self._rpc_client = rpc_client
         self.timeout = timeout
 
@@ -94,7 +94,7 @@ class ShellyDeviceGateway(DeviceGateway):
             DeviceStatus with all component data, or None if unreachable
         """
         try:
-            # Get device info for enhanced status
+
             device_info_data = None
             try:
                 device_info_response, _ = await self._rpc_client.make_rpc_request(
@@ -110,21 +110,24 @@ class ShellyDeviceGateway(DeviceGateway):
                 ip, "Shelly.GetComponents", params={"offset": 0}, timeout=self.timeout
             )
 
-            zigbee_data = None
+            status_response = None
             try:
-                zigbee_response, _ = await self._rpc_client.make_rpc_request(
-                    ip, "Zigbee.GetStatus", timeout=self.timeout
+                status_response, _ = await self._rpc_client.make_rpc_request(
+                    ip, "Shelly.GetStatus", timeout=self.timeout
                 )
-                zigbee_data = zigbee_response.get("result")
+                status_response = status_response.get("result", status_response)
             except Exception as e:
-                logger.error(f"Error getting Zigbee data: {e}", exc_info=True)
-                pass
+                logger.error(f"Error getting device status: {e}", exc_info=True)
 
             available_methods = await self.get_available_methods(ip)
             components_data = components_response.get("result", components_response)
 
             return DeviceStatus.from_raw_response(
-                ip, components_data, zigbee_data, available_methods, device_info_data
+                ip,
+                components_data,
+                available_methods=available_methods,
+                device_info_data=device_info_data,
+                status_data=status_response,
             )
 
         except Exception as e:
@@ -231,6 +234,49 @@ class ShellyDeviceGateway(DeviceGateway):
                 error=error_message,
             )
 
+    def _get_api_component_type(self, component_type: str) -> str:
+        component_type_mapping = {
+            "ble": "BLE",
+            "wifi": "Wifi",
+            "mqtt": "Mqtt",
+            "knx": "KNX",
+            "ws": "WS",
+            "eth": "Eth",
+            "http": "HTTP",
+            "sys": "Sys",
+            "cloud": "Cloud",
+            "shelly": "Shelly",
+            "schedule": "Schedule",
+            "webhook": "Webhook",
+            "kvs": "KVS",
+            "script": "Script",
+            "switch": "Switch",
+            "input": "Input",
+            "cover": "Cover",
+            "light": "Light",
+            "rgb": "RGB",
+            "rgbw": "RGBW",
+            "cct": "CCT",
+            "temperature": "Temperature",
+            "humidity": "Humidity",
+            "voltmeter": "Voltmeter",
+            "em": "EM",
+            "em1": "EM1",
+            "pm1": "PM1",
+            "smoke": "Smoke",
+            "matter": "Matter",
+            "zigbee": "Zigbee",
+            "bthome": "BTHome",
+            "modbus": "Modbus",
+            "dali": "DALI",
+            "devicepower": "DevicePower",
+            "ui": "UI",
+        }
+
+        return component_type_mapping.get(
+            component_type.lower(), component_type.title()
+        )
+
     def _build_rpc_method_name(self, component_key: str, action: str) -> str:
         """Build RPC method name from component key and action.
 
@@ -244,7 +290,7 @@ class ShellyDeviceGateway(DeviceGateway):
         component_type = (
             component_key.split(":")[0] if ":" in component_key else component_key
         )
-        component_prefix = component_type.title()
+        component_prefix = self._get_api_component_type(component_type)
 
         return f"{component_prefix}.{action}"
 

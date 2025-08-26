@@ -4,15 +4,22 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from .components import (
+    BluetoothHomeComponent,
+    BluetoothLEComponent,
     CloudComponent,
-    ComponentFactory,
     ComponentType,
     CoverComponent,
+    EthernetComponent,
     InputComponent,
+    KnxComponent,
+    MqttComponent,
     SwitchComponent,
     SystemComponent,
+    WebSocketComponent,
+    WifiComponent,
     ZigbeeComponent,
 )
+from .factory import ComponentFactory
 
 
 class DeviceStatus(BaseModel):
@@ -45,31 +52,26 @@ class DeviceStatus(BaseModel):
         cls,
         device_ip: str,
         response_data: dict[str, Any],
-        zigbee_data: dict[str, Any] | None = None,
         available_methods: list[str] | None = None,
         device_info_data: dict[str, Any] | None = None,
+        status_data: dict[str, Any] | None = None,
     ) -> "DeviceStatus":
         components_data = response_data.get("components", [])
         components = []
         methods = available_methods or []
+        status_dict = status_data or {}
 
+        component_keys = {comp["key"] for comp in components_data}
         for component_data in components_data:
             component = ComponentFactory.create_component(component_data)
             component.available_actions = component.get_available_actions(methods)
             components.append(component)
 
-        if zigbee_data:
-            zigbee_component_data = {
-                "key": "zigbee",
-                "status": zigbee_data,
-                "config": {},
-                "attrs": {},
-            }
-            zigbee_component = ZigbeeComponent.from_raw_data(zigbee_component_data)
-            zigbee_component.available_actions = zigbee_component.get_available_actions(
-                methods
-            )
-            components.append(zigbee_component)
+        for key, status in status_dict.items():
+            if key not in component_keys and isinstance(status, dict):
+                component = ComponentFactory.create_component_from_status(key, status)
+                component.available_actions = component.get_available_actions(methods)
+                components.append(component)
 
         device_info = device_info_data or {}
 
@@ -115,6 +117,48 @@ class DeviceStatus(BaseModel):
                 return comp
         return None
 
+    def get_wifi_info(self) -> WifiComponent | None:
+        for comp in self.components:
+            if isinstance(comp, WifiComponent):
+                return comp
+        return None
+
+    def get_websocket_info(self) -> WebSocketComponent | None:
+        for comp in self.components:
+            if isinstance(comp, WebSocketComponent):
+                return comp
+        return None
+
+    def get_ethernet_info(self) -> EthernetComponent | None:
+        for comp in self.components:
+            if isinstance(comp, EthernetComponent):
+                return comp
+        return None
+
+    def get_bluetooth_home_info(self) -> BluetoothHomeComponent | None:
+        for comp in self.components:
+            if isinstance(comp, BluetoothHomeComponent):
+                return comp
+        return None
+
+    def get_bluetooth_le_info(self) -> BluetoothLEComponent | None:
+        for comp in self.components:
+            if isinstance(comp, BluetoothLEComponent):
+                return comp
+        return None
+
+    def get_knx_info(self) -> KnxComponent | None:
+        for comp in self.components:
+            if isinstance(comp, KnxComponent):
+                return comp
+        return None
+
+    def get_mqtt_info(self) -> MqttComponent | None:
+        for comp in self.components:
+            if isinstance(comp, MqttComponent):
+                return comp
+        return None
+
     def get_component_by_key(self, key: str) -> ComponentType | None:
         for comp in self.components:
             if comp.key == key:
@@ -133,6 +177,8 @@ class DeviceStatus(BaseModel):
         sys_info = self.get_system_info()
         cloud_info = self.get_cloud_info()
         zigbee_info = self.get_zigbee_info()
+        wifi_info = self.get_wifi_info()
+        websocket_info = self.get_websocket_info()
 
         has_updates = False
         update_info = {}
@@ -160,6 +206,13 @@ class DeviceStatus(BaseModel):
                 zigbee_info.network_state == "joined" if zigbee_info else False
             ),
             "zigbee_network_state": zigbee_info.network_state if zigbee_info else None,
+            "wifi_connected": wifi_info.wifi_status == "got ip" if wifi_info else False,
+            "wifi_ssid": wifi_info.ssid if wifi_info else None,
+            "wifi_ip": wifi_info.sta_ip if wifi_info else None,
+            "wifi_rssi": wifi_info.rssi if wifi_info else None,
+            "websocket_connected": (
+                websocket_info.connected if websocket_info else False
+            ),
             "switch_count": len(self.get_switches()),
             "input_count": len(self.get_inputs()),
             "cover_count": len(self.get_covers()),

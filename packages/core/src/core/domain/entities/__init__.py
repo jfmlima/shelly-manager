@@ -1,14 +1,19 @@
-"""Domain entities."""
-
 from .components import (
+    BluetoothHomeComponent,
+    BluetoothLEComponent,
     CloudComponent,
     Component,
-    ComponentFactory,
     ComponentType,
     CoverComponent,
+    EthernetComponent,
     InputComponent,
+    KnxComponent,
+    MqttComponent,
     SwitchComponent,
     SystemComponent,
+    WebSocketComponent,
+    WifiComponent,
+    ZigbeeComponent,
 )
 from .device_status import DeviceStatus
 from .discovered_device import DiscoveredDevice
@@ -18,6 +23,7 @@ from .exceptions import (
     DeviceValidationError,
     ValidationError,
 )
+from .factory import ComponentFactory
 
 __all__ = [
     "DeviceAuthenticationError",
@@ -33,5 +39,13 @@ __all__ = [
     "CoverComponent",
     "SystemComponent",
     "CloudComponent",
+    "ZigbeeComponent",
+    "WifiComponent",
+    "WebSocketComponent",
+    "EthernetComponent",
+    "BluetoothHomeComponent",
+    "BluetoothLEComponent",
+    "KnxComponent",
+    "MqttComponent",
     "ComponentFactory",
 ]

@@ -43,10 +43,13 @@ class TestShellyDeviceGateway:
         assert isinstance(result.last_seen, datetime)
         assert mock_rpc_client.make_rpc_request.call_count == 2
         calls = mock_rpc_client.make_rpc_request.call_args_list
-        assert calls[0] == (("192.168.1.100", "Shelly.GetDeviceInfo"), {"timeout": 3.0})
+        assert calls[0] == (
+            ("192.168.1.100", "Shelly.GetDeviceInfo"),
+            {"timeout": 10.0},
+        )
         assert calls[1] == (
             ("192.168.1.100", "Shelly.CheckForUpdate"),
-            {"timeout": 3.0},
+            {"timeout": 10.0},
         )
 
     async def test_it_discovers_device_with_custom_timeout(
@@ -64,10 +67,13 @@ class TestShellyDeviceGateway:
         assert result is not None
         assert mock_rpc_client.make_rpc_request.call_count == 2
         calls = mock_rpc_client.make_rpc_request.call_args_list
-        assert calls[0] == (("192.168.1.100", "Shelly.GetDeviceInfo"), {"timeout": 3.0})
+        assert calls[0] == (
+            ("192.168.1.100", "Shelly.GetDeviceInfo"),
+            {"timeout": 10.0},
+        )
         assert calls[1] == (
             ("192.168.1.100", "Shelly.CheckForUpdate"),
-            {"timeout": 3.0},
+            {"timeout": 10.0},
         )
 
     async def test_it_handles_device_discovery_failure(self, gateway, mock_rpc_client):
@@ -110,7 +116,7 @@ class TestShellyDeviceGateway:
             side_effect=[
                 ({"name": "Test Device", "model": "SHPM-1"}, 0.05),
                 (components_data, 0.1),
-                Exception("Zigbee not available"),
+                ({"sys": {"mac": "AABBCCDDEEFF", "restart_required": False}}, 0.1),
                 (["Sys.Reboot", "Sys.Update"], 0.05),
             ]
         )
@@ -124,7 +130,10 @@ class TestShellyDeviceGateway:
         assert result.total_components == 1
         assert mock_rpc_client.make_rpc_request.call_count == 4
         mock_rpc_client.make_rpc_request.assert_any_call(
-            "192.168.1.100", "Shelly.GetComponents", params={"offset": 0}, timeout=3.0
+            "192.168.1.100", "Shelly.GetComponents", params={"offset": 0}, timeout=10.0
+        )
+        mock_rpc_client.make_rpc_request.assert_any_call(
+            "192.168.1.100", "Shelly.GetStatus", timeout=10.0
         )
 
     async def test_it_gets_device_status_without_updates(
@@ -155,7 +164,7 @@ class TestShellyDeviceGateway:
             side_effect=[
                 ({"name": "Test Device", "model": "SHPM-1"}, 0.05),
                 (components_data, 0.1),
-                Exception("Zigbee not available"),
+                ({"sys": {"mac": "AABBCCDDEEFF", "restart_required": False}}, 0.1),
                 (["Sys.Reboot", "Sys.GetConfig"], 0.05),
             ]
         )
@@ -167,7 +176,10 @@ class TestShellyDeviceGateway:
         assert result.device_ip == "192.168.1.100"
         assert mock_rpc_client.make_rpc_request.call_count == 4
         mock_rpc_client.make_rpc_request.assert_any_call(
-            "192.168.1.100", "Shelly.GetComponents", params={"offset": 0}, timeout=3.0
+            "192.168.1.100", "Shelly.GetComponents", params={"offset": 0}, timeout=10.0
+        )
+        mock_rpc_client.make_rpc_request.assert_any_call(
+            "192.168.1.100", "Shelly.GetStatus", timeout=10.0
         )
 
     async def test_it_gets_device_status_with_zigbee_data(
@@ -185,13 +197,13 @@ class TestShellyDeviceGateway:
             "cfg_rev": 1,
             "total": 1,
         }
-        zigbee_data = {"result": {"network_state": "joined"}}
+        zigbee_data = {"network_state": "joined"}
 
         mock_rpc_client.make_rpc_request = AsyncMock(
             side_effect=[
                 ({"name": "Test Device", "model": "SHPM-1"}, 0.05),
                 (components_data, 0.1),
-                (zigbee_data, 0.05),
+                ({"zigbee": zigbee_data}, 0.1),
                 (["Switch.Set"], 0.05),
             ]
         )
@@ -205,13 +217,16 @@ class TestShellyDeviceGateway:
 
         assert mock_rpc_client.make_rpc_request.call_count == 4
         calls = mock_rpc_client.make_rpc_request.call_args_list
-        assert calls[0] == (("192.168.1.100", "Shelly.GetDeviceInfo"), {"timeout": 3.0})
+        assert calls[0] == (
+            ("192.168.1.100", "Shelly.GetDeviceInfo"),
+            {"timeout": 10.0},
+        )
         assert calls[1] == (
             ("192.168.1.100", "Shelly.GetComponents"),
-            {"params": {"offset": 0}, "timeout": 3.0},
+            {"params": {"offset": 0}, "timeout": 10.0},
         )
-        assert calls[2] == (("192.168.1.100", "Zigbee.GetStatus"), {"timeout": 3.0})
-        assert calls[3] == (("192.168.1.100", "Shelly.ListMethods"), {"timeout": 3.0})
+        assert calls[2] == (("192.168.1.100", "Shelly.GetStatus"), {"timeout": 10.0})
+        assert calls[3] == (("192.168.1.100", "Shelly.ListMethods"), {"timeout": 10.0})
 
     async def test_it_gets_device_status_with_zigbee_failure(
         self, gateway, mock_rpc_client
@@ -233,7 +248,7 @@ class TestShellyDeviceGateway:
         mock_rpc_client.make_rpc_request.side_effect = [
             ({"name": "Test Device", "model": "SHPM-1"}, 0.05),
             (components_data, 0.1),
-            Exception("Zigbee not available"),
+            Exception("Status not available"),
             (["Switch.Set"], 0.05),
         ]
 
@@ -246,13 +261,16 @@ class TestShellyDeviceGateway:
 
         assert mock_rpc_client.make_rpc_request.call_count == 4
         calls = mock_rpc_client.make_rpc_request.call_args_list
-        assert calls[0] == (("192.168.1.100", "Shelly.GetDeviceInfo"), {"timeout": 3.0})
+        assert calls[0] == (
+            ("192.168.1.100", "Shelly.GetDeviceInfo"),
+            {"timeout": 10.0},
+        )
         assert calls[1] == (
             ("192.168.1.100", "Shelly.GetComponents"),
-            {"params": {"offset": 0}, "timeout": 3.0},
+            {"params": {"offset": 0}, "timeout": 10.0},
         )
-        assert calls[2] == (("192.168.1.100", "Zigbee.GetStatus"), {"timeout": 3.0})
-        assert calls[3] == (("192.168.1.100", "Shelly.ListMethods"), {"timeout": 3.0})
+        assert calls[2] == (("192.168.1.100", "Shelly.GetStatus"), {"timeout": 10.0})
+        assert calls[3] == (("192.168.1.100", "Shelly.ListMethods"), {"timeout": 10.0})
 
     async def test_it_handles_update_check_failure_gracefully(
         self, gateway, mock_rpc_client
@@ -292,10 +310,10 @@ class TestShellyDeviceGateway:
         assert result.message == "Update executed successfully on shelly"
         assert mock_rpc_client.make_rpc_request.call_count == 2
         mock_rpc_client.make_rpc_request.assert_any_call(
-            "192.168.1.100", "Shelly.ListMethods", timeout=3.0
+            "192.168.1.100", "Shelly.ListMethods", timeout=10.0
         )
         mock_rpc_client.make_rpc_request.assert_any_call(
-            "192.168.1.100", "Shelly.Update", params=None, timeout=3.0
+            "192.168.1.100", "Shelly.Update", params=None, timeout=10.0
         )
 
     async def test_it_executes_component_reboot_action_successfully(
@@ -320,10 +338,10 @@ class TestShellyDeviceGateway:
         assert result.message == "Reboot executed successfully on shelly"
         assert mock_rpc_client.make_rpc_request.call_count == 2
         mock_rpc_client.make_rpc_request.assert_any_call(
-            "192.168.1.100", "Shelly.ListMethods", timeout=3.0
+            "192.168.1.100", "Shelly.ListMethods", timeout=10.0
         )
         mock_rpc_client.make_rpc_request.assert_any_call(
-            "192.168.1.100", "Shelly.Reboot", params=None, timeout=3.0
+            "192.168.1.100", "Shelly.Reboot", params=None, timeout=10.0
         )
 
     async def test_it_executes_component_config_get_action_successfully(
@@ -350,10 +368,10 @@ class TestShellyDeviceGateway:
         assert result.data == config_data
         assert mock_rpc_client.make_rpc_request.call_count == 2
         mock_rpc_client.make_rpc_request.assert_any_call(
-            "192.168.1.100", "Shelly.ListMethods", timeout=3.0
+            "192.168.1.100", "Shelly.ListMethods", timeout=10.0
         )
         mock_rpc_client.make_rpc_request.assert_any_call(
-            "192.168.1.100", "Sys.GetConfig", params=None, timeout=3.0
+            "192.168.1.100", "Sys.GetConfig", params=None, timeout=10.0
         )
 
     async def test_it_executes_component_config_set_action_successfully(
@@ -378,10 +396,10 @@ class TestShellyDeviceGateway:
         assert result.message == "SetConfig executed successfully on sys"
         assert mock_rpc_client.make_rpc_request.call_count == 2
         mock_rpc_client.make_rpc_request.assert_any_call(
-            "192.168.1.100", "Shelly.ListMethods", timeout=3.0
+            "192.168.1.100", "Shelly.ListMethods", timeout=10.0
         )
         mock_rpc_client.make_rpc_request.assert_any_call(
-            "192.168.1.100", "Sys.SetConfig", params=None, timeout=3.0
+            "192.168.1.100", "Sys.SetConfig", params=None, timeout=10.0
         )
 
     async def test_it_handles_component_action_validation_failure(
@@ -542,7 +560,7 @@ class TestShellyDeviceGateway:
         mock_rpc_client.make_rpc_request.side_effect = [
             (device_info_data, 0.1),
             (components_data, 0.1),
-            Exception("Zigbee not available"),
+            ({"sys": {"mac": "AA:BB:CC:DD:EE:FF"}}, 0.1),
             (["Switch.Set", "Component.GetConfig"], 0.05),
         ]
 
@@ -562,12 +580,12 @@ class TestShellyDeviceGateway:
 
         assert calls[0] == (
             ("192.168.1.100", "Shelly.GetDeviceInfo"),
-            {"timeout": 3.0},
+            {"timeout": 10.0},
         )
 
         assert calls[1] == (
             ("192.168.1.100", "Shelly.GetComponents"),
-            {"params": {"offset": 0}, "timeout": 3.0},
+            {"params": {"offset": 0}, "timeout": 10.0},
         )
 
     async def test_it_handles_device_info_failure_gracefully(
@@ -699,5 +717,5 @@ class TestShellyDeviceGateway:
         calls = mock_rpc_client.make_rpc_request.call_args_list
         assert calls[0] == (
             ("192.168.1.100", "Shelly.GetDeviceInfo"),
-            {"timeout": 3.0},
+            {"timeout": 10.0},
         )
