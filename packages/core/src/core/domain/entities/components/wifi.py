@@ -7,7 +7,7 @@ from .base import Component
 
 class WifiComponent(Component):
     sta_ip: str | None = Field(None, description="Station IP address")
-    sta_ip6: list[str] = Field(default_factory=list, description="IPv6 addresses")
+    sta_ip6: list[str] | None = Field(None, description="IPv6 addresses")
     wifi_status: str = Field(default="unknown", description="WiFi connection status")
     ssid: str | None = Field(None, description="Connected SSID")
     bssid: str | None = Field(None, description="Connected BSSID")
