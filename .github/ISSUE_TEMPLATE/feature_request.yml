@@ -1,0 +1,143 @@
+name: 🚀 Feature Request
+description: Suggest a new feature or enhancement for Shelly Manager
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest a new feature! Please provide as much detail as possible to help us understand your request.
+
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: 🎯 Feature Description
+      description: A clear and concise description of the feature you'd like to see added.
+      placeholder: Describe the feature you'd like to see...
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: 🤔 Problem Statement
+      description: What problem does this feature solve? What pain point does it address?
+      placeholder: |
+        Currently, when I try to...
+        I have to...
+        This is frustrating because...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: 💡 Proposed Solution
+      description: How would you like this feature to work? Describe your ideal implementation.
+      placeholder: |
+        I would like to be able to...
+        The feature could work by...
+        The user interface should...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 🔄 Alternatives Considered
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: |
+        I've tried...
+        Other approaches could be...
+        Existing tools do this by...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: device-types
+    attributes:
+      label: 📱 Applicable Device Types
+      description: Which Shelly device types would this feature apply to?
+      multiple: true
+      options:
+        - All Shelly devices
+        - Shelly Plus series (Gen 2)
+        - Shelly Pro series (Gen 2)
+        - Classic Shelly devices (Gen 1)
+        - Gen 4 Devices
+        - Switches/Relays
+        - Sensors
+        - Covers/Shutters
+        - Lights/Dimmers
+        - Energy meters
+        - Other (specify in description)
+    validations:
+      required: false
+
+  - type: dropdown
+    id: feature-area
+    attributes:
+      label: 🏗️ Feature Area
+      description: Which part of Shelly Manager would this feature affect?
+      options:
+        - Device Discovery & Management
+        - Device Control & Actions
+        - Device Status & Monitoring
+        - Configuration Management
+        - Bulk Operations
+        - User Interface
+        - API/Integration
+        - Security & Authentication
+        - Performance & Optimization
+        - Documentation
+        - Other (specify in description)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: ⭐ Priority Level
+      description: How important is this feature to you?
+      options:
+        - Nice to have
+        - Would be helpful
+        - Important for my use case
+        - Critical/Blocking
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical-considerations
+    attributes:
+      label: ⚙️ Technical Considerations
+      description: |
+        Are there any technical aspects we should consider?
+        (Only fill this out if you have technical background)
+      placeholder: |
+        This might require...
+        Potential challenges could be...
+        Integration with Shelly API...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: search-confirmation
+    attributes:
+      label: 🔍 Duplicate Check
+      description: Help us avoid duplicate requests
+      options:
+        - label: I have searched for existing feature requests that might be similar to this one
+          required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: 🤝 Contribution
+      description: Would you be interested in contributing?
+      options:
+        - label: I would be willing to help implement this feature
+        - label: I can provide testing and feedback during development
+        - label: I can help with documentation for this feature

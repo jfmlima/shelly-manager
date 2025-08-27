@@ -1,0 +1,276 @@
+name: 🐛 Bug Report
+description: Report a bug or issue with Shelly Manager
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! Please provide as much detail as possible to help us investigate and fix the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 📝 Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe what happened and what you expected to happen...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 🔄 Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. Scroll down to '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: input
+    id: device-model
+    attributes:
+      label: 📱 Shelly Device Model
+      description: What Shelly device model are you using?
+      placeholder: e.g., Shelly Plus 1PM, Shelly Pro 4PM, Shelly 1, etc.
+    validations:
+      required: true
+
+  - type: input
+    id: device-firmware
+    attributes:
+      label: 🔧 Device Firmware Version
+      description: What firmware version is your Shelly device running?
+      placeholder: e.g., 1.0.0, 20231026-112640/v1.14.1-ga898e3a
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 🖥️ Environment
+      description: Information about your environment
+      value: |
+        - **OS**: [e.g. Windows 11, macOS 14, Ubuntu 22.04]
+        - **Browser**: [e.g. Chrome 119, Firefox 120, Safari 17]
+        - **Shelly Manager Version**: [e.g. v1.0.0, commit hash]
+        - **Deployment Method**: [e.g. Docker, Local development, etc.]
+    validations:
+      required: true
+
+  - type: textarea
+    id: shelly-getdeviceinfo
+    attributes:
+      label: 📡 Shelly.GetDeviceInfo Response
+      description: |
+        Please provide the **redacted** response from `Shelly.GetDeviceInfo`.
+        **⚠️ IMPORTANT: Remove or replace any sensitive information like MAC addresses, device names, or network details.**
+      placeholder: |
+        {
+          "name": "MyDevice",
+          "id": "shellyplus1pm-XXXXXXXXXXXX",
+          "mac": "XX:XX:XX:XX:XX:XX",
+          "model": "SNSW-001P16EU",
+          "gen": 2,
+          "fw_id": "20231026-112640/v1.14.1-ga898e3a",
+          "ver": "1.14.1",
+          "app": "Plus1PM",
+          "auth_en": false,
+          "auth_domain": null
+        }
+      render: json
+    validations:
+      required: false
+
+  - type: textarea
+    id: shelly-getcomponents
+    attributes:
+      label: 🔧 Shelly.GetComponents Response
+      description: |
+        Please provide the **redacted** response from `Shelly.GetComponents`.
+        **⚠️ IMPORTANT: Remove or replace any sensitive information like device names, network credentials, or personal data.**
+      placeholder: |
+        {
+          "components": [
+            {
+              "key": "switch:0",
+              "status": {
+                "id": 0,
+                "source": "init",
+                "output": false,
+                "apower": 0.0,
+                "voltage": 230.1,
+                "current": 0.0,
+                "pf": 0.0,
+                "aenergy": {
+                  "total": 0.0,
+                  "by_minute": [0.0, 0.0, 0.0],
+                  "minute_ts": 1698339780
+                },
+                "temperature": {
+                  "tC": 42.5,
+                  "tF": 108.5
+                }
+              },
+              "config": {
+                "id": 0,
+                "name": "MySwitch",
+                "in_mode": "momentary",
+                "initial_state": "restore_last",
+                "auto_on": false,
+                "auto_off": false,
+                "power_limit": 2800,
+                "voltage_limit": 280,
+                "current_limit": 16.0
+              }
+            }
+          ],
+          "cfg_rev": 15,
+          "offset": 0,
+          "total": 1
+        }
+      render: json
+    validations:
+      required: false
+
+  - type: textarea
+    id: shelly-getstatus
+    attributes:
+      label: 📊 Shelly.GetStatus Response
+      description: |
+        Please provide the **redacted** response from `Shelly.GetStatus`.
+        **⚠️ IMPORTANT: Remove or replace any sensitive information like WiFi SSIDs, IP addresses, MAC addresses, or network credentials.**
+      placeholder: |
+        {
+          "switch:0": {
+            "id": 0,
+            "source": "init",
+            "output": false,
+            "apower": 0.0,
+            "voltage": 230.1,
+            "current": 0.0,
+            "pf": 0.0,
+            "aenergy": {
+              "total": 0.0,
+              "by_minute": [0.0, 0.0, 0.0],
+              "minute_ts": 1698339780
+            },
+            "temperature": {
+              "tC": 42.5,
+              "tF": 108.5
+            }
+          },
+          "sys": {
+            "mac": "XX:XX:XX:XX:XX:XX",
+            "restart_required": false,
+            "time": "16:23",
+            "unixtime": 1698339780,
+            "uptime": 3600,
+            "ram_size": 262144,
+            "ram_free": 154360,
+            "fs_size": 458752,
+            "fs_free": 135168,
+            "cfg_rev": 15,
+            "kvs_rev": 1,
+            "schedule_rev": 0,
+            "webhook_rev": 0,
+            "available_updates": {}
+          },
+          "wifi": {
+            "sta_ip": "192.168.1.XXX",
+            "status": "got ip",
+            "ssid": "MyNetwork",
+            "rssi": -45
+          },
+          "cloud": {
+            "connected": true
+          }
+        }
+      render: json
+    validations:
+      required: false
+
+  - type: textarea
+    id: shelly-listmethods
+    attributes:
+      label: 📋 Shelly.ListMethods Response
+      description: Please provide the response from `Shelly.ListMethods` to help understand available device capabilities.
+      placeholder: |
+        {
+          "methods": [
+            "Shelly.GetDeviceInfo",
+            "Shelly.GetStatus",
+            "Shelly.GetConfig",
+            "Shelly.SetConfig",
+            "Shelly.GetComponents",
+            "Shelly.ListMethods",
+            "Shelly.Update",
+            "Shelly.Reboot",
+            "Shelly.FactoryReset",
+            "Shelly.ResetWiFiConfig",
+            "Shelly.CheckForUpdate",
+            "Sys.GetConfig",
+            "Sys.SetConfig",
+            "WiFi.GetConfig",
+            "WiFi.SetConfig",
+            "Switch.Toggle",
+            "Switch.Set",
+            "Switch.GetConfig",
+            "Switch.SetConfig"
+          ]
+        }
+      render: json
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 📋 Relevant Logs
+      description: |
+        If applicable, add any error messages or logs from:
+        - Browser console
+        - Shelly Manager API logs
+        - Docker logs
+        - Network inspection
+      placeholder: Paste relevant logs here...
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 📎 Additional Context
+      description: |
+        Add any other context about the problem here, such as:
+        - Network setup details
+        - Multiple device behavior
+        - Intermittent vs consistent issues
+        - Workarounds you've tried
+      placeholder: Any additional information that might help...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: privacy-confirmation
+    attributes:
+      label: 🔒 Privacy Confirmation
+      description: Please confirm you have removed sensitive information
+      options:
+        - label: I have reviewed all the information above and removed/redacted any sensitive data (MAC addresses, IP addresses, device names, WiFi credentials, etc.)
+          required: true
+
+  - type: checkboxes
+    id: search-confirmation
+    attributes:
+      label: 🔍 Issue Search
+      description: Help us avoid duplicates
+      options:
+        - label: I have searched for existing issues that might be related to this problem
+          required: true

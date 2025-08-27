@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/jl-shelly-manager/shelly-manager/blob/main/README.md
+    about: Check the documentation for setup instructions and common issues
+  - name: 💬 Discussions
+    url: https://github.com/jl-shelly-manager/shelly-manager/discussions
+    about: Ask questions, share ideas, or discuss general usage
+  - name: 🏠 Shelly Official Support
+    url: https://shelly.cloud/support/
+    about: For device-specific issues or hardware problems, contact Shelly support
+  - name: ⚡ Shelly API Documentation
+    url: https://shelly-api-docs.shelly.cloud/
+    about: Official Shelly API documentation for developers

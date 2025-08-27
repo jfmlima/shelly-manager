@@ -1,0 +1,243 @@
+name: 📱 Device Compatibility Issue
+description: Report issues with specific Shelly device models or firmware versions
+title: "[Device]: "
+labels: ["device-compatibility", "needs-investigation"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when reporting issues specific to certain Shelly device models, firmware versions, or when a device is not working as expected with Shelly Manager.
+
+  - type: input
+    id: device-model
+    attributes:
+      label: 📱 Shelly Device Model
+      description: What is the exact model of your Shelly device?
+      placeholder: e.g., Shelly Plus 1PM, Shelly Pro 4PM, Shelly 1, Shelly Dimmer 2, etc.
+    validations:
+      required: true
+
+  - type: input
+    id: device-firmware
+    attributes:
+      label: 🔧 Device Firmware Version
+      description: What firmware version is your device running? (Find this in Shelly.GetDeviceInfo)
+      placeholder: e.g., 20231026-112640/v1.14.1-ga898e3a, 1.14.1, etc.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device-generation
+    attributes:
+      label: 🏗️ Device Generation
+      description: What generation is your Shelly device?
+      options:
+        - Gen 2 (Plus/Pro series)
+        - Gen 1 (Classic series)
+        - Unknown
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue-description
+    attributes:
+      label: ❗ Issue Description
+      description: Describe the specific issue you're experiencing with this device.
+      placeholder: |
+        The device is not responding correctly when...
+        I expected the device to...
+        Instead, the device...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: 🔍 Issue Type
+      description: What type of compatibility issue are you experiencing?
+      options:
+        - Device not detected/discovered
+        - Incorrect device information
+        - Missing components/features
+        - Component actions not working
+        - Status updates not working
+        - Configuration issues
+        - Performance issues
+        - Other (specify in description)
+    validations:
+      required: true
+
+  - type: textarea
+    id: working-features
+    attributes:
+      label: ✅ What Works
+      description: List what features/functions ARE working correctly with this device.
+      placeholder: |
+        - Device discovery works
+        - Basic switch toggle works
+        - Status updates work
+        - etc.
+    validations:
+      required: false
+
+  - type: textarea
+    id: broken-features
+    attributes:
+      label: ❌ What Doesn't Work
+      description: List what features/functions are NOT working correctly with this device.
+      placeholder: |
+        - Power monitoring shows incorrect values
+        - Temperature sensor not detected
+        - Can't change configuration
+        - etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: shelly-getdeviceinfo
+    attributes:
+      label: 📡 Shelly.GetDeviceInfo Response
+      description: |
+        **REQUIRED**: Please provide the response from `Shelly.GetDeviceInfo`.
+        **⚠️ Remove any sensitive information like MAC addresses or device names.**
+      placeholder: |
+        {
+          "name": "MyDevice",
+          "id": "shellyplus1pm-XXXXXXXXXXXX",
+          "mac": "XX:XX:XX:XX:XX:XX",
+          "model": "SNSW-001P16EU",
+          "gen": 2,
+          "fw_id": "20231026-112640/v1.14.1-ga898e3a",
+          "ver": "1.14.1",
+          "app": "Plus1PM",
+          "auth_en": false,
+          "auth_domain": null
+        }
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: shelly-getcomponents
+    attributes:
+      label: 🔧 Shelly.GetComponents Response
+      description: |
+        **REQUIRED**: Please provide the complete response from `Shelly.GetComponents`.
+        **⚠️ Remove any sensitive information like device names or network details.**
+      placeholder: |
+        {
+          "components": [
+            {
+              "key": "switch:0",
+              "status": { ... },
+              "config": { ... }
+            }
+          ],
+          "cfg_rev": 15,
+          "offset": 0,
+          "total": 1
+        }
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: shelly-getstatus
+    attributes:
+      label: 📊 Shelly.GetStatus Response
+      description: |
+        **REQUIRED**: Please provide the complete response from `Shelly.GetStatus`.
+        **⚠️ Remove any sensitive information like IP addresses, MAC addresses, or WiFi details.**
+      placeholder: |
+        {
+          "switch:0": { ... },
+          "sys": { ... },
+          "wifi": { ... },
+          "cloud": { ... }
+        }
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: shelly-listmethods
+    attributes:
+      label: 📋 Shelly.ListMethods Response
+      description: |
+        **REQUIRED**: Please provide the response from `Shelly.ListMethods`.
+      placeholder: |
+        {
+          "methods": [
+            "Shelly.GetDeviceInfo",
+            "Shelly.GetStatus",
+            "Switch.Toggle",
+            ...
+          ]
+        }
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: 🎯 Expected Behavior
+      description: What should happen with this device? How should it work in Shelly Manager?
+      placeholder: |
+        Based on the device capabilities, I expect...
+        Similar devices work by...
+        The device should support...
+    validations:
+      required: true
+
+  - type: textarea
+    id: other-tools
+    attributes:
+      label: 🔧 Behavior in Other Tools
+      description: |
+        How does this device behave in other Shelly management tools?
+        (e.g., official Shelly app, Home Assistant, other tools)
+      placeholder: |
+        In the official Shelly app:...
+        In Home Assistant:...
+        Direct API calls work:...
+    validations:
+      required: false
+
+  - type: textarea
+    id: network-setup
+    attributes:
+      label: 🌐 Network Setup
+      description: |
+        Describe your network setup if relevant to the issue.
+      placeholder: |
+        - Device IP: 192.168.1.xxx
+        - Network: WiFi/Ethernet
+        - Router/Gateway: ...
+        - Any VLANs or special network config
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: privacy-confirmation
+    attributes:
+      label: 🔒 Privacy Confirmation
+      description: Please confirm you have removed sensitive information
+      options:
+        - label: I have reviewed all the API responses above and removed/redacted any sensitive data (MAC addresses, IP addresses, device names, WiFi credentials, etc.)
+          required: true
+
+  - type: checkboxes
+    id: testing-confirmation
+    attributes:
+      label: 🧪 Testing Confirmation
+      description: Verification steps
+      options:
+        - label: I have tested this device with the latest version of Shelly Manager
+          required: true
+        - label: I have verified the device works correctly with the official Shelly app
+          required: true
+        - label: I have checked that my device firmware is up to date
+          required: true
