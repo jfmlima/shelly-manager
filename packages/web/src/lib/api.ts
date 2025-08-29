@@ -99,7 +99,10 @@ apiClient.interceptors.response.use(
 
 export const deviceApi = {
   scanDevices: async (params: ScanRequest): Promise<Device[]> => {
-    const response = await apiClient.get("/devices/scan", { params });
+    const response = await apiClient.get("/devices/scan", {
+      params,
+      timeout: 60000,
+    });
     return response.data;
   },
 
