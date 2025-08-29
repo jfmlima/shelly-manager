@@ -130,9 +130,9 @@ export function ProgressDisplay({
                     {getResultIcon(result.success)}
                     <span className="font-mono text-sm">{result.ip}</span>
                   </div>
-                  <div className="text-sm text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {result.success ? result.message : result.error}
-                  </div>
+                  </span>
                 </div>
               ))}
             </CollapsibleContent>
