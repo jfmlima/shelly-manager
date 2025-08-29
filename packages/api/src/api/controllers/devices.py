@@ -43,7 +43,6 @@ async def scan_devices(
     end_ip: str | None = None,
     use_predefined: bool = True,
     use_mdns: bool = False,
-    timeout: float = 3.0,
     max_workers: int = 50,
     scan_interactor: ScanDevicesUseCase | None = None,
 ) -> list[dict]:
@@ -71,7 +70,7 @@ async def scan_devices(
         end_ip=end_ip,
         use_predefined=use_predefined,
         use_mdns=use_mdns,
-        timeout=timeout,
+        timeout=3,
         max_workers=max_workers,
     )
 

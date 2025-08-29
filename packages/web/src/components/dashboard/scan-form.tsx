@@ -38,7 +38,7 @@ const scanFormSchema = z
     end_ip: z.string().optional(),
     use_predefined: z.boolean(),
     use_mdns: z.boolean(),
-    timeout: z.number().min(1).max(30),
+    timeout: z.number().min(1).max(300),
     max_workers: z.number().min(1).max(100),
   })
   .refine(
@@ -121,7 +121,7 @@ export function ScanForm({ onSubmit, isLoading = false }: ScanFormProps) {
       end_ip: "",
       use_predefined: true,
       use_mdns: false,
-      timeout: 3,
+      timeout: 60,
       max_workers: 50,
     },
   });
@@ -289,7 +289,7 @@ export function ScanForm({ onSubmit, isLoading = false }: ScanFormProps) {
                       <Input
                         type="number"
                         min="1"
-                        max="30"
+                        max="300"
                         {...field}
                         onChange={(e) => field.onChange(Number(e.target.value))}
                       />

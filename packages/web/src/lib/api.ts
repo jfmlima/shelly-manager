@@ -101,7 +101,7 @@ export const deviceApi = {
   scanDevices: async (params: ScanRequest): Promise<Device[]> => {
     const response = await apiClient.get("/devices/scan", {
       params,
-      timeout: 60000,
+      timeout: (params.timeout || 60) * 1000,
     });
     return response.data;
   },
