@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/collapsible";
 import { Progress } from "@/components/ui/progress";
 import type { ProgressDisplayProps } from "../types";
-import { BULK_ACTION_STYLES } from "../types";
 
 export function ProgressDisplay({
   progress,
@@ -28,6 +27,24 @@ export function ProgressDisplay({
     );
   };
 
+  const formatTime = (milliseconds: number): string => {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    }
+    return `${seconds}s`;
+  };
+
+  const getProgressPercentage = (): number => {
+    if (progress.currentProgress !== undefined) {
+      return Math.min(100, progress.currentProgress);
+    }
+    return ((progress.completed + progress.failed) / progress.total) * 100;
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -38,43 +55,58 @@ export function ProgressDisplay({
           <div className="flex justify-between text-sm">
             <span>{t("bulkActions.overallProgress")}</span>
             <span>
-              {progress.completed + progress.failed} / {progress.total}
+              {progress.isRunning ? (
+                progress.currentProgress !== undefined ? (
+                  <>
+                    {t("bulkActions.processing")}
+                    <span className="ml-2 text-muted-foreground">
+                      ({Math.round(progress.currentProgress)}%)
+                    </span>
+                  </>
+                ) : (
+                  <>{t("bulkActions.starting")}</>
+                )
+              ) : (
+                <>{t("bulkActions.completed")}</>
+              )}
             </span>
           </div>
-          <Progress
-            value={
-              ((progress.completed + progress.failed) / progress.total) * 100
-            }
-            className="w-full"
-          />
+          <Progress value={getProgressPercentage()} className="w-full" />
+          {progress.isRunning && progress.timeElapsedMs !== undefined && (
+            <div className="flex justify-between text-xs text-muted-foreground mt-1">
+              <span>
+                {t("bulkActions.elapsed")}: {formatTime(progress.timeElapsedMs)}
+              </span>
+              {progress.estimatedTimeRemainingMs !== undefined && (
+                <span>
+                  {t("bulkActions.remaining")}: ~
+                  {formatTime(progress.estimatedTimeRemainingMs)}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className={BULK_ACTION_STYLES.progressGrid}>
-          <div>
-            <div className="text-2xl font-bold text-green-600">
-              {progress.completed}
+        {!progress.isRunning && (
+          <div className="grid grid-cols-2 gap-4 text-center">
+            <div>
+              <div className="text-2xl font-bold text-green-600">
+                {progress.completed}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {t("bulkActions.successful")}
+              </div>
             </div>
-            <div className="text-sm text-muted-foreground">
-              {t("bulkActions.successful")}
-            </div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-red-600">
-              {progress.failed}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {t("bulkActions.failed")}
-            </div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold">
-              {progress.total - progress.completed - progress.failed}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {t("bulkActions.pending")}
+            <div>
+              <div className="text-2xl font-bold text-red-600">
+                {progress.failed}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {t("bulkActions.failed")}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {progress.results.length > 0 && (
           <Collapsible open={showDetails} onOpenChange={onShowDetailsChange}>

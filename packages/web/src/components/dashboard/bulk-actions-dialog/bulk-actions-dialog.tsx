@@ -92,7 +92,7 @@ export function BulkActionsDialog({
   const executeAction = async () => {
     if (!selectedAction) return;
 
-    initializeProgress(selectedDevices.length);
+    initializeProgress(selectedDevices.length, selectedAction);
 
     if (selectedAction === "export_config") {
       if (selectedComponentTypes.length === 0) {

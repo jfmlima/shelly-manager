@@ -13,6 +13,12 @@ export interface BulkProgress {
   failed: number;
   results: ActionResult[];
   isRunning: boolean;
+  // Timing fields for dynamic progress
+  startTime?: number;
+  estimatedDurationMs?: number;
+  currentProgress?: number;
+  timeElapsedMs?: number;
+  estimatedTimeRemainingMs?: number;
 }
 
 export interface BulkActionsDialogProps {

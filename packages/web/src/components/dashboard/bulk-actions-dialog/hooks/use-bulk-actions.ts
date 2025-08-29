@@ -34,19 +34,35 @@ export function useBulkActions({
       const successful = results.filter((r) => r.success).length;
       const failed = results.filter((r) => !r.success).length;
 
-      setProgress({
-        total: results.length,
-        completed: successful,
-        failed,
-        results,
-        isRunning: false,
-      });
-
       if (failed === 0) {
+        setProgress((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            completed: prev.total,
+            failed: 0,
+            results,
+            isRunning: false,
+            currentProgress: 100,
+          };
+        });
+
         toast.success(
           t("bulkActions.messages.updateSuccess", { count: successful }),
         );
       } else {
+        setProgress((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            completed: successful,
+            failed,
+            results,
+            isRunning: false,
+            currentProgress: 100,
+          };
+        });
+
         toast.warning(
           t("bulkActions.messages.updatePartial", { successful, failed }),
         );
