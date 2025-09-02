@@ -20,11 +20,11 @@ class InputComponent(Component):
 
         return cls(
             **base.model_dump(),
-            state=status.get("state", False),
-            input_type=config.get("type", "switch"),
+            state=status.get("state", False) or False,
+            input_type=config.get("type", "switch") or "switch",
             name=config.get("name"),
-            enabled=config.get("enable", True),
-            inverted=config.get("invert", False),
+            enabled=config.get("enable", False) or False,
+            inverted=config.get("invert", False) or False,
         )
 
     def get_available_actions(self, all_methods: list[str]) -> list[str]:
