@@ -106,9 +106,17 @@ class ShellyDeviceGateway(DeviceGateway):
             except Exception as e:
                 logger.error(f"Error getting device info: {e}", exc_info=True)
 
-            components_response, _ = await self._rpc_client.make_rpc_request(
-                ip, "Shelly.GetComponents", params={"offset": 0}, timeout=self.timeout
-            )
+            components_data = {}
+            try:
+                components_response, _ = await self._rpc_client.make_rpc_request(
+                    ip,
+                    "Shelly.GetComponents",
+                    params={"offset": 0},
+                    timeout=self.timeout,
+                )
+                components_data = components_response.get("result", components_response)
+            except Exception as e:
+                logger.error(f"Error getting components: {e}", exc_info=True)
 
             status_response = None
             try:
@@ -120,7 +128,6 @@ class ShellyDeviceGateway(DeviceGateway):
                 logger.error(f"Error getting device status: {e}", exc_info=True)
 
             available_methods = await self.get_available_methods(ip)
-            components_data = components_response.get("result", components_response)
 
             return DeviceStatus.from_raw_response(
                 ip,

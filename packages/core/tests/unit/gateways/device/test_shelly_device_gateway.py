@@ -711,9 +711,16 @@ class TestShellyDeviceGateway:
 
         result = await gateway.get_device_status("192.168.1.100")
 
-        assert result is None
+        assert isinstance(result, DeviceStatus)
 
-        assert mock_rpc_client.make_rpc_request.call_count == 2
+        assert result.device_name == "Test Device"
+        assert result.device_type == "SNSW-001X16EU"
+        assert result.firmware_version is None
+        assert result.mac_address is None
+        assert result.app_name is None
+        assert len(result.components) == 0
+
+        assert mock_rpc_client.make_rpc_request.call_count == 4
         calls = mock_rpc_client.make_rpc_request.call_args_list
         assert calls[0] == (
             ("192.168.1.100", "Shelly.GetDeviceInfo"),

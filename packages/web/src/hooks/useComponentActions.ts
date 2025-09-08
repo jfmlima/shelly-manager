@@ -311,6 +311,20 @@ export function hasResponseData(response: ComponentActionResult): boolean {
   );
 }
 
+function isMethodAvailable(
+  availableMethods: string[],
+  componentTypeFromAction: string,
+): boolean {
+  return availableMethods.some((method) => {
+    const cleanMethod = method.toLowerCase();
+
+    return (
+      cleanMethod.startsWith(componentTypeFromAction + ".") ||
+      cleanMethod === componentTypeFromAction
+    );
+  });
+}
+
 export function getComponentKeyForAction(
   action: string,
   component: {
@@ -331,31 +345,16 @@ export function getComponentKeyForAction(
   const availableMethods = component?.available_actions;
 
   // For components that need ID (switch, input, cover, etc.)
+  let componentKey = componentTypeFromAction;
   if (component.id !== null && component.id !== undefined) {
-    const keyWithId = `${componentTypeFromAction}:${component.id}`;
-
-    // If we have available methods, verify the key exists
-    if (availableMethods) {
-      const methodExists = availableMethods.some(
-        (method) => method.startsWith(keyWithId + ".") || method === keyWithId,
-      );
-      if (methodExists) {
-        return keyWithId;
-      }
-    }
-
-    return keyWithId;
+    componentKey = `${componentTypeFromAction}:${component.id}`;
   }
 
-  // For components without ID (sys, cloud, zigbee, etc.)
+  // If we have available methods, verify the key exists
   if (availableMethods) {
-    const methodExists = availableMethods.some(
-      (method) =>
-        method.startsWith(componentTypeFromAction + ".") ||
-        method === componentTypeFromAction,
-    );
+    const methodExists = isMethodAvailable(availableMethods, componentKey);
     if (methodExists) {
-      return componentTypeFromAction;
+      return componentKey;
     }
   }
 
