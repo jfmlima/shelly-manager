@@ -27,6 +27,13 @@ Available as:
 - Command line tool
 - REST API
 
+## Roadmap
+
+- [ ] **Ensure RED compatibility** - Ensure compliance with [EU RED requirements](https://kb.shelly.cloud/knowledge-base/kbuca-what-you-need-to-know-shelly-and-eu-red) for Shelly devices
+- [ ] **Allow offline update (file upload)** - Support firmware updates via local file upload when internet access is unavailable
+- [ ] **Authenticated Connection** - Allow access to devices that are password protected
+- [ ] **Bulk action scheduling** - Schedule bulk operations to run at specific times or intervals
+
 ## Screenshots
 
 <table>
