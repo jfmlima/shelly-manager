@@ -6,11 +6,11 @@ from .base import Component
 
 
 class InputComponent(Component):
-    state: bool = Field(default=False, description="Input state")
+    state: bool | None = Field(default=None, description="Input state")
     input_type: str = Field(default="switch", description="Input type")
     name: str | None = Field(None, description="Input name")
-    enabled: bool = Field(default=True, description="Input enabled")
-    inverted: bool = Field(default=False, description="Input inverted")
+    enabled: bool | None = Field(default=None, description="Input enabled")
+    inverted: bool | None = Field(default=None, description="Input inverted")
 
     @classmethod
     def from_raw_data(cls, component_data: dict[str, Any]) -> "InputComponent":
