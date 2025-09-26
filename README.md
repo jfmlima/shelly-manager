@@ -142,6 +142,27 @@ services:
       - "traefik.http.services.shelly-manager-web.loadbalancer.server.port=8080"
 ```
 
+**Home Assistant Add-on**
+
+You can install Shelly Manager as a Home Assistant add-on for seamless integration with your Home Assistant instance:
+
+[![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fjfmlima%2Fhome-assistant-addons)
+
+Or manually:
+
+1. **Add the repository** to your Home Assistant:
+
+   ```
+   https://github.com/jfmlima/home-assistant-addons
+   ```
+
+2. **Navigate** to Settings → Add-ons → Add-on Store in your Home Assistant
+3. **Click** the three dots menu (⋮) and select "Repositories"
+4. **Add** the repository URL above
+5. **Install** the Shelly Manager add-on from the available add-ons list
+
+The add-on provides the same functionality as the Docker deployment but is fully integrated with your Home Assistant environment.
+
 **CLI Only**:
 
 ```bash
