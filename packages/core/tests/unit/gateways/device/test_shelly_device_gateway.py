@@ -397,6 +397,20 @@ class TestShellyDeviceGateway:
         assert result.success is False
         assert "not supported" in result.message
 
+    async def test_it_executes_legacy_input_mode_change(
+        self, gateway, mock_rpc_client
+    ):
+        gateway._sync_legacy_get = MagicMock(return_value={"ok": True})
+
+        result = await gateway.execute_component_action(
+            "192.168.1.200", "input:0", "Legacy.InputMomentary"
+        )
+
+        assert result.success is True
+        gateway._sync_legacy_get.assert_called_once_with(
+            "192.168.1.200", "settings/relay/0", {"btn_type": "momentary"}
+        )
+
     async def test_it_handles_update_check_failure_gracefully(
         self, gateway, mock_rpc_client
     ):

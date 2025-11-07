@@ -25,6 +25,16 @@ logger = logging.getLogger(__name__)
 SHELLY_SYSTEM_ACTIONS = {"Update", "Reboot", "FactoryReset"}
 LEGACY_SWITCH_ACTIONS = ["Legacy.Toggle", "Legacy.TurnOn", "Legacy.TurnOff"]
 LEGACY_COVER_ACTIONS = ["Legacy.Open", "Legacy.Close", "Legacy.Stop"]
+LEGACY_INPUT_ACTIONS = [
+    "Legacy.InputMomentary",
+    "Legacy.InputToggle",
+    "Legacy.InputEdge",
+    "Legacy.InputDetached",
+    "Legacy.InputActivation",
+    "Legacy.InputMomentaryRelease",
+    "Legacy.InputReverse",
+    "Legacy.InputNormal",
+]
 
 
 class ShellyDeviceGateway(DeviceGateway):
@@ -365,6 +375,45 @@ class ShellyDeviceGateway(DeviceGateway):
             }
             if action in roller_actions:
                 return {"endpoint": endpoint, **roller_actions[action]}
+
+        if component_type == "input" and component_id is not None:
+            endpoint = f"settings/relay/{component_id}"
+            input_actions: dict[str, dict[str, Any]] = {
+                "Legacy.InputMomentary": {
+                    "params": {"btn_type": "momentary"},
+                    "message": "Input set to momentary",
+                },
+                "Legacy.InputToggle": {
+                    "params": {"btn_type": "toggle"},
+                    "message": "Input set to toggle",
+                },
+                "Legacy.InputEdge": {
+                    "params": {"btn_type": "edge"},
+                    "message": "Input set to edge",
+                },
+                "Legacy.InputDetached": {
+                    "params": {"btn_type": "detached"},
+                    "message": "Input set to detached",
+                },
+                "Legacy.InputActivation": {
+                    "params": {"btn_type": "action"},
+                    "message": "Input set to action mode",
+                },
+                "Legacy.InputMomentaryRelease": {
+                    "params": {"btn_type": "momentary_on_release"},
+                    "message": "Input set to momentary on release",
+                },
+                "Legacy.InputReverse": {
+                    "params": {"btn_reverse": 1},
+                    "message": "Input reversed",
+                },
+                "Legacy.InputNormal": {
+                    "params": {"btn_reverse": 0},
+                    "message": "Input polarity reset",
+                },
+            }
+            if action in input_actions:
+                return {"endpoint": endpoint, **input_actions[action]}
 
         return None
 
@@ -734,7 +783,11 @@ class ShellyDeviceGateway(DeviceGateway):
                             "enable": config.get("enable", True),
                             "invert": config.get("invert", False),
                         },
-                        "attrs": {},
+                        "attrs": {
+                            "legacy_component": "input",
+                            "legacy_id": idx,
+                            "legacy_actions": LEGACY_INPUT_ACTIONS.copy(),
+                        },
                     }
                 )
 
