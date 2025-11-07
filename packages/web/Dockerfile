@@ -7,11 +7,11 @@ RUN addgroup -g 1001 -S nodejs && \
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY packages/web/package*.json ./
 
 RUN npm ci --include=dev && npm cache clean --force
 
-COPY --chown=nextjs:nodejs . .
+COPY --chown=nextjs:nodejs packages/web/ .
 
 ARG VITE_BASE_API_URL
 ENV VITE_BASE_API_URL=$VITE_BASE_API_URL
@@ -29,7 +29,7 @@ RUN addgroup -g 1001 -S nginx-app && \
 
 COPY --from=builder --chown=nginx-app:nginx-app /app/dist /usr/share/nginx/html
 
-COPY --chown=nginx-app:nginx-app nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chown=nginx-app:nginx-app packages/web/nginx.conf /etc/nginx/conf.d/default.conf
 
 RUN chown -R nginx-app:nginx-app /usr/share/nginx/html && \
     chown -R nginx-app:nginx-app /var/cache/nginx && \
@@ -47,4 +47,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 ENTRYPOINT ["dumb-init", "--"]
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["sh", "-c", "sed -i \"s|http://localhost:8000|${VITE_BASE_API_URL}|g\" /usr/share/nginx/html/config.js && nginx -g 'daemon off;'"]

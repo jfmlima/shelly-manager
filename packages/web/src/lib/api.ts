@@ -10,9 +10,11 @@ import type {
 
 const getApiBaseUrl = (): string => {
   const savedApiUrl = localStorage.getItem("shelly-manager-api-url");
-  return (
-    savedApiUrl || import.meta.env.VITE_BASE_API_URL || "http://localhost:8000"
-  );
+
+  const runtimeApiUrl = (window as any)?._env_?.VITE_BASE_API_URL;
+  const buildTimeApiUrl = import.meta.env.VITE_BASE_API_URL;
+
+  return savedApiUrl || runtimeApiUrl || buildTimeApiUrl || "http://localhost:8000";
 };
 
 const baseURL = getApiBaseUrl();

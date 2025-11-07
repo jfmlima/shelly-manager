@@ -1,7 +1,7 @@
 """
 Configuration management for the Shelly Manager application.
 """
-
+import os
 import json
 from pathlib import Path
 from typing import Any
@@ -65,7 +65,7 @@ class APISettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="API_")
 
     host: str = Field(default="0.0.0.0", description="API host")
-    port: int = Field(default=8000, ge=1, le=65535, description="API port")
+    port: int = Field(default=int(os.getenv("PORT", "8000")), ge=1, le=65535, description="API port")
     debug: bool = Field(default=False, description="Enable debug mode")
     cors_origins: list[str] = Field(default=["*"], description="CORS allowed origins")
     rate_limit: int = Field(default=100, ge=1, description="Rate limit per minute")

@@ -1,5 +1,5 @@
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, call
 
 import pytest
 from core.domain.entities.device_status import DeviceStatus
@@ -88,6 +88,44 @@ class TestShellyDeviceGateway:
         assert result.status == Status.UNREACHABLE
         assert result.error_message == "Network timeout"
         assert isinstance(result.last_seen, datetime)
+
+    async def test_it_discovers_legacy_device_when_rpc_fails(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(side_effect=Exception("RPC fail"))
+        gateway._fetch_legacy_json = AsyncMock(
+            return_value={
+                "id": "legacy-001",
+                "type": "SHSW-1",
+                "name": "Legacy Switch",
+                "fw": "20220101-121314",
+            }
+        )
+        gateway._fetch_optional_legacy_json = AsyncMock(
+            side_effect=[
+                {"has_update": True, "update": {"has_update": True}},
+                {"name": "Legacy Switch Friendly"},
+            ]
+        )
+
+        result = await gateway.discover_device("192.168.1.200")
+
+        assert result is not None
+        assert result.status == Status.UPDATE_AVAILABLE
+        assert result.device_id == "legacy-001"
+        assert result.device_type == "SHSW-1"
+        assert result.device_name == "Legacy Switch Friendly"
+        assert result.has_update is True
+        assert result.status_snapshot == {"has_update": True, "update": {"has_update": True}}
+        gateway._fetch_legacy_json.assert_awaited_once_with(
+            "192.168.1.200", "shelly"
+        )
+        gateway._fetch_optional_legacy_json.assert_has_awaits(
+            [
+                call("192.168.1.200", "status"),
+                call("192.168.1.200", "settings"),
+            ]
+        )
 
     async def test_it_gets_device_status_with_updates(self, gateway, mock_rpc_client):
         components_data = {
@@ -271,6 +309,70 @@ class TestShellyDeviceGateway:
         )
         assert calls[2] == (("192.168.1.100", "Shelly.GetStatus"), {"timeout": 10.0})
         assert calls[3] == (("192.168.1.100", "Shelly.ListMethods"), {"timeout": 10.0})
+
+    async def test_it_gets_legacy_status_when_rpc_not_supported(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(side_effect=Exception("RPC fail"))
+        gateway._fetch_legacy_json = AsyncMock(
+            side_effect=[
+                {
+                    "id": "legacy-001",
+                    "type": "SHSW-1",
+                    "name": "Legacy Switch",
+                    "fw": "20220101-121314",
+                    "mac": "AABBCCDDEEFF",
+                },
+                {
+                    "uptime": 120,
+                    "wifi_sta": {
+                        "connected": True,
+                        "ip": "192.168.1.200",
+                        "ssid": "Test",
+                        "bssid": "11:22:33:44:55:66",
+                        "rssi": -45,
+                    },
+                    "cloud": {"connected": False},
+                    "relays": [{"ison": True, "source": "http"}],
+                    "meters": [{"power": 5.2, "total": 10}],
+                    "update": {
+                        "status": "pending",
+                        "has_update": True,
+                        "new_version": "2.0",
+                        "old_version": "1.0",
+                        "beta_version": "2.1-beta",
+                    },
+                },
+            ]
+        )
+        gateway._fetch_optional_legacy_json = AsyncMock(
+            return_value={
+                "cfg_rev": 3,
+                "relays": [{"name": "Relay 1"}],
+                "inputs": [{"name": "Button"}],
+            }
+        )
+
+        result = await gateway.get_device_status("192.168.1.200")
+
+        assert isinstance(result, DeviceStatus)
+        assert result.device_ip == "192.168.1.200"
+        assert result.device_type == "SHSW-1"
+        assert result.get_component_by_key("switch:0") is not None
+        assert result.get_wifi_info() is not None
+        gateway._fetch_optional_legacy_json.assert_awaited_once_with(
+            "192.168.1.200", "settings"
+        )
+        gateway._fetch_legacy_json.assert_has_awaits(
+            [
+                call("192.168.1.200", "shelly"),
+                call("192.168.1.200", "status"),
+            ]
+        )
+        summary = result.get_device_summary()
+        assert summary["device_name"] == "Legacy Switch"
+        assert summary["has_updates"] is True
+        assert summary["switch_count"] == 1
 
     async def test_it_handles_update_check_failure_gracefully(
         self, gateway, mock_rpc_client

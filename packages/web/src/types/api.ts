@@ -7,6 +7,8 @@ export interface Device {
   response_time: number | null;
   error_message?: string | null;
   last_seen?: string | null;
+  has_update?: boolean;
+  status_snapshot?: Record<string, unknown> | null;
 }
 
 export interface Component {
