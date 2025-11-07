@@ -23,6 +23,8 @@ from .device import DeviceGateway
 logger = logging.getLogger(__name__)
 
 SHELLY_SYSTEM_ACTIONS = {"Update", "Reboot", "FactoryReset"}
+LEGACY_SWITCH_ACTIONS = ["Legacy.Toggle", "Legacy.TurnOn", "Legacy.TurnOff"]
+LEGACY_COVER_ACTIONS = ["Legacy.Open", "Legacy.Close", "Legacy.Stop"]
 
 
 class ShellyDeviceGateway(DeviceGateway):
@@ -214,6 +216,11 @@ class ShellyDeviceGateway(DeviceGateway):
             ActionResult with success/failure details
         """
         try:
+            if action.startswith("Legacy."):
+                return await self._execute_legacy_action(
+                    ip, component_key, action, parameters or {}
+                )
+
             available_methods = await self.get_available_methods(ip)
             rpc_method = self._build_rpc_method_name(component_key, action)
 
@@ -270,6 +277,96 @@ class ShellyDeviceGateway(DeviceGateway):
                 message=f"Action failed: {err}",
                 error=error_message,
             )
+
+    async def _execute_legacy_action(
+        self,
+        ip: str,
+        component_key: str,
+        action: str,
+        parameters: dict[str, Any],
+    ) -> ActionResult:
+        action_type = f"{component_key}.{action}"
+        part = component_key.split(":")
+        component_type = part[0]
+        component_id: int | None = None
+        if len(part) > 1:
+            try:
+                component_id = int(part[1])
+            except ValueError:
+                component_id = None
+
+        command = self._map_legacy_command(component_type, component_id, action)
+        if command is None:
+            return ActionResult(
+                device_ip=ip,
+                action_type=action_type,
+                success=False,
+                message=f"Legacy action {action} not supported for {component_key}",
+                error="Unsupported legacy action",
+            )
+
+        try:
+            response = await self._legacy_get(
+                ip, command["endpoint"], command["params"]
+            )
+            return ActionResult(
+                device_ip=ip,
+                action_type=action_type,
+                success=True,
+                message=command["message"],
+                data=response,
+            )
+        except Exception as e:
+            return ActionResult(
+                device_ip=ip,
+                action_type=action_type,
+                success=False,
+                message=f"Legacy action {action} failed",
+                error=str(e),
+            )
+
+    def _map_legacy_command(
+        self, component_type: str, component_id: int | None, action: str
+    ) -> dict[str, Any] | None:
+        if component_type == "switch" and component_id is not None:
+            endpoint = f"relay/{component_id}"
+            relay_actions: dict[str, dict[str, Any]] = {
+                "Legacy.Toggle": {
+                    "params": {"turn": "toggle"},
+                    "message": "Relay toggled successfully",
+                },
+                "Legacy.TurnOn": {
+                    "params": {"turn": "on"},
+                    "message": "Relay turned on",
+                },
+                "Legacy.TurnOff": {
+                    "params": {"turn": "off"},
+                    "message": "Relay turned off",
+                },
+            }
+            if action in relay_actions:
+                return {"endpoint": endpoint, **relay_actions[action]}
+
+        if component_type == "cover" and component_id is not None:
+            endpoint = f"roller/{component_id}"
+            roller_actions: dict[str, dict[str, Any]] = {
+                "Legacy.Open": {
+                    "params": {"go": "open"},
+                    "message": "Cover opening",
+                },
+                "Legacy.Close": {
+                    "params": {"go": "close"},
+                    "message": "Cover closing",
+                },
+                "Legacy.Stop": {
+                    "params": {"go": "stop"},
+                    "message": "Cover stopped",
+                },
+            }
+            if action in roller_actions:
+                return {"endpoint": endpoint, **roller_actions[action]}
+
+        return None
 
     def _get_api_component_type(self, component_type: str) -> str:
         component_type_mapping = {
@@ -489,6 +586,27 @@ class ShellyDeviceGateway(DeviceGateway):
         response.raise_for_status()
         return response.json()
 
+    async def _legacy_get(
+        self, ip: str, endpoint: str, params: dict[str, Any]
+    ) -> dict[str, Any]:
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None, self._sync_legacy_get, ip, endpoint, params
+        )
+
+    def _sync_legacy_get(
+        self, ip: str, endpoint: str, params: dict[str, Any]
+    ) -> dict[str, Any]:
+        url = f"http://{ip}/{endpoint.lstrip('/')}"
+        response = self._http_session.get(
+            url, params=params, timeout=self.timeout
+        )
+        response.raise_for_status()
+        try:
+            return response.json()
+        except ValueError:
+            return {"response": response.text}
+
     def _convert_legacy_data_to_components(
         self,
         device_info: dict[str, Any],
@@ -664,7 +782,47 @@ class ShellyDeviceGateway(DeviceGateway):
                                 "current_limit", config.get("max_current", 0.0)
                             ),
                         },
-                        "attrs": {},
+                        "attrs": {
+                            "legacy_component": "relay",
+                            "legacy_id": idx,
+                            "legacy_actions": LEGACY_SWITCH_ACTIONS.copy(),
+                        },
+                    }
+                )
+
+        rollers = status.get("rollers", [])
+        roller_configs = settings.get("rollers") or []
+        if isinstance(rollers, list):
+            for idx, roller in enumerate(rollers):
+                if not isinstance(roller, dict):
+                    continue
+                config = (
+                    roller_configs[idx]
+                    if idx < len(roller_configs) and isinstance(roller_configs[idx], dict)
+                    else {}
+                )
+                components.append(
+                    {
+                        "key": f"cover:{idx}",
+                        "status": {
+                            "state": roller.get("state"),
+                            "current_pos": roller.get("pos"),
+                            "apower": roller.get("power", 0.0),
+                            "voltage": status.get("voltage", 0.0),
+                            "temperature": self._format_temperature(roller, status),
+                            "last_direction": roller.get("last_direction", ""),
+                        },
+                        "config": {
+                            "name": config.get("name"),
+                            "maxtime_open": config.get("maxtime_open", 0),
+                            "maxtime_close": config.get("maxtime_close", 0),
+                            "power_limit": config.get("power_limit", 0),
+                        },
+                        "attrs": {
+                            "legacy_component": "roller",
+                            "legacy_id": idx,
+                            "legacy_actions": LEGACY_COVER_ACTIONS.copy(),
+                        },
                     }
                 )
 

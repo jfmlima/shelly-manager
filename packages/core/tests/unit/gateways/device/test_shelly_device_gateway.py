@@ -15,7 +15,8 @@ class TestShellyDeviceGateway:
 
     @pytest.fixture
     def gateway(self, mock_rpc_client):
-        return ShellyDeviceGateway(rpc_client=mock_rpc_client)
+        http_session = MagicMock()
+        return ShellyDeviceGateway(rpc_client=mock_rpc_client, http_session=http_session)
 
     async def test_it_discovers_device_successfully(self, gateway, mock_rpc_client):
         device_info = {
@@ -360,6 +361,8 @@ class TestShellyDeviceGateway:
         assert result.device_type == "SHSW-1"
         assert result.get_component_by_key("switch:0") is not None
         assert result.get_wifi_info() is not None
+        switch = result.get_component_by_key("switch:0")
+        assert switch is not None and "Legacy.Toggle" in switch.available_actions
         gateway._fetch_optional_legacy_json.assert_awaited_once_with(
             "192.168.1.200", "settings"
         )
@@ -373,6 +376,26 @@ class TestShellyDeviceGateway:
         assert summary["device_name"] == "Legacy Switch"
         assert summary["has_updates"] is True
         assert summary["switch_count"] == 1
+
+    async def test_it_executes_legacy_switch_action(self, gateway, mock_rpc_client):
+        gateway._sync_legacy_get = MagicMock(return_value={"ison": True})
+
+        result = await gateway.execute_component_action(
+            "192.168.1.200", "switch:0", "Legacy.Toggle"
+        )
+
+        assert result.success is True
+        gateway._sync_legacy_get.assert_called_once_with(
+            "192.168.1.200", "relay/0", {"turn": "toggle"}
+        )
+
+    async def test_it_handles_unsupported_legacy_action(self, gateway, mock_rpc_client):
+        result = await gateway.execute_component_action(
+            "192.168.1.200", "wifi", "Legacy.Toggle"
+        )
+
+        assert result.success is False
+        assert "not supported" in result.message
 
     async def test_it_handles_update_check_failure_gracefully(
         self, gateway, mock_rpc_client
