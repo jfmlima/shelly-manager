@@ -91,7 +91,7 @@ Available as:
 services:
   shelly-manager-api:
     image: ghcr.io/jfmlima/shelly-manager-api:latest
-    network_mode: "host"
+    #network_mode: "host" # optional, but if you mDNS please uncomment it
     ports:
       - "8000:8000"
     volumes:
