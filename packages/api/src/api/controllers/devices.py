@@ -86,8 +86,6 @@ async def scan_devices(
             "response_time": device.response_time,
             "error_message": device.error_message,
             "last_seen": device.last_seen.isoformat() if device.last_seen else None,
-            "has_update": device.has_update,
-            "status_snapshot": device.status_snapshot,
         }
         for device in devices
     ]

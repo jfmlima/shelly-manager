@@ -4,7 +4,6 @@ DiscoveredDevice domain model.
 
 import ipaddress
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -29,9 +28,6 @@ class DiscoveredDevice(BaseModel):
     )
     error_message: str | None = Field(None, description="Last error message if any")
     has_update: bool = Field(False, description="Whether firmware update is available")
-    status_snapshot: dict[str, Any] | None = Field(
-        default=None, description="Raw /status payload for legacy devices"
-    )
 
     @field_validator("ip")
     @classmethod
