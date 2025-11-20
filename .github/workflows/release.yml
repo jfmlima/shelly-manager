@@ -8,6 +8,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/jfmlima/shelly-manager
+  IMAGE_TAG: ${{ substring(github.ref_name, 1) }}
 
 jobs:
   create-release:
@@ -27,20 +28,20 @@ jobs:
             ## 🐳 Docker Images
 
             **Available Docker Images:**
-            - `${{ env.IMAGE_PREFIX }}-api:${{ github.ref_name }}`
-            - `${{ env.IMAGE_PREFIX }}-cli:${{ github.ref_name }}`
-            - `${{ env.IMAGE_PREFIX }}-web:${{ github.ref_name }}`
+            - `${{ env.IMAGE_PREFIX }}-api:${{ env.IMAGE_TAG }}`
+            - `${{ env.IMAGE_PREFIX }}-cli:${{ env.IMAGE_TAG }}`
+            - `${{ env.IMAGE_PREFIX }}-web:${{ env.IMAGE_TAG }}`
 
             ## 🚀 Quick Start
             ```bash
             # Run API server
-            docker run -p 8000:8000 ${{ env.IMAGE_PREFIX }}-api:${{ github.ref_name }}
+            docker run -p 8000:8000 ${{ env.IMAGE_PREFIX }}-api:${{ env.IMAGE_TAG }}
 
             # Run CLI tool
-            docker run --rm ${{ env.IMAGE_PREFIX }}-cli:${{ github.ref_name }} --help
+            docker run --rm ${{ env.IMAGE_PREFIX }}-cli:${{ env.IMAGE_TAG }} --help
 
             # Run Web UI
-            docker run -p 8080:8080 ${{ env.IMAGE_PREFIX }}-web:${{ github.ref_name }}
+            docker run -p 8080:8080 ${{ env.IMAGE_PREFIX }}-web:${{ env.IMAGE_TAG }}
             ```
 
             ## 📋 What's Changed
