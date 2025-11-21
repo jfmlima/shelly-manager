@@ -154,10 +154,13 @@ class LegacyComponentMapper:
                 "client_id": mqtt_cfg.get("client_id"),
                 "user": mqtt_cfg.get("user"),
                 "topic_prefix": mqtt_cfg.get("topic"),
+                "rpc_ntf": mqtt_cfg.get("rpc_ntf", False),
+                "status_ntf": mqtt_cfg.get("status_ntf", False),
+                "use_client_cert": mqtt_cfg.get("use_client_cert", False),
+                "enable_rpc": mqtt_cfg.get("enable_rpc", False),
+                "enable_control": mqtt_cfg.get("enable_control", False),
             },
-            "attrs": {
-                "legacy_component": "mqtt",
-            },
+            "attrs": {},
         }
 
     def _build_input_components(
@@ -165,8 +168,9 @@ class LegacyComponentMapper:
     ) -> list[dict[str, Any]]:
         components: list[dict[str, Any]] = []
 
-        # Some devices report both `inputs` and `input` keys.
-        inputs_block = status.get("inputs") or status.get("input")
+        inputs_block = status.get("inputs")
+        if not isinstance(inputs_block, list):
+            inputs_block = status.get("input")
         inputs = inputs_block if isinstance(inputs_block, list) else []
         input_configs = settings.get("inputs") or settings.get("input") or []
         for idx, input_status in enumerate(inputs):
@@ -181,9 +185,7 @@ class LegacyComponentMapper:
                 {
                     "key": f"input:{idx}",
                     "status": {
-                        "state": input_status.get("state"),
-                        "percent": input_status.get("percent"),
-                        "counter": input_status.get("counters", [None])[0],
+                        "state": bool(input_status.get("input")),
                     },
                     "config": {
                         "name": config.get("name"),
