@@ -575,9 +575,11 @@ class ShellyDeviceGateway(DeviceGateway):
         )
         legacy_payload = {
             "components": components,
-            "cfg_rev": (settings_data or {}).get("cfg_rev", 0)
-            if isinstance(settings_data, dict)
-            else 0,
+            "cfg_rev": (
+                (settings_data or {}).get("cfg_rev", 0)
+                if isinstance(settings_data, dict)
+                else 0
+            ),
             "total": len(components),
             "offset": 0,
         }
@@ -637,9 +639,7 @@ class ShellyDeviceGateway(DeviceGateway):
         self, ip: str, endpoint: str, params: dict[str, Any]
     ) -> dict[str, Any]:
         url = f"http://{ip}/{endpoint.lstrip('/')}"
-        response = self._http_session.get(
-            url, params=params, timeout=self.timeout
-        )
+        response = self._http_session.get(url, params=params, timeout=self.timeout)
         response.raise_for_status()
         try:
             return response.json()
@@ -685,4 +685,3 @@ class ShellyDeviceGateway(DeviceGateway):
                 return new_version != old_version
 
         return None
-

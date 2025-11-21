@@ -71,9 +71,7 @@ class LegacyComponentMapper:
                 "mac": device_info.get("mac") or device_settings.get("mac"),
                 "uptime": status.get("uptime", 0),
                 "restart_required": False,
-                "ram_size": status.get("ram_total")
-                or status.get("ram_size")
-                or 0,
+                "ram_size": status.get("ram_total") or status.get("ram_size") or 0,
                 "ram_free": status.get("ram_free", 0),
                 "fs_size": status.get("fs_total") or status.get("fs_size") or 0,
                 "fs_free": status.get("fs_free", 0),

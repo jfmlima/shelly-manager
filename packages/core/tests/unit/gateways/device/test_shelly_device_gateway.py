@@ -16,7 +16,9 @@ class TestShellyDeviceGateway:
     @pytest.fixture
     def gateway(self, mock_rpc_client):
         http_session = MagicMock()
-        return ShellyDeviceGateway(rpc_client=mock_rpc_client, http_session=http_session)
+        return ShellyDeviceGateway(
+            rpc_client=mock_rpc_client, http_session=http_session
+        )
 
     async def test_it_discovers_device_successfully(self, gateway, mock_rpc_client):
         device_info = {
@@ -117,10 +119,11 @@ class TestShellyDeviceGateway:
         assert result.device_type == "SHSW-1"
         assert result.device_name == "Legacy Switch Friendly"
         assert result.has_update is True
-        assert result.status_snapshot == {"has_update": True, "update": {"has_update": True}}
-        gateway._fetch_legacy_json.assert_awaited_once_with(
-            "192.168.1.200", "shelly"
-        )
+        assert result.status_snapshot == {
+            "has_update": True,
+            "update": {"has_update": True},
+        }
+        gateway._fetch_legacy_json.assert_awaited_once_with("192.168.1.200", "shelly")
         gateway._fetch_optional_legacy_json.assert_has_awaits(
             [
                 call("192.168.1.200", "status"),
@@ -397,9 +400,7 @@ class TestShellyDeviceGateway:
         assert result.success is False
         assert "not supported" in result.message
 
-    async def test_it_executes_legacy_input_mode_change(
-        self, gateway, mock_rpc_client
-    ):
+    async def test_it_executes_legacy_input_mode_change(self, gateway, mock_rpc_client):
         gateway._sync_legacy_get = MagicMock(return_value={"ok": True})
 
         result = await gateway.execute_component_action(
