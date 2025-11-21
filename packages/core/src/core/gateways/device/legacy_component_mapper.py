@@ -307,17 +307,17 @@ class LegacyComponentMapper:
         self, relay_status: dict[str, Any], status: dict[str, Any]
     ) -> dict[str, float] | None:
         temperature = relay_status.get("temperature")
-        if isinstance(temperature, (int, float)):
+        if isinstance(temperature, int | float):
             temp_c = float(temperature)
             return {"tC": temp_c, "tF": temp_c * 9 / 5 + 32}
 
         tmp = status.get("tmp")
-        if isinstance(tmp, dict) and isinstance(tmp.get("tC"), (int, float)):
+        if isinstance(tmp, dict) and isinstance(tmp.get("tC"), int | float):
             temp_c = float(tmp.get("tC"))
             temp_f = float(tmp.get("tF", temp_c * 9 / 5 + 32))
             return {"tC": temp_c, "tF": temp_f}
 
-        if isinstance(status.get("temperature"), (int, float)):
+        if isinstance(status.get("temperature"), int | float):
             temp_c = float(status.get("temperature"))
             return {"tC": temp_c, "tF": temp_c * 9 / 5 + 32}
 

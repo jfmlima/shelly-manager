@@ -2,8 +2,8 @@
 Configuration management for the Shelly Manager application.
 """
 
-import os
 import json
+import os
 from pathlib import Path
 from typing import Any
 
