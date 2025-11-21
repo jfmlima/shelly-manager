@@ -6,7 +6,7 @@ import asyncio
 import logging
 import time
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 import requests
 
@@ -625,7 +625,10 @@ class ShellyDeviceGateway(DeviceGateway):
         url = f"http://{ip}/{endpoint.lstrip('/')}"
         response = self._http_session.get(url, timeout=self.timeout)
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+        if not isinstance(data, dict):
+            raise ValueError(f"Legacy endpoint {endpoint} did not return JSON object")
+        return cast(dict[str, Any], data)
 
     async def _legacy_get(
         self, ip: str, endpoint: str, params: dict[str, Any]
@@ -642,7 +645,12 @@ class ShellyDeviceGateway(DeviceGateway):
         response = self._http_session.get(url, params=params, timeout=self.timeout)
         response.raise_for_status()
         try:
-            return response.json()
+            data = response.json()
+            if not isinstance(data, dict):
+                raise ValueError(
+                    f"Legacy endpoint {endpoint} did not return JSON object"
+                )
+            return cast(dict[str, Any], data)
         except ValueError:
             return {"response": response.text}
 
@@ -652,16 +660,25 @@ class ShellyDeviceGateway(DeviceGateway):
         settings_data: dict[str, Any] | None,
     ) -> str | None:
         settings = settings_data or {}
-        if isinstance(settings.get("name"), str) and settings["name"]:
-            return settings["name"]
+        name_from_settings = settings.get("name")
+        if isinstance(name_from_settings, str) and name_from_settings:
+            return name_from_settings
 
         device_settings = settings.get("device")
         if isinstance(device_settings, dict):
-            name = device_settings.get("name")
-            if isinstance(name, str) and name:
-                return name
+            device_settings_name = device_settings.get("name")
+            if isinstance(device_settings_name, str) and device_settings_name:
+                return device_settings_name
 
-        return device_info.get("name") or device_info.get("id")
+        device_name = device_info.get("name")
+        if isinstance(device_name, str) and device_name:
+            return device_name
+
+        device_id = device_info.get("id")
+        if isinstance(device_id, str) and device_id:
+            return device_id
+
+        return None
 
     def _parse_legacy_update_flag(
         self, status_data: dict[str, Any] | None

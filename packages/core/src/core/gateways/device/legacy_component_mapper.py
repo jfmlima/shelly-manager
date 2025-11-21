@@ -306,25 +306,33 @@ class LegacyComponentMapper:
     def _format_temperature(
         self, relay_status: dict[str, Any], status: dict[str, Any]
     ) -> dict[str, float] | None:
-        temperature = relay_status.get("temperature")
-        if isinstance(temperature, int | float):
-            temp_c = float(temperature)
+        temperature_value = relay_status.get("temperature")
+        if isinstance(temperature_value, (int, float)):
+            temp_c = float(temperature_value)
             return {"tC": temp_c, "tF": temp_c * 9 / 5 + 32}
 
         tmp = status.get("tmp")
-        if isinstance(tmp, dict) and isinstance(tmp.get("tC"), int | float):
-            temp_c = float(tmp.get("tC"))
-            temp_f = float(tmp.get("tF", temp_c * 9 / 5 + 32))
-            return {"tC": temp_c, "tF": temp_f}
+        if isinstance(tmp, dict):
+            tmp_c_value = tmp.get("tC")
+            if isinstance(tmp_c_value, (int, float)):
+                temp_c = float(tmp_c_value)
+                tmp_f_value = tmp.get("tF")
+                temp_f = (
+                    float(tmp_f_value)
+                    if isinstance(tmp_f_value, (int, float))
+                    else temp_c * 9 / 5 + 32
+                )
+                return {"tC": temp_c, "tF": temp_f}
 
-        if isinstance(status.get("temperature"), int | float):
-            temp_c = float(status.get("temperature"))
+        status_temp = status.get("temperature")
+        if isinstance(status_temp, (int, float)):
+            temp_c = float(status_temp)
             return {"tC": temp_c, "tF": temp_c * 9 / 5 + 32}
 
         return None
 
     def _build_legacy_update_info(
-        self, status_data: dict[str, Any]
+        self, status_data: dict[str, Any] | None
     ) -> dict[str, dict[str, Any]]:
         if not isinstance(status_data, dict):
             return {}
