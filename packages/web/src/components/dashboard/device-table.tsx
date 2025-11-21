@@ -59,7 +59,7 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
   const [rowSelection, setRowSelection] = useState({});
 
   const getStatusBadge = (status: string) => {
-    const statusLower = status?.toLowerCase() || '';
+    const statusLower = status?.toLowerCase() || "";
     let variant: "default" | "secondary" | "destructive" | "outline" =
       "default";
 

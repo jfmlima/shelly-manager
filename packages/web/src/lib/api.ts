@@ -22,7 +22,9 @@ const getApiBaseUrl = (): string => {
   const runtimeApiUrl = window._env_?.VITE_BASE_API_URL;
   const buildTimeApiUrl = import.meta.env.VITE_BASE_API_URL;
 
-  return savedApiUrl || runtimeApiUrl || buildTimeApiUrl || "http://localhost:8000";
+  return (
+    savedApiUrl || runtimeApiUrl || buildTimeApiUrl || "http://localhost:8000"
+  );
 };
 
 const baseURL = getApiBaseUrl();
