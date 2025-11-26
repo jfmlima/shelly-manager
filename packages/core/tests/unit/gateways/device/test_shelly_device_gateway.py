@@ -119,10 +119,6 @@ class TestShellyDeviceGateway:
         assert result.device_type == "SHSW-1"
         assert result.device_name == "Legacy Switch Friendly"
         assert result.has_update is True
-        assert result.status_snapshot == {
-            "has_update": True,
-            "update": {"has_update": True},
-        }
         gateway._fetch_legacy_json.assert_awaited_once_with("192.168.1.200", "shelly")
         gateway._fetch_optional_legacy_json.assert_has_awaits(
             [

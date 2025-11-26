@@ -545,7 +545,6 @@ class ShellyDeviceGateway(DeviceGateway):
                 response_time=response_time,
                 last_seen=datetime.now(),
                 has_update=has_update_value,
-                status_snapshot=status_data or None,
             )
         except Exception as e:
             logger.debug(
