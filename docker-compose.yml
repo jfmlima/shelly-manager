@@ -28,8 +28,8 @@ services:
 
   web:
     build:
-      context: packages/web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: packages/web/Dockerfile
       target: builder
     environment:
       - VITE_BASE_API_URL=http://localhost:8000
