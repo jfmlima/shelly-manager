@@ -67,7 +67,7 @@ jobs:
             context: .
           - name: web
             dockerfile: packages/web/Dockerfile
-            context: packages/web
+            context: .
 
     steps:
       - uses: actions/checkout@v4
