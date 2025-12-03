@@ -2,8 +2,10 @@
 
 from typing import Any
 
+from core.gateways.device import LegacyDeviceGateway
+from core.gateways.device.legacy_component_mapper import LegacyComponentMapper
 from core.gateways.device.shelly_device_gateway import ShellyDeviceGateway
-from core.gateways.network import MDNSGateway, ZeroconfMDNSClient
+from core.gateways.network import LegacyHttpClient, MDNSGateway, ZeroconfMDNSClient
 from core.use_cases.bulk_operations import BulkOperationsUseCase
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
@@ -31,7 +33,17 @@ class BaseContainer:
 
     def get_device_gateway(self) -> ShellyDeviceGateway:
         if self._device_gateway is None:
-            self._device_gateway = ShellyDeviceGateway(self.get_rpc_client())
+            legacy_http_client = LegacyHttpClient()
+            legacy_component_mapper = LegacyComponentMapper()
+            legacy_gateway = LegacyDeviceGateway(
+                http_client=legacy_http_client,
+                component_mapper=legacy_component_mapper,
+            )
+
+            self._device_gateway = ShellyDeviceGateway(
+                rpc_client=self.get_rpc_client(),
+                legacy_gateway=legacy_gateway,
+            )
         return self._device_gateway
 
     def get_mdns_client(self) -> MDNSGateway:
