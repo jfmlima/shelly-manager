@@ -79,10 +79,11 @@ Available as:
 
 ### Docker
 
-> ⚠️ Currently **mDNS Discovery**
-> only works when services are running directly on the host machine.
-> Containers cannot access the host’s network interfaces in a way that allows multicast traffic to reach them.
-> As a result, containers cannot detect devices on the local network via mDNS.
+> ℹ️ **mDNS Discovery in Docker**
+> requires host networking so the container can listen for multicast traffic.
+> Add `network_mode: "host"` to the API container (and run on a Linux host) if you
+> want to discover via mDNS while running in Docker. Without host networking,
+> only the IP range scan will work.
 
 **Web UI + API Stack**:
 
@@ -90,10 +91,11 @@ Available as:
 services:
   shelly-manager-api:
     image: ghcr.io/jfmlima/shelly-manager-api:latest
+    #network_mode: "host" # optional, but if you mDNS please uncomment it
     ports:
       - "8000:8000"
     volumes:
-      - ./config.json:/app/config.json:ro
+      - ./config.json:/app/config.json:ro #optional
     environment:
       - HOST=0.0.0.0
       - PORT=8000

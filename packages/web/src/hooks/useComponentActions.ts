@@ -74,9 +74,10 @@ export function useExecuteComponentAction(
       action,
       parameters,
     }: ExecuteComponentActionParams): Promise<ComponentActionResult> => {
-      const cleanAction = action.includes(".")
-        ? action.split(".").pop() || action
-        : action;
+      let cleanAction = action;
+      if (!action.startsWith("Legacy.") && action.includes(".")) {
+        cleanAction = action.split(".").pop() || action;
+      }
 
       return deviceApi.executeComponentAction(
         deviceIp,
@@ -155,6 +156,11 @@ export function getActionDisplayName(
   action: string,
   componentKey?: string,
 ): string {
+  if (action.startsWith("Legacy.")) {
+    const legacyName = action.replace("Legacy.", "");
+    return `Legacy ${formatActionName(legacyName)}`;
+  }
+
   const parts = action.split(".");
   const cleanAction = parts[parts.length - 1];
   const actionPrefix = parts.length > 1 ? parts[0] : "";
@@ -334,6 +340,10 @@ export function getComponentKeyForAction(
     available_actions: string[];
   },
 ): string {
+  if (action.startsWith("Legacy.")) {
+    return component.key;
+  }
+
   // Extract component type from action (e.g., "Switch.Toggle" -> "switch")
   const actionParts = action.split(".");
   if (actionParts.length < 2) {

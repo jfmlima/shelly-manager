@@ -8,10 +8,22 @@ import type {
   ComponentActionResult,
 } from "@/types/api";
 
+declare global {
+  interface Window {
+    _env_?: {
+      VITE_BASE_API_URL?: string;
+    };
+  }
+}
+
 const getApiBaseUrl = (): string => {
   const savedApiUrl = localStorage.getItem("shelly-manager-api-url");
+
+  const runtimeApiUrl = window._env_?.VITE_BASE_API_URL;
+  const buildTimeApiUrl = import.meta.env.VITE_BASE_API_URL;
+
   return (
-    savedApiUrl || import.meta.env.VITE_BASE_API_URL || "http://localhost:8000"
+    savedApiUrl || runtimeApiUrl || buildTimeApiUrl || "http://localhost:8000"
   );
 };
 
