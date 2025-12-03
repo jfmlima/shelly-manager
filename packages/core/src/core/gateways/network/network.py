@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 
-class NetworkGateway(ABC):
+class RpcNetworkGateway(ABC):
 
     @abstractmethod
     async def make_rpc_request(

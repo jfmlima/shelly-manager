@@ -9,10 +9,10 @@ from typing import Any
 
 import requests
 
-from .network import NetworkGateway
+from .network import RpcNetworkGateway
 
 
-class ShellyRPCClient(NetworkGateway):
+class ShellyRPCClient(RpcNetworkGateway):
 
     def __init__(self, session: requests.Session | None = None, timeout: float = 1.0):
         self.session = session or requests.Session()

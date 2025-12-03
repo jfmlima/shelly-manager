@@ -15,9 +15,11 @@ from ...domain.entities.exceptions import (
 )
 from ...domain.enums.enums import Status
 from ...domain.value_objects.action_result import ActionResult
+from ..network.network import RpcNetworkGateway
 from .component_type_mapping import get_api_component_type
 from .device import DeviceGateway
 from .legacy_device_gateway import LegacyDeviceGateway
+from .rpc_methods import RpcMethods
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +30,7 @@ class ShellyDeviceGateway(DeviceGateway):
 
     def __init__(
         self,
-        rpc_client: Any,
+        rpc_client: RpcNetworkGateway,
         timeout: float = 10.0,
         legacy_gateway: LegacyDeviceGateway | None = None,
     ) -> None:
@@ -48,7 +50,7 @@ class ShellyDeviceGateway(DeviceGateway):
         """
         try:
             device_info, response_time = await self._rpc_client.make_rpc_request(
-                ip, "Shelly.GetDeviceInfo", timeout=self.timeout
+                ip, RpcMethods.GET_DEVICE_INFO, timeout=self.timeout
             )
             device_data = device_info.get("result", device_info)
 
@@ -65,7 +67,7 @@ class ShellyDeviceGateway(DeviceGateway):
 
             try:
                 update_info, _ = await self._rpc_client.make_rpc_request(
-                    ip, "Shelly.CheckForUpdate", timeout=self.timeout
+                    ip, RpcMethods.CHECK_FOR_UPDATE, timeout=self.timeout
                 )
                 update_data = update_info.get("result", update_info)
 
@@ -116,7 +118,7 @@ class ShellyDeviceGateway(DeviceGateway):
             device_info_data = None
             try:
                 device_info_response, _ = await self._rpc_client.make_rpc_request(
-                    ip, "Shelly.GetDeviceInfo", timeout=self.timeout
+                    ip, RpcMethods.GET_DEVICE_INFO, timeout=self.timeout
                 )
                 device_info_data = device_info_response.get(
                     "result", device_info_response
@@ -129,7 +131,7 @@ class ShellyDeviceGateway(DeviceGateway):
             try:
                 components_response, _ = await self._rpc_client.make_rpc_request(
                     ip,
-                    "Shelly.GetComponents",
+                    RpcMethods.GET_COMPONENTS,
                     params={"offset": 0},
                     timeout=self.timeout,
                 )
@@ -141,7 +143,7 @@ class ShellyDeviceGateway(DeviceGateway):
             status_response = None
             try:
                 status_response, _ = await self._rpc_client.make_rpc_request(
-                    ip, "Shelly.GetStatus", timeout=self.timeout
+                    ip, RpcMethods.GET_STATUS, timeout=self.timeout
                 )
                 status_response = status_response.get("result", status_response)
                 rpc_success = True
@@ -183,7 +185,7 @@ class ShellyDeviceGateway(DeviceGateway):
         """
         try:
             methods_response, _ = await self._rpc_client.make_rpc_request(
-                ip, "Shelly.ListMethods", timeout=self.timeout
+                ip, RpcMethods.LIST_METHODS, timeout=self.timeout
             )
             result = methods_response.get("result", methods_response)
             if isinstance(result, dict) and "methods" in result:

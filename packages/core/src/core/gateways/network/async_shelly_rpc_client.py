@@ -8,10 +8,10 @@ from typing import Any
 
 import httpx
 
-from .network import NetworkGateway
+from .network import RpcNetworkGateway
 
 
-class AsyncShellyRPCClient(NetworkGateway):
+class AsyncShellyRPCClient(RpcNetworkGateway):
 
     def __init__(
         self,
