@@ -1,17 +1,12 @@
 FROM node:20-alpine AS builder
 
-RUN apk update && apk upgrade && apk add --no-cache dumb-init
-
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nextjs -u 1001
-
 WORKDIR /app
 
 COPY packages/web/package*.json ./
 
 RUN npm ci --include=dev && npm cache clean --force
 
-COPY --chown=nextjs:nodejs packages/web/ .
+COPY packages/web/ .
 
 ARG VITE_BASE_API_URL
 ENV VITE_BASE_API_URL=$VITE_BASE_API_URL
@@ -20,8 +15,7 @@ RUN npm run build
 
 FROM nginx:1.25-alpine AS runtime
 
-RUN apk update && apk upgrade && \
-    apk add --no-cache curl dumb-init && \
+RUN apk add --no-cache curl dumb-init && \
     rm -rf /var/cache/apk/*
 
 RUN addgroup -g 1001 -S nginx-app && \
@@ -43,7 +37,7 @@ USER nginx-app
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8080/health || curl -f http://localhost:8080/ || exit 1
+  CMD curl -f http://localhost:8080/ || exit 1
 
 ENTRYPOINT ["dumb-init", "--"]
 
