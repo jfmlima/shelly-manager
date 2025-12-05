@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from core.domain.entities.components import (
+    Component,
     InputComponent,
     SwitchComponent,
     SystemComponent,
@@ -367,6 +368,82 @@ class TestBulkOperationsUseCase:
         assert "input:0" not in components
         assert "sys" not in components
         assert len(components) == 1
+
+    async def test_it_exports_multiple_script_components(
+        self, use_case, mock_device_gateway
+    ):
+        device_ips = ["192.168.1.100"]
+        component_types = ["script"]
+
+        device_status = DeviceStatus(
+            device_ip="192.168.1.100",
+            device_name="Test Device",
+            device_type="shellypro1pm",
+            firmware_version="1.0.0",
+            mac_address="AA:BB:CC:DD:EE:FF",
+            app_name="test",
+            components=[
+                Component(
+                    key="script:0",
+                    component_type="script",
+                    status={},
+                    config={"name": "script_one"},
+                    attrs={},
+                ),
+                Component(
+                    key="script:1",
+                    component_type="script",
+                    status={},
+                    config={"name": "script_two"},
+                    attrs={},
+                ),
+            ],
+        )
+
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device_status)
+        mock_device_gateway.execute_component_action = AsyncMock(
+            side_effect=[
+                ActionResult(
+                    success=True,
+                    action_type="script.GetConfig",
+                    device_ip="192.168.1.100",
+                    message="Config retrieved",
+                    data={"name": "script_one"},
+                ),
+                ActionResult(
+                    success=True,
+                    action_type="script.GetCode",
+                    device_ip="192.168.1.100",
+                    message="Code retrieved",
+                    data={"data": "console.log('Script 1');", "left": 0},
+                ),
+                ActionResult(
+                    success=True,
+                    action_type="script.GetConfig",
+                    device_ip="192.168.1.100",
+                    message="Config retrieved",
+                    data={"name": "script_two"},
+                ),
+                ActionResult(
+                    success=True,
+                    action_type="script.GetCode",
+                    device_ip="192.168.1.100",
+                    message="Code retrieved",
+                    data={"data": "console.log('Script 2');", "left": 0},
+                ),
+            ]
+        )
+
+        result = await use_case.export_bulk_config(device_ips, component_types)
+
+        device_data = result["devices"]["192.168.1.100"]
+        assert len(device_data["components"]) == 2
+
+        script_0 = device_data["components"]["script:0"]
+        assert script_0["code"] == {"data": "console.log('Script 1');", "left": 0}
+
+        script_1 = device_data["components"]["script:1"]
+        assert script_1["code"] == {"data": "console.log('Script 2');", "left": 0}
 
     async def test_it_applies_bulk_config_successfully(
         self, use_case, mock_device_gateway, mock_device_status_with_components

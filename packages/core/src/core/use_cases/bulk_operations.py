@@ -150,7 +150,7 @@ class BulkOperationsUseCase:
                         device_ip, component.key, "GetConfig", {}
                     )
 
-                    device_data["components"][component.key] = {
+                    component_export = {
                         "type": component.component_type,
                         "success": config_result.success,
                         "config": config_result.data if config_result.success else None,
@@ -159,9 +159,33 @@ class BulkOperationsUseCase:
                         ),
                     }
 
+                    if component.component_type == "script" and config_result.success:
+                        code_data = await self._fetch_script_code(
+                            device_ip, component.key
+                        )
+                        if code_data is not None:
+                            component_export["code"] = code_data
+
+                    device_data["components"][component.key] = component_export
+
             result["devices"][device_ip] = device_data
 
         return result
+
+    async def _fetch_script_code(
+        self, device_ip: str, component_key: str
+    ) -> dict[str, Any] | None:
+        try:
+            script_id = int(component_key.split(":")[1])
+            code_result = await self._device_gateway.execute_component_action(
+                device_ip, component_key, "GetCode", {"id": script_id}
+            )
+            if code_result.success and code_result.data:
+                return code_result.data
+        except (ValueError, IndexError, AttributeError):
+            pass
+
+        return None
 
     async def apply_bulk_config(
         self,
