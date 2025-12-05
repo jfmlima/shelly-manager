@@ -168,6 +168,10 @@ class BulkOperationsUseCase:
 
                     device_data["components"][component.key] = component_export
 
+            if "schedules" in component_types:
+                schedules = await self._fetch_schedules(device_ip)
+                device_data["components"].update(schedules)
+
             result["devices"][device_ip] = device_data
 
         return result
@@ -186,6 +190,30 @@ class BulkOperationsUseCase:
             pass
 
         return None
+
+    async def _fetch_schedules(self, device_ip: str) -> dict[str, Any]:
+        schedule_export = {}
+
+        list_result = await self._device_gateway.execute_component_action(
+            device_ip, "schedule", "List", {}
+        )
+        schedule_data = list_result.data
+        if list_result.success and schedule_data:
+            schedule_export["schedules"] = {
+                "type": "schedule",
+                "success": True,
+                "config": schedule_data,
+                "error": None,
+            }
+        elif not list_result.success:
+            schedule_export["schedules"] = {
+                "type": "schedule",
+                "success": False,
+                "config": None,
+                "error": list_result.error,
+            }
+
+        return schedule_export
 
     async def apply_bulk_config(
         self,

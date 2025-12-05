@@ -445,6 +445,214 @@ class TestBulkOperationsUseCase:
         script_1 = device_data["components"]["script:1"]
         assert script_1["code"] == {"data": "console.log('Script 2');", "left": 0}
 
+    async def test_it_exports_schedules_successfully(
+        self, use_case, mock_device_gateway
+    ):
+        device_ips = ["192.168.1.100"]
+        component_types = ["schedules"]
+
+        device_status = DeviceStatus(
+            device_ip="192.168.1.100",
+            device_name="Test Device",
+            device_type="shellypro1pm",
+            firmware_version="1.0.0",
+            mac_address="AA:BB:CC:DD:EE:FF",
+            app_name="test",
+            components=[],  # Schedules don't appear here
+        )
+
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device_status)
+        mock_device_gateway.execute_component_action = AsyncMock(
+            return_value=ActionResult(
+                success=True,
+                action_type="schedule.List",
+                device_ip="192.168.1.100",
+                message="Schedules retrieved",
+                data={
+                    "jobs": [
+                        {
+                            "id": 1,
+                            "enable": True,
+                            "timespec": "0 0 8 * * SUN,MON,TUE,WED,THU,FRI,SAT",
+                            "calls": [
+                                {
+                                    "method": "Switch.Set",
+                                    "params": {"id": 0, "on": False},
+                                }
+                            ],
+                        },
+                        {
+                            "id": 2,
+                            "enable": True,
+                            "timespec": "0 30 19 * * MON,TUE,WED,THU,FRI",
+                            "calls": [
+                                {
+                                    "method": "Switch.Set",
+                                    "params": {"id": 0, "on": True},
+                                }
+                            ],
+                        },
+                    ],
+                    "rev": 4,
+                },
+            )
+        )
+
+        result = await use_case.export_bulk_config(device_ips, component_types)
+
+        # Verify schedule is exported
+        device_data = result["devices"]["192.168.1.100"]
+        assert "schedules" in device_data["components"]
+
+        schedule = device_data["components"]["schedules"]
+        assert schedule["type"] == "schedule"
+        assert schedule["success"] is True
+        assert schedule["config"]["jobs"] is not None
+        assert len(schedule["config"]["jobs"]) == 2
+        assert schedule["config"]["rev"] == 4
+
+    async def test_it_exports_schedules_when_list_fails(
+        self, use_case, mock_device_gateway
+    ):
+        device_ips = ["192.168.1.100"]
+        component_types = ["schedules"]
+
+        device_status = DeviceStatus(
+            device_ip="192.168.1.100",
+            device_name="Test Device",
+            device_type="shellypro1pm",
+            firmware_version="1.0.0",
+            mac_address="AA:BB:CC:DD:EE:FF",
+            app_name="test",
+            components=[],
+        )
+
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device_status)
+        mock_device_gateway.execute_component_action = AsyncMock(
+            return_value=ActionResult(
+                success=False,
+                action_type="schedule.List",
+                device_ip="192.168.1.100",
+                message="Failed",
+                error="Schedule component not available",
+            )
+        )
+
+        result = await use_case.export_bulk_config(device_ips, component_types)
+
+        # Verify schedule export shows failure
+        device_data = result["devices"]["192.168.1.100"]
+        assert "schedules" in device_data["components"]
+
+        schedule = device_data["components"]["schedules"]
+        assert schedule["type"] == "schedule"
+        assert schedule["success"] is False
+        assert schedule["config"] is None
+        assert schedule["error"] == "Schedule component not available"
+
+    async def test_it_exports_schedules_when_none_exist(
+        self, use_case, mock_device_gateway
+    ):
+        device_ips = ["192.168.1.100"]
+        component_types = ["schedules"]
+
+        device_status = DeviceStatus(
+            device_ip="192.168.1.100",
+            device_name="Test Device",
+            device_type="shellypro1pm",
+            firmware_version="1.0.0",
+            mac_address="AA:BB:CC:DD:EE:FF",
+            app_name="test",
+            components=[],
+        )
+
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device_status)
+        mock_device_gateway.execute_component_action = AsyncMock(
+            return_value=ActionResult(
+                success=True,
+                action_type="schedule.List",
+                device_ip="192.168.1.100",
+                message="Schedules retrieved",
+                data={"jobs": [], "rev": 0},
+            )
+        )
+
+        result = await use_case.export_bulk_config(device_ips, component_types)
+
+        # Verify empty schedule list is exported
+        device_data = result["devices"]["192.168.1.100"]
+        schedule = device_data["components"]["schedules"]
+        assert schedule["success"] is True
+        assert schedule["config"]["jobs"] == []
+        assert schedule["config"]["rev"] == 0
+
+    async def test_it_exports_mixed_components_with_schedules(
+        self, use_case, mock_device_gateway
+    ):
+        device_ips = ["192.168.1.100"]
+        component_types = ["switch", "schedules"]
+
+        device_status = DeviceStatus(
+            device_ip="192.168.1.100",
+            device_name="Test Device",
+            device_type="shellypro1pm",
+            firmware_version="1.0.0",
+            mac_address="AA:BB:CC:DD:EE:FF",
+            app_name="test",
+            components=[
+                Component(
+                    key="switch:0",
+                    component_type="switch",
+                    status={},
+                    config={"name": "Main Switch"},
+                    attrs={},
+                ),
+            ],
+        )
+
+        mock_device_gateway.get_device_status = AsyncMock(return_value=device_status)
+        mock_device_gateway.execute_component_action = AsyncMock(
+            side_effect=[
+                # Switch GetConfig
+                ActionResult(
+                    success=True,
+                    action_type="switch.GetConfig",
+                    device_ip="192.168.1.100",
+                    message="Config retrieved",
+                    data={"name": "Main Switch"},
+                ),
+                # Schedule.List
+                ActionResult(
+                    success=True,
+                    action_type="schedule.List",
+                    device_ip="192.168.1.100",
+                    message="Schedules retrieved",
+                    data={
+                        "jobs": [
+                            {
+                                "id": 1,
+                                "enable": True,
+                                "timespec": "0 9 8 * * *",
+                                "calls": [],
+                            }
+                        ],
+                        "rev": 1,
+                    },
+                ),
+            ]
+        )
+
+        result = await use_case.export_bulk_config(device_ips, component_types)
+
+        # Verify both switch and schedule are exported
+        device_data = result["devices"]["192.168.1.100"]
+        assert "switch:0" in device_data["components"]
+        assert "schedules" in device_data["components"]
+
+        # Verify schedule has jobs
+        assert device_data["components"]["schedules"]["config"]["jobs"] is not None
+        assert len(device_data["components"]["schedules"]["config"]["jobs"]) == 1
+
     async def test_it_applies_bulk_config_successfully(
         self, use_case, mock_device_gateway, mock_device_status_with_components
     ):
