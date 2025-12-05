@@ -9,6 +9,8 @@ from rich.console import Console
 
 from cli.dependencies.container import CLIContainer
 from cli.entities.bulk import (
+    BulkConfigApplyRequest,
+    BulkConfigExportRequest,
     BulkOperationRequest,
     BulkOperationResult,
     BulkRebootRequest,
@@ -232,16 +234,27 @@ class BulkOperationsUseCase:
     def display_bulk_results(self, result: BulkOperationResult) -> None:
         self._result_formatter.display_bulk_operation_result(result)
 
-    async def export_bulk_config(
-        self, device_ips: list[str], component_types: list[str]
+    async def execute_bulk_config_export(
+        self, request: BulkConfigExportRequest
     ) -> dict:
+        device_ips = await self._resolve_device_ips(request)
+
+        if not device_ips:
+            raise ValueError("No devices found or specified")
+
         return await self._bulk_operations_interactor.export_bulk_config(
-            device_ips, component_types
+            device_ips, request.component_types
         )
 
-    async def apply_bulk_config(
-        self, device_ips: list[str], component_type: str, config: dict
-    ) -> list:
+    async def execute_bulk_config_apply(self, request: BulkConfigApplyRequest) -> list:
+        device_ips = await self._resolve_device_ips(request)
+
+        if not device_ips:
+            raise ValueError("No devices found or specified")
+
+        if request.config_data is None:
+            raise ValueError("No configuration data provided")
+
         return await self._bulk_operations_interactor.apply_bulk_config(
-            device_ips, component_type, config
+            device_ips, request.component_type, request.config_data
         )

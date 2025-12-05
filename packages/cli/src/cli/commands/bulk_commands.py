@@ -188,9 +188,11 @@ def export(
         workers=workers,
     )
 
-    result = asyncio.run(
-        bulk_use_case.export_bulk_config(request.devices, request.component_types)
-    )
+    try:
+        result = asyncio.run(bulk_use_case.execute_bulk_config_export(request))
+    except ValueError as e:
+        console.print(f"[yellow]{e}[/yellow]")
+        raise click.Abort() from None
 
     # Write to output file
     try:
@@ -270,7 +272,7 @@ def apply(
             raise click.Abort() from e
     else:
         try:
-            assert config is not None  # We already checked this above
+            assert config is not None
             config_data = json.loads(config)
             config_source = "command line"
         except json.JSONDecodeError as e:
@@ -278,8 +280,9 @@ def apply(
             raise click.Abort() from e
 
     if not force:
+        device_count = len(devices) if devices else "configured"
         console.print(
-            f"[yellow]⚠️  You are about to apply configuration to [bold]{component}[/bold] components on [bold]{len(devices) if devices else 'configured'}[/bold] devices."
+            f"[yellow]⚠️  You are about to apply configuration to [bold]{component}[/bold] components on [bold]{device_count}[/bold] devices."
         )
         console.print(f"[yellow]Configuration source: {config_source}")
         console.print(f"[yellow]Configuration: {json.dumps(config_data, indent=2)}")
@@ -300,17 +303,12 @@ def apply(
         workers=workers,
     )
 
-    if request.config_data is None:
-        console.print("[red]Error: No configuration data available")
-        raise click.Abort()
+    try:
+        results = asyncio.run(bulk_use_case.execute_bulk_config_apply(request))
+    except ValueError as e:
+        console.print(f"[red]Error: {e}")
+        raise click.Abort() from None
 
-    results = asyncio.run(
-        bulk_use_case.apply_bulk_config(
-            request.devices, request.component_type, request.config_data
-        )
-    )
-
-    # Display results
     successful = len([r for r in results if r.success])
     failed = len([r for r in results if not r.success])
 
