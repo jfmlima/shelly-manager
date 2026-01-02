@@ -272,9 +272,8 @@ export interface BulkUpdateRequest {
 }
 
 export interface ScanRequest {
-  start_ip?: string;
-  end_ip?: string;
-  use_predefined?: boolean;
+  targets: string[];
+  use_mdns?: boolean;
   timeout?: number;
   max_workers?: number;
 }

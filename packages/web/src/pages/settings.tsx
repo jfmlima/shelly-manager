@@ -1,3 +1,10 @@
+import type { AppSettings } from "@/lib/settings";
+import {
+  DEFAULT_SETTINGS,
+  loadAppSettings,
+  saveAppSettings,
+} from "@/lib/settings";
+
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -8,6 +15,7 @@ import {
   Check,
   X,
   Loader2,
+  Clock,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -32,11 +40,6 @@ import { useTheme } from "@/components/theme-provider";
 import { toast } from "sonner";
 import { validateApiUrl } from "@/lib/api";
 
-interface SettingsData {
-  tablePageSize: number;
-  tableDensity: "compact" | "normal" | "comfortable";
-}
-
 interface ApiConnectionStatus {
   status: "checking" | "connected" | "error" | "unknown";
   message?: string;
@@ -45,10 +48,7 @@ interface ApiConnectionStatus {
 export function Settings() {
   const { t } = useTranslation();
   const { theme, setTheme } = useTheme();
-  const [settings, setSettings] = useState<SettingsData>({
-    tablePageSize: 10,
-    tableDensity: "normal",
-  });
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
 
   const [apiUrl, setApiUrl] = useState("");
   const [tempApiUrl, setTempApiUrl] = useState("");
@@ -59,15 +59,7 @@ export function Settings() {
   );
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem("shelly-manager-settings");
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        setSettings(parsed);
-      } catch (error) {
-        console.error(t("settings.messages.failedToParse"), error);
-      }
-    }
+    setSettings(loadAppSettings());
 
     const savedApiUrl = localStorage.getItem("shelly-manager-api-url");
     const defaultApiUrl =
@@ -79,13 +71,13 @@ export function Settings() {
   }, [t]);
 
   const saveSettings = () => {
-    localStorage.setItem("shelly-manager-settings", JSON.stringify(settings));
+    saveAppSettings(settings);
     toast.success(t("settings.messages.settingsSaved"));
   };
 
-  const updateSetting = <K extends keyof SettingsData>(
+  const updateSetting = <K extends keyof AppSettings>(
     key: K,
-    value: SettingsData[K],
+    value: AppSettings[K],
   ) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
@@ -422,22 +414,38 @@ export function Settings() {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <SettingsIcon className="h-5 w-5" />
-                <span>{t("settings.networkPresets.title")}</span>
+                <span>Network Settings</span>
               </CardTitle>
               <CardDescription>
-                {t("settings.networkPresets.description")}
+                Configure network scanning behavior
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <SettingsIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">
-                  {t("settings.networkPresets.configuration")}
-                </p>
-                <p className="text-xs">
-                  {t("settings.networkPresets.comingSoon")}
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Overall Scan Request Timeout (ms)</Label>
+                <div className="flex items-center space-x-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="number"
+                    min="1000"
+                    step="1000"
+                    value={settings.scanRequestTimeout}
+                    onChange={(e) =>
+                      updateSetting(
+                        "scanRequestTimeout",
+                        parseInt(e.target.value) || 600000,
+                      )
+                    }
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Maximum duration for the entire scan request. Increase this if
+                  you represent a large network or have many devices.
                 </p>
               </div>
+              <Button onClick={saveSettings} className="w-full">
+                Save Network Settings
+              </Button>
             </CardContent>
           </Card>
         </div>

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { ScanForm, type ScanFormData } from "@/components/dashboard/scan-form";
+import { ScanForm } from "@/components/dashboard/scan-form";
 import { DeviceTable } from "@/components/dashboard/device-table";
 import { BulkActionsDialog } from "@/components/dashboard/bulk-actions-dialog";
 import { Footer } from "@/components/ui/footer";
@@ -13,7 +13,7 @@ import {
   saveScanResults,
   clearScanResults,
 } from "@/lib/storage";
-import type { Device } from "@/types/api";
+import type { Device, ScanRequest } from "@/types/api";
 
 export function Dashboard() {
   const { t } = useTranslation();
@@ -37,7 +37,7 @@ export function Dashboard() {
   });
 
   const scanMutation = useMutation({
-    mutationFn: async (params: ScanFormData) => {
+    mutationFn: async (params: ScanRequest) => {
       clearScanResults();
       queryClient.removeQueries({ queryKey: ["devices", "scan"] });
       return deviceApi.scanDevices(params);
@@ -54,8 +54,8 @@ export function Dashboard() {
     },
   });
 
-  const handleScan = (formData: ScanFormData) => {
-    scanMutation.mutate(formData);
+  const handleScan = (request: ScanRequest) => {
+    scanMutation.mutate(request);
   };
 
   const handleBulkAction = (devices: Device[]) => {
