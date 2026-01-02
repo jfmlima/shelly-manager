@@ -20,18 +20,17 @@ Command-line interface for managing Shelly devices locally. Built with Click.
 # Scan for devices
 docker run --rm -it \
   ghcr.io/jfmlima/shelly-manager-cli:latest \
-  scan --range 192.168.1.0/24
+  scan --target 192.168.1.0/24
 
 # Device status check
 docker run --rm -it \
   ghcr.io/jfmlima/shelly-manager-cli:latest \
   device status 192.168.1.100
 
-# Using configuration file
+# Multi-target scan
 docker run --rm -it \
-  -v ./config.json:/app/config.json:ro \
   ghcr.io/jfmlima/shelly-manager-cli:latest \
-  scan --from-config
+  scan --target 192.168.1.10 --target 192.168.1.20-30
 ```
 
 ### Local Installation
@@ -42,7 +41,7 @@ uv sync --package shelly-manager-cli --extra dev
 
 # Run CLI commands
 uv run shelly-manager --help
-uv run shelly-manager scan --range 192.168.1.0/24
+uv run shelly-manager scan --target 192.168.1.0/24
 ```
 
 ## Commands
@@ -53,7 +52,6 @@ uv run shelly-manager scan --range 192.168.1.0/24
 shelly-manager [OPTIONS] COMMAND [ARGS]...
 
 Options:
-  --config-file PATH    Path to configuration file
   --version            Show version and exit
   --help               Show help message
 ```
@@ -63,26 +61,24 @@ Options:
 #### Scan Command
 
 ```bash
-# Scan IP range
-shelly-manager scan --range 192.168.1.0/24
-shelly-manager scan --start 192.168.1.100 --end 192.168.1.110
+# Scan IP target
+shelly-manager scan --target 192.168.1.0/24
+shelly-manager scan --target 192.168.1.100-110
 
-# Use predefined configuration
-shelly-manager scan --from-config
+# Scan with multiple targets
+shelly-manager scan --target 192.168.1.1 --target 10.0.0.0/24
 
 # Scan with custom settings
-shelly-manager scan --range 192.168.1.0/24 --timeout 5.0 --workers 25
+shelly-manager scan --target 192.168.1.0/24 --timeout 5.0 --workers 25
 
 # Export results
-shelly-manager scan --range 192.168.1.0/24 --export json
-shelly-manager scan --from-config --export csv --export-file devices.csv
+shelly-manager scan --target 192.168.1.0/24 --export json
+shelly-manager scan --target 192.168.1.0/24 --export csv --export-file devices.csv
 ```
 
 **Options:**
 
-- `--range`: CIDR notation (e.g., 192.168.1.0/24)
-- `--start/--end`: IP range endpoints
-- `--from-config`: Use predefined ranges from config file
+- `--target`: IP target (IP, range, or CIDR). Can be used multiple times.
 - `--use-mdns`: Use mDNS service discovery
 - `--timeout`: Timeout per device (default: 3.0s)
 - `--workers`: Concurrent workers (default: 50)
@@ -94,13 +90,9 @@ shelly-manager scan --from-config --export csv --export-file devices.csv
 #### Device Commands
 
 ```bash
-# List devices from configuration
-shelly-manager device list --from-config
-
 # Check device status
 shelly-manager device status 192.168.1.100
 shelly-manager device status 192.168.1.100 192.168.1.101
-shelly-manager device status --from-config
 
 # Reboot devices
 shelly-manager device reboot 192.168.1.100
@@ -153,12 +145,6 @@ shelly-manager config get --ip 192.168.1.100 --output config.json
 # Set device configuration
 shelly-manager config set --ip 192.168.1.100 --config-file new-config.json
 shelly-manager config set --ip 192.168.1.100 --key wifi.ssid --value "MyNetwork"
-
-# Manage predefined device IPs
-shelly-manager config ips add 192.168.1.100
-shelly-manager config ips remove 192.168.1.100
-shelly-manager config ips list
-shelly-manager config ips clear
 ```
 
 ### Bulk Operations
@@ -167,75 +153,36 @@ shelly-manager config ips clear
 
 ```bash
 # Bulk operations with device discovery
-shelly-manager bulk reboot --scan --range 192.168.1.0/24
-shelly-manager bulk update --scan --start 192.168.1.100 --end 192.168.1.110
-
-# Bulk operations on configured devices
-shelly-manager bulk reboot --from-config
-shelly-manager bulk update --from-config --channel stable
+shelly-manager bulk reboot --target 192.168.1.0/24
+shelly-manager bulk update --target 192.168.1.100-110
 
 # Bulk operations on specific IPs
-shelly-manager bulk reboot --ips 192.168.1.100,192.168.1.101
-shelly-manager bulk update --ips 192.168.1.100,192.168.1.101 --channel beta
+shelly-manager bulk reboot --target 192.168.1.100 --target 192.168.1.101
+shelly-manager bulk update --target 192.168.1.100 --target 192.168.1.101 --channel beta
 ```
 
 **Bulk Options:**
 
-- `--scan`: Discover devices first, then perform action
-- `--from-config`: Use devices from configuration file
-- `--ips`: Comma-separated list of IP addresses
+- `--target`: IP target (IP, range, or CIDR). Can be used multiple times.
 - `--force`: Skip confirmation prompts
 - `--workers`: Concurrent operations (default: 10)
 
 ## Configuration
 
-### Configuration File
-
-Create a `config.json` file for persistent settings:
-
-```json
-{
-  "device_ips": ["192.168.1.100", "192.168.1.101", "192.168.1.102"],
-  "predefined_ranges": [
-    {
-      "start": "192.168.1.1",
-      "end": "192.168.1.254"
-    },
-    {
-      "start": "10.0.0.1",
-      "end": "10.0.0.100"
-    }
-  ],
-  "timeout": 3.0,
-  "max_workers": 50
-}
-```
-
 ### Environment Variables
 
 | Variable             | Default       | Description                |
 | -------------------- | ------------- | -------------------------- |
-| `SHELLY_CONFIG_FILE` | `config.json` | Path to configuration file |
 | `SHELLY_TIMEOUT`     | `3.0`         | Default timeout per device |
 | `SHELLY_MAX_WORKERS` | `50`          | Default concurrent workers |
 
-### Using Configuration
-
-```bash
-# Specify config file
-shelly-manager --config-file /path/to/config.json scan --from-config
-
-# Use environment variable
-export SHELLY_CONFIG_FILE=/path/to/config.json
-shelly-manager scan --from-config
-```
 
 ## Export Formats
 
 ### JSON Export
 
 ```bash
-shelly-manager scan --range 192.168.1.0/24 --export json
+shelly-manager scan --target 192.168.1.0/24 --export json
 ```
 
 **Output:**
@@ -257,7 +204,7 @@ shelly-manager scan --range 192.168.1.0/24 --export json
 ### CSV Export
 
 ```bash
-shelly-manager scan --range 192.168.1.0/24 --export csv --export-file devices.csv
+shelly-manager scan --target 192.168.1.0/24 --export csv --export-file devices.csv
 ```
 
 **Output:**
@@ -275,12 +222,11 @@ ip,status,device_type,device_name,firmware_version,response_time,last_seen
 ```bash
 # Run interactive CLI session
 docker run --rm -it \
-  -v ./config.json:/app/config.json:ro \
   ghcr.io/jfmlima/shelly-manager-cli:latest \
   bash
 
 # Then run commands inside container
-root@container:/app# shelly-manager scan --from-config
+root@container:/app# shelly-manager scan --target 192.168.1.0/24
 ```
 
 ### Automated Scripts
@@ -290,10 +236,9 @@ root@container:/app# shelly-manager scan --from-config
 # Script to check device status daily
 
 docker run --rm \
-  -v ./config.json:/app/config.json:ro \
   -v ./reports:/app/reports \
   ghcr.io/jfmlima/shelly-manager-cli:latest \
-  device status --from-config --export json --export-file /app/reports/status-$(date +%Y%m%d).json
+  device status 192.168.1.0/24 --export json --export-file /app/reports/status-$(date +%Y%m%d).json
 ```
 
 ### Docker Compose
@@ -303,12 +248,11 @@ services:
   cli:
     image: ghcr.io/jfmlima/shelly-manager-cli:latest
     volumes:
-      - ./config.json:/app/config.json:ro
       - ./reports:/app/reports
     command: |
       sh -c '
         echo "Running daily device scan..."
-        shelly-manager scan --from-config --export csv --export-file /app/reports/devices.csv
+        shelly-manager scan 192.168.1.0/24 --export csv --export-file /app/reports/devices.csv
       '
     profiles:
       - daily-scan
@@ -422,22 +366,22 @@ Enable verbose output for debugging:
 
 ```bash
 # Local installation
-uv run shelly-manager --verbose scan --range 192.168.1.0/24
+uv run shelly-manager --verbose scan 192.168.1.0/24
 
 # Docker
 docker run --rm -it \
   ghcr.io/jfmlima/shelly-manager-cli:latest \
-  --verbose scan --range 192.168.1.0/24
+  --verbose scan 192.168.1.0/24
 ```
 
 ### Performance Tuning
 
 ```bash
 # For large networks, adjust workers and timeout
-shelly-manager scan --range 192.168.0.0/16 --workers 100 --timeout 1.0
+shelly-manager scan 192.168.0.0/16 --workers 100 --timeout 1.0
 
 # For slow networks, reduce workers and increase timeout
-shelly-manager scan --range 192.168.1.0/24 --workers 10 --timeout 10.0
+shelly-manager scan 192.168.1.0/24 --workers 10 --timeout 10.0
 ```
 
 ## Additional Resources

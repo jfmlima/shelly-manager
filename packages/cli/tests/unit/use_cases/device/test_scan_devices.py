@@ -22,18 +22,16 @@ class TestDeviceScanUseCase:
 
     @pytest.fixture
     def basic_scan_request(self):
-        return DeviceScanRequest(
-            ip_ranges=["192.168.1.1-192.168.1.50"], timeout=3.0, workers=10
-        )
+        return DeviceScanRequest(targets=["192.168.1.1-50"], timeout=3.0, workers=10)
 
     @pytest.fixture
     def config_scan_request(self):
-        return DeviceScanRequest(from_config=True, timeout=5.0, workers=20)
+        return DeviceScanRequest(targets=["192.168.1.100"], timeout=5.0, workers=20)
 
     @pytest.fixture
     def devices_scan_request(self):
         return DeviceScanRequest(
-            devices=["192.168.1.100", "192.168.1.101"], timeout=3.0, workers=10
+            targets=["192.168.1.100", "192.168.1.101"], timeout=3.0, workers=10
         )
 
     @pytest.fixture

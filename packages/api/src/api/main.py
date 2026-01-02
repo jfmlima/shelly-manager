@@ -15,8 +15,8 @@ from .dependencies.container import APIContainer, get_dependencies
 from .presentation.handlers import EXCEPTION_HANDLERS
 
 
-def create_app(config_file_path: str | None = None) -> Litestar:
-    _container = APIContainer(config_file_path)
+def create_app() -> Litestar:
+    _container = APIContainer()
 
     cors_config = CORSConfig(
         allow_origins=["*"],

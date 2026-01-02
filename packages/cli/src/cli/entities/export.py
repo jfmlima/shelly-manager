@@ -13,15 +13,17 @@ from .common import OperationResult
 class ExportRequest(BaseModel):
     """Request for exporting device configurations."""
 
-    devices: list[str] = Field(default_factory=list)
-    from_config: bool = Field(default=False)
+    targets: list[str] = Field(
+        default_factory=list,
+        description="IP targets: individual IPs, ranges, or CIDR notation",
+    )
     output_dir: str = Field(
         default="exports", description="Directory to save exported configurations"
     )
     format: str = Field(
         default="json",
-        pattern=r"^(json|yaml)$",
-        description="Export format (json or yaml)",
+        pattern=r"^(json|csv|yaml)$",
+        description="Export format (json, csv or yaml)",
     )
     include_status: bool = Field(
         default=True, description="Include device status information"
@@ -40,11 +42,7 @@ class ExportRequest(BaseModel):
         default=True, description="Include device configuration"
     )
     scan: bool = Field(default=False, description="Scan network for devices")
-    ips: list[str] | None = Field(
-        default=None, description="List of device IP addresses"
-    )
     pretty: bool = Field(default=False, description="Pretty print output")
-    network: str | None = Field(default=None, description="Network range to scan")
 
     @field_validator("output_dir")
     @classmethod

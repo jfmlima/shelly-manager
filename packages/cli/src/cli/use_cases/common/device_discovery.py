@@ -6,7 +6,6 @@ from typing import Any
 
 from core.domain.value_objects.scan_request import ScanRequest
 
-from cli.commands.common import parse_ip_range
 from cli.dependencies.container import CLIContainer
 from cli.entities import DeviceDiscoveryRequest
 
@@ -22,60 +21,11 @@ class DeviceDiscoveryUseCase:
         Returns:
             List of discovered devices
         """
-        scan_request = self._create_scan_request(request)
-        scan_interactor = self._container.get_scan_interactor()
-        return await scan_interactor.execute(scan_request)
-
-    def _create_scan_request(self, request: DeviceDiscoveryRequest) -> ScanRequest:
-        """Create a ScanRequest from the discovery request."""
-        if request.use_mdns:
-            return ScanRequest(
-                use_predefined=False,
-                start_ip=None,
-                end_ip=None,
-                timeout=request.timeout,
-                max_workers=request.workers,
-                use_mdns=request.use_mdns,
-            )
-
-        if request.from_config:
-            return ScanRequest(
-                use_predefined=True,
-                start_ip=None,
-                end_ip=None,
-                timeout=request.timeout,
-                max_workers=request.workers,
-            )
-
-        if request.ip_ranges:
-            start_ip, end_ip = parse_ip_range(request.ip_ranges[0])
-            return ScanRequest(
-                start_ip=start_ip,
-                end_ip=end_ip,
-                use_predefined=False,
-                timeout=request.timeout,
-                max_workers=request.workers,
-                use_mdns=request.use_mdns,
-            )
-
-        if request.devices:
-            if len(request.devices) == 1:
-                start_ip, end_ip = parse_ip_range(request.devices[0])
-            else:
-                start_ip, end_ip = request.devices[0], request.devices[-1]
-
-            return ScanRequest(
-                start_ip=start_ip,
-                end_ip=end_ip,
-                use_predefined=False,
-                timeout=request.timeout,
-                max_workers=request.workers,
-            )
-
-        return ScanRequest(
-            use_predefined=True,
-            start_ip=None,
-            end_ip=None,
+        scan_request = ScanRequest(
+            targets=request.targets,
+            use_mdns=request.use_mdns,
             timeout=request.timeout,
             max_workers=request.workers,
         )
+        scan_interactor = self._container.get_scan_interactor()
+        return await scan_interactor.execute(scan_request)

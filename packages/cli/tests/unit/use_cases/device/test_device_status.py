@@ -39,7 +39,7 @@ class TestDeviceStatusUseCase:
     @pytest.fixture
     def basic_status_request(self):
         return DeviceStatusRequest(
-            devices=["192.168.1.100", "192.168.1.101"],
+            targets=["192.168.1.100", "192.168.1.101"],
             include_updates=True,
             timeout=3.0,
             workers=10,
@@ -48,7 +48,7 @@ class TestDeviceStatusUseCase:
     @pytest.fixture
     def config_status_request(self):
         return DeviceStatusRequest(
-            from_config=True,
+            targets=["10.0.0.1"],
             include_updates=False,
             timeout=5.0,
             workers=20,
@@ -82,7 +82,11 @@ class TestDeviceStatusUseCase:
         basic_status_request,
         sample_status_result,
         mock_container,
+        sample_devices,
     ):
+        mock_container.get_scan_interactor.return_value.execute.return_value = (
+            sample_devices
+        )
         mock_container.get_status_interactor.return_value.execute.return_value = (
             sample_status_result
         )
@@ -116,17 +120,18 @@ class TestDeviceStatusUseCase:
 
     @pytest.mark.asyncio
     async def test_it_validates_no_devices(self, status_use_case):
-        request = DeviceStatusRequest()
+        request = DeviceStatusRequest(targets=[])
 
-        with pytest.raises(
-            ValueError, match="You must specify either device IPs or use --from-config"
-        ):
+        with pytest.raises(ValueError, match="You must specify at least one target"):
             await status_use_case.execute(request)
 
     @pytest.mark.asyncio
     async def test_it_handles_device_errors(
-        self, status_use_case, basic_status_request, mock_container
+        self, status_use_case, basic_status_request, mock_container, sample_devices
     ):
+        mock_container.get_scan_interactor.return_value.execute.return_value = (
+            sample_devices
+        )
         mock_container.get_status_interactor.return_value.execute.side_effect = (
             Exception("Connection timeout")
         )

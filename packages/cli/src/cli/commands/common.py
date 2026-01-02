@@ -32,13 +32,11 @@ def common_options(func: Callable) -> Callable:
 def device_targeting_options(func: Callable) -> Callable:
 
     @click.option(
-        "--from-config", is_flag=True, help="Use devices from configuration file"
-    )
-    @click.option(
-        "--devices",
+        "--target",
+        "-t",
+        "targets_opt",
         multiple=True,
-        callback=validate_ip_address,
-        help="Specific device IPs (can be used multiple times)",
+        help="Specific device IPs, ranges, or CIDR (can be used multiple times)",
     )
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -84,150 +82,23 @@ def parse_ip_list(ip_list_str: str) -> list[str]:
     return ips
 
 
-def parse_ip_range(ip_range: str) -> tuple[str, str]:
-    """
-    Parse IP range string into start and end IPs.
-
-    Supports formats:
-    - 192.168.1.1-192.168.1.50
-    - 192.168.1.1/24
-    - 192.168.1.1 (single IP)
-    """
-    if "-" in ip_range:
-        parts = ip_range.split("-", 1)
-        if len(parts) != 2:
-            raise ValueError("Invalid range format. Use: start_ip-end_ip")
-        start_ip, end_ip = parts[0].strip(), parts[1].strip()
-
-        try:
-            ipaddress.ip_address(start_ip)
-            ipaddress.ip_address(end_ip)
-        except ValueError as e:
-            raise ValueError(f"Invalid IP address in range: {e}") from e
-
-        return start_ip, end_ip
-
-    elif "/" in ip_range:
-        try:
-            network = ipaddress.ip_network(ip_range, strict=False)
-            hosts = list(network.hosts())
-            if hosts:
-                return str(hosts[0]), str(hosts[-1])
-            else:
-                return str(network.network_address), str(network.network_address)
-        except ValueError as e:
-            raise ValueError(f"Invalid CIDR notation: {e}") from e
-
-    else:
-        try:
-            ipaddress.ip_address(ip_range)
-            return ip_range, ip_range
-        except ValueError as e:
-            raise ValueError(f"Invalid IP address: {e}") from e
-
-
-def validate_ip_address(ctx: click.Context, param: click.Parameter, value: Any) -> Any:
-    if value is None:
-        return value
-
-    if isinstance(value, list | tuple):
-        validated = []
-        for ip in value:
-            try:
-                ipaddress.ip_address(ip)
-                validated.append(ip)
-            except ValueError as e:
-                raise click.BadParameter(f"'{ip}' is not a valid IP address") from e
-        return tuple(validated)
-    else:
-        try:
-            ipaddress.ip_address(value)
-            return value
-        except ValueError as e:
-            raise click.BadParameter(f"'{value}' is not a valid IP address") from e
-
-
-def validate_ip_range(ctx: click.Context, param: click.Parameter, value: Any) -> Any:
-    if not value:
-        return value
-
-    if isinstance(value, list | tuple):
-        validated: list[str] = []
-        for ip_range in value:
-            try:
-                parse_ip_range(ip_range)
-                validated.append(ip_range)
-            except Exception as e:
-                raise click.BadParameter(
-                    f"'{ip_range}' is not a valid IP range: {e}"
-                ) from e
-        return tuple(validated)
-    else:
-        try:
-            parse_ip_range(value)
-            return value
-        except Exception as e:
-            raise click.BadParameter(f"'{value}' is not a valid IP range: {e}") from e
-
-
 def create_scan_request(
-    ip_ranges: list[str],
-    devices: list[str],
-    from_config: bool,
+    targets: list[str],
     timeout: float,
     workers: int,
     use_mdns: bool = False,
 ) -> ScanRequest:
+    """Create a ScanRequest from CLI arguments."""
 
-    if use_mdns:
-        return ScanRequest(
-            use_predefined=False,
-            start_ip=None,
-            end_ip=None,
-            timeout=timeout,
-            max_workers=workers,
-            use_mdns=use_mdns,
-        )
-
-    if from_config:
-        return ScanRequest(
-            use_predefined=True,
-            start_ip=None,
-            end_ip=None,
-            timeout=timeout,
-            max_workers=workers,
-            use_mdns=use_mdns,
-        )
-
-    if ip_ranges:
-        start_ip, end_ip = parse_ip_range(ip_ranges[0])
-        return ScanRequest(
-            start_ip=start_ip,
-            end_ip=end_ip,
-            use_predefined=False,
-            timeout=timeout,
-            max_workers=workers,
-            use_mdns=use_mdns,
-        )
-
-    if devices:
-        if len(devices) == 1:
-            start_ip, end_ip = parse_ip_range(devices[0])
-        else:
-            start_ip, end_ip = devices[0], devices[-1]
-
-        return ScanRequest(
-            start_ip=start_ip,
-            end_ip=end_ip,
-            use_predefined=False,
-            timeout=timeout,
-            max_workers=workers,
+    if not use_mdns and not targets:
+        raise click.BadParameter(
+            "At least one target is required when not using mDNS. "
+            "Use --target or --use-mdns."
         )
 
     return ScanRequest(
-        use_predefined=True,
-        start_ip=None,
-        end_ip=None,
+        targets=targets,
+        use_mdns=use_mdns,
         timeout=timeout,
         max_workers=workers,
     )

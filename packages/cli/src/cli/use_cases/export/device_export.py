@@ -3,7 +3,6 @@ Device export use case for CLI operations.
 """
 
 import csv
-import ipaddress
 import json
 from datetime import datetime
 from pathlib import Path
@@ -13,7 +12,7 @@ from core.domain.entities import DeviceStatus
 from core.domain.value_objects.check_device_status_request import (
     CheckDeviceStatusRequest,
 )
-from core.domain.value_objects.scan_request import ScanRequest
+from core.utils.target_parser import expand_targets
 from rich.console import Console
 from rich.table import Table
 
@@ -76,32 +75,15 @@ class DeviceExportUseCase:
             )
         return True
 
-    def _generate_ip_range(self, network: str) -> list[str]:
-        """Generate IP list from CIDR notation (e.g., 192.168.1.0/24)."""
+    async def _get_all_target_ips(self, request: ExportRequest) -> list[str]:
+        """Get all target IPs from request targets."""
+        if not request.targets:
+            return []
+
         try:
-            network_obj = ipaddress.IPv4Network(network, strict=False)
-            return [str(ip) for ip in network_obj.hosts()]
+            return expand_targets(request.targets)
         except ValueError as e:
-            raise ValueError(f"Invalid network range: {network}") from e
-
-    async def _get_config_device_ips(self) -> list[str]:
-        """Get device IPs from configuration."""
-
-        try:
-            scan_interactor = self._container.get_scan_interactor()
-
-            scan_request = ScanRequest(
-                use_predefined=True,
-                start_ip=None,
-                end_ip=None,
-                timeout=5.0,
-                max_workers=10,
-            )
-
-            discovered_devices = await scan_interactor.execute(scan_request)
-            return [device.ip for device in discovered_devices]
-        except Exception:
-
+            self._console.print(f"[red]❌ Error parsing targets: {e}[/red]")
             return []
 
     async def _get_detailed_status_for_devices(
@@ -135,56 +117,20 @@ class DeviceExportUseCase:
         return devices
 
     async def _get_devices(self, request: ExportRequest) -> list[DeviceStatus]:
-        """Get devices based on scan or IP list."""
-        if request.scan and request.ips:
-            self._console.print(
-                "[yellow]⚠️ Both --scan and --ips provided. Using --scan to discover devices.[/yellow]"
+        """Get devices based on targets."""
+        if not request.targets:
+            raise ValueError(
+                "No targets specified. Provide device IPs, ranges, or CIDR."
             )
 
-        if request.scan:
-            return await self._scan_for_devices(request)
-        elif request.ips:
-            return await self._get_devices_by_ips(request)
-        else:
-            raise ValueError("Must provide either --scan or --ips")
-
-    async def _scan_for_devices(self, request: ExportRequest) -> list[DeviceStatus]:
-        """Scan network for devices using direct status requests."""
-
-        if request.network:
-
-            try:
-                target_ips = self._generate_ip_range(request.network)
-                self._console.print(
-                    f"[blue]🔍 Scanning {request.network} ({len(target_ips)} IPs) for devices...[/blue]"
-                )
-            except ValueError as e:
-                self._console.print(f"[red]❌ {e}[/red]")
-                raise
-        else:
-
-            config_ips = await self._get_config_device_ips()
-            target_ips = config_ips
-            self._console.print(
-                f"[blue]🔍 Checking {len(target_ips)} devices from config...[/blue]"
-            )
+        target_ips = await self._get_all_target_ips(request)
 
         if not target_ips:
-            self._console.print("[yellow]⚠️ No IPs to scan[/yellow]")
             return []
 
         return await self._get_detailed_status_for_devices(target_ips)
 
-    async def _get_devices_by_ips(self, request: ExportRequest) -> list[DeviceStatus]:
-        """Get devices by specific IP addresses."""
-        if request.ips is None:
-            raise ValueError("No IP addresses provided")
-
-        from cli.commands.common import parse_ip_list
-
-        target_ips = parse_ip_list(",".join(request.ips))
-
-        return await self._get_detailed_status_for_devices(target_ips)
+    # _scan_for_devices and _get_devices_by_ips merged into _get_devices and _get_all_target_ips
 
     async def _get_configurations_for_devices(
         self, devices: list[DeviceStatus]
@@ -307,9 +253,9 @@ class DeviceExportUseCase:
             "devices": [],
         }
 
-        if request.scan:
+        if request.targets:
             export_data["metadata"]["scan_settings"] = {
-                "network": request.network or "auto-detected",
+                "targets": request.targets,
                 "timeout": request.timeout,
             }
 

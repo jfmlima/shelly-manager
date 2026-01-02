@@ -12,8 +12,7 @@ from .common import OperationResult
 class ComponentActionRequest(BaseModel):
     """Request for executing component actions via CLI."""
 
-    devices: list[str] = Field(default_factory=list)
-    from_config: bool = Field(default=False)
+    targets: list[str] = Field(default_factory=list)
     component_key: str = Field(
         ..., description="Component key (e.g., 'switch:0', 'sys')"
     )
@@ -42,8 +41,7 @@ class ComponentActionResult(OperationResult):
 class ComponentActionsListRequest(BaseModel):
     """Request for listing component actions."""
 
-    devices: list[str] = Field(default_factory=list)
-    from_config: bool = Field(default=False)
+    targets: list[str] = Field(default_factory=list)
     timeout: float = Field(default=3.0, gt=0)
     workers: int = Field(default=10, gt=0, le=50)
     component_type: str | None = Field(

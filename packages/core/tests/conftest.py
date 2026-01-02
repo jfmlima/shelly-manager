@@ -6,19 +6,12 @@ from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.enums.enums import Status
 from core.domain.value_objects.action_result import ActionResult
 from core.domain.value_objects.scan_request import ScanRequest
-from core.gateways.configuration import ConfigurationGateway
 from core.gateways.device import DeviceGateway
 
 
 @pytest.fixture
 def mock_device_gateway():
     gateway = MagicMock(spec=DeviceGateway)
-    return gateway
-
-
-@pytest.fixture
-def mock_config_gateway():
-    gateway = MagicMock(spec=ConfigurationGateway)
     return gateway
 
 

@@ -18,7 +18,6 @@ from .common import (
     async_command,
     common_options,
     device_targeting_options,
-    validate_ip_range,
 )
 
 
@@ -28,7 +27,7 @@ def device_commands() -> None:
 
 
 @device_commands.command()
-@click.argument("ip_ranges", nargs=-1, callback=validate_ip_range)
+@click.argument("targets", nargs=-1)
 @click.option("--use-mdns", is_flag=True, help="Use mDNS to discover devices")
 @device_targeting_options
 @common_options
@@ -36,23 +35,20 @@ def device_commands() -> None:
 @async_command
 async def scan(
     ctx: click.Context,
-    ip_ranges: tuple[str, ...],
-    from_config: bool,
+    targets: tuple[str, ...],
+    targets_opt: tuple[str, ...],
     use_mdns: bool,
-    devices: tuple[str, ...],
     timeout: int,
     workers: int,
 ) -> None:
     """
-    🔍 Scan for Shelly devices on the network.
-
-    Discover Shelly devices by scanning IP ranges or using predefined configurations.
+    Discover Shelly devices by scanning IP targets or using mDNS.
 
     Examples:
-      shelly-manager scan 192.168.1.1-192.168.1.50
+      shelly-manager scan 192.168.1.1-50
       shelly-manager scan 192.168.1.0/24
-      shelly-manager scan --from-config
-      shelly-manager scan --devices 192.168.1.100 --devices 192.168.1.101
+      shelly-manager scan -t 192.168.1.100 -t 192.168.1.101
+      shelly-manager scan --use-mdns
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -60,9 +56,7 @@ async def scan(
     scan_use_case = DeviceScanUseCase(container, console)
 
     request = DeviceScanRequest(
-        ip_ranges=list(ip_ranges),
-        from_config=from_config,
-        devices=list(devices),
+        targets=list(targets) + list(targets_opt),
         timeout=timeout,
         workers=workers,
         use_mdns=use_mdns,
@@ -74,27 +68,24 @@ async def scan(
 
 
 @device_commands.command("list")
-@click.argument("ip_ranges", nargs=-1, callback=validate_ip_range)
+@click.argument("targets", nargs=-1)
 @device_targeting_options
 @common_options
 @click.pass_context
 @async_command
 async def list_devices(
     ctx: click.Context,
-    ip_ranges: tuple[str, ...],
-    from_config: bool,
-    devices: tuple[str, ...],
+    targets: tuple[str, ...],
+    targets_opt: tuple[str, ...],
     timeout: int,
     workers: int,
 ) -> None:
     """
-    📋 List Shelly devices with detailed information.
-
-    Similar to scan but optimized for listing known devices with full details.
+    Similar to scan but optimized for listing known devices with full details in a table format.
 
     Examples:
-      shelly-manager list --from-config
-      shelly-manager list 192.168.1.1-192.168.1.50
+      shelly-manager list 192.168.1.0/24
+      shelly-manager list -t 192.168.1.100 -t 192.168.1.101
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -102,9 +93,7 @@ async def list_devices(
     scan_use_case = DeviceScanUseCase(container, console)
 
     request = DeviceScanRequest(
-        ip_ranges=list(ip_ranges),
-        from_config=from_config,
-        devices=list(devices),
+        targets=list(targets) + list(targets_opt),
         timeout=timeout,
         workers=workers,
         task_description="Listing devices...",
@@ -119,7 +108,7 @@ async def list_devices(
 
 
 @device_commands.command()
-@click.argument("devices", nargs=-1, required=False)
+@click.argument("targets", nargs=-1, required=False)
 @device_targeting_options
 @common_options
 @click.option(
@@ -132,21 +121,19 @@ async def list_devices(
 @async_command
 async def status(
     ctx: click.Context,
-    devices: tuple[str, ...],
-    from_config: bool,
+    targets: tuple[str, ...],
+    targets_opt: tuple[str, ...],
     include_updates: bool,
     timeout: int,
     workers: int,
 ) -> None:
     """
-    📊 Check status of specific Shelly devices.
-
     Get detailed status information including firmware versions, update availability,
     and device health metrics.
 
     Examples:
       shelly-manager status 192.168.1.100 192.168.1.101
-      shelly-manager status --from-config
+      shelly-manager status -t 192.168.1.0/24
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -154,8 +141,7 @@ async def status(
     status_use_case = DeviceStatusUseCase(container, console)
 
     request = DeviceStatusRequest(
-        devices=list(devices),
-        from_config=from_config,
+        targets=list(targets) + list(targets_opt),
         include_updates=include_updates,
         timeout=timeout,
         workers=workers,
@@ -169,7 +155,7 @@ async def status(
         console.print(Messages.error(str(e)))
         console.print("\nExamples:")
         console.print("  shelly-manager device status 192.168.1.100 192.168.1.101")
-        console.print("  shelly-manager device status --from-config")
+        console.print("  shelly-manager device status 192.168.1.0/24")
         raise click.Abort() from None
 
 
@@ -180,6 +166,7 @@ def actions() -> None:
 
 
 @actions.command("list")
+@click.argument("targets", nargs=-1)
 @device_targeting_options
 @click.option("--component-type", help="Filter by component type")
 @common_options
@@ -187,8 +174,8 @@ def actions() -> None:
 @async_command
 async def list_component_actions(
     ctx: click.Context,
-    from_config: bool,
-    devices: tuple[str, ...],
+    targets: tuple[str, ...],
+    targets_opt: tuple[str, ...],
     component_type: str | None,
     timeout: int,
     workers: int,
@@ -198,9 +185,9 @@ async def list_component_actions(
     Show all available actions that can be performed on device components.
 
     Examples:
-      shelly-manager device actions list --devices 192.168.1.100
-      shelly-manager device actions list --from-config
-      shelly-manager device actions list --component-type switch
+      shelly-manager device actions list -t 192.168.1.100
+      shelly-manager device actions list 192.168.1.0/24
+      shelly-manager device actions list -t 192.168.1.100 --component-type switch
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -208,8 +195,7 @@ async def list_component_actions(
     actions_use_case = ComponentActionsUseCase(container, console)
 
     request = ComponentActionsListRequest(
-        devices=list(devices),
-        from_config=from_config,
+        targets=list(targets) + list(targets_opt),
         timeout=timeout,
         workers=workers,
         component_type=component_type,
@@ -221,8 +207,8 @@ async def list_component_actions(
     except ValueError as e:
         console.print(Messages.error(str(e)))
         console.print("\nExamples:")
-        console.print("  shelly-manager device actions list --devices 192.168.1.100")
-        console.print("  shelly-manager device actions list --from-config")
+        console.print("  shelly-manager device actions list -t 192.168.1.100")
+        console.print("  shelly-manager device actions list 192.168.1.0/24")
         raise click.Abort() from None
 
 
@@ -238,8 +224,8 @@ async def execute_component_action(
     ctx: click.Context,
     component_key: str,
     action: str,
-    devices: tuple[str, ...],
-    from_config: bool,
+    targets: tuple[str, ...],
+    targets_opt: tuple[str, ...],
     force: bool,
     timeout: int,
     workers: int,
@@ -249,8 +235,8 @@ async def execute_component_action(
     Execute any available action on device components.
 
     Examples:
-      shelly-manager device actions execute shelly Reboot --devices 192.168.1.100
-      shelly-manager device actions execute switch:0 Toggle --from-config
+      shelly-manager device actions execute shelly Reboot -t 192.168.1.100
+      shelly-manager device actions execute switch:0 Toggle -t 192.168.1.100
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -258,8 +244,7 @@ async def execute_component_action(
     actions_use_case = ComponentActionsUseCase(container, console)
 
     request = ComponentActionRequest(
-        devices=list(devices),
-        from_config=from_config,
+        targets=list(targets) + list(targets_opt),
         component_key=component_key,
         action=action,
         timeout=timeout,
@@ -274,10 +259,10 @@ async def execute_component_action(
         console.print(Messages.error(str(e)))
         console.print("\nExamples:")
         console.print(
-            "  shelly-manager device actions execute shelly Reboot --devices 192.168.1.100"
+            "  shelly-manager device actions execute shelly Reboot -t 192.168.1.100"
         )
         console.print(
-            "  shelly-manager device actions execute switch:0 Toggle --from-config"
+            "  shelly-manager device actions execute switch:0 Toggle -t 192.168.1.0/24"
         )
         raise click.Abort() from None
     except RuntimeError:
@@ -288,6 +273,7 @@ device_commands.add_command(actions)
 
 
 @device_commands.command("reboot")
+@click.argument("targets", nargs=-1)
 @device_targeting_options
 @click.option("--force", is_flag=True)
 @common_options
@@ -295,8 +281,8 @@ device_commands.add_command(actions)
 @async_command
 async def reboot_devices(
     ctx: click.Context,
-    from_config: bool,
-    devices: tuple[str, ...],
+    targets: tuple[str, ...],
+    targets_opt: tuple[str, ...],
     force: bool,
     timeout: int,
     workers: int,
@@ -304,8 +290,8 @@ async def reboot_devices(
     """🔄 Reboot devices (shortcut for: actions execute shelly Reboot).
 
     Examples:
-      shelly-manager device reboot --devices 192.168.1.100
-      shelly-manager device reboot --from-config --force
+      shelly-manager device reboot -t 192.168.1.100
+      shelly-manager device reboot 192.168.1.0/24 --force
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -313,8 +299,7 @@ async def reboot_devices(
     actions_use_case = ComponentActionsUseCase(container, console)
 
     request = ComponentActionRequest(
-        devices=list(devices),
-        from_config=from_config,
+        targets=list(targets) + list(targets_opt),
         component_key="shelly",
         action="Reboot",
         timeout=timeout,
@@ -328,14 +313,15 @@ async def reboot_devices(
     except ValueError as e:
         console.print(Messages.error(str(e)))
         console.print("\nExamples:")
-        console.print("  shelly-manager device reboot --devices 192.168.1.100")
-        console.print("  shelly-manager device reboot --from-config --force")
+        console.print("  shelly-manager device reboot -t 192.168.1.100")
+        console.print("  shelly-manager device reboot 192.168.1.0/24 --force")
         raise click.Abort() from None
     except RuntimeError:
         return
 
 
 @device_commands.command("update")
+@click.argument("targets", nargs=-1)
 @device_targeting_options
 @click.option("--channel", type=click.Choice(["stable", "beta"]), default="stable")
 @click.option("--force", is_flag=True)
@@ -344,8 +330,8 @@ async def reboot_devices(
 @async_command
 async def update_firmware(
     ctx: click.Context,
-    from_config: bool,
-    devices: tuple[str, ...],
+    targets: tuple[str, ...],
+    targets_opt: tuple[str, ...],
     channel: str,
     force: bool,
     timeout: int,
@@ -354,8 +340,8 @@ async def update_firmware(
     """🚀 Update device firmware (shortcut for: actions execute shelly Update).
 
     Examples:
-      shelly-manager device update --devices 192.168.1.100
-      shelly-manager device update --from-config --channel beta
+      shelly-manager device update -t 192.168.1.100
+      shelly-manager device update 192.168.1.0/24 --channel beta
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -367,8 +353,7 @@ async def update_firmware(
         update_parameters["channel"] = channel
 
     request = ComponentActionRequest(
-        devices=list(devices),
-        from_config=from_config,
+        targets=list(targets) + list(targets_opt),
         component_key="shelly",
         action="Update",
         parameters=update_parameters,
@@ -383,8 +368,8 @@ async def update_firmware(
     except ValueError as e:
         console.print(Messages.error(str(e)))
         console.print("\nExamples:")
-        console.print("  shelly-manager device update --devices 192.168.1.100")
-        console.print("  shelly-manager device update --from-config --channel beta")
+        console.print("  shelly-manager device update -t 192.168.1.100")
+        console.print("  shelly-manager device update 192.168.1.0/24 --channel beta")
         raise click.Abort() from None
     except RuntimeError:
         return
@@ -400,8 +385,8 @@ async def update_firmware(
 async def toggle_component(
     ctx: click.Context,
     component_key: str,
-    from_config: bool,
-    devices: tuple[str, ...],
+    targets: tuple[str, ...],
+    targets_opt: tuple[str, ...],
     force: bool,
     timeout: int,
     workers: int,
@@ -409,8 +394,8 @@ async def toggle_component(
     """🔄 Toggle switch component (shortcut for: actions execute switch:X Toggle).
 
     Examples:
-      shelly-manager device toggle switch:0 --devices 192.168.1.100
-      shelly-manager device toggle switch:1 --from-config
+      shelly-manager device toggle switch:0 -t 192.168.1.100
+      shelly-manager device toggle switch:1 192.168.1.0/24
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -418,8 +403,7 @@ async def toggle_component(
     actions_use_case = ComponentActionsUseCase(container, console)
 
     request = ComponentActionRequest(
-        devices=list(devices),
-        from_config=from_config,
+        targets=list(targets) + list(targets_opt),
         component_key=component_key,
         action="Toggle",
         timeout=timeout,
@@ -433,8 +417,8 @@ async def toggle_component(
     except ValueError as e:
         console.print(Messages.error(str(e)))
         console.print("\nExamples:")
-        console.print("  shelly-manager device toggle switch:0 --devices 192.168.1.100")
-        console.print("  shelly-manager device toggle switch:1 --from-config")
+        console.print("  shelly-manager device toggle switch:0 -t 192.168.1.100")
+        console.print("  shelly-manager device toggle switch:1 192.168.1.0/24")
         raise click.Abort() from None
     except RuntimeError:
         return

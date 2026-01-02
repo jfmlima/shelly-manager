@@ -1,5 +1,4 @@
 import asyncio
-import ipaddress
 import logging
 from datetime import datetime
 
@@ -7,7 +6,6 @@ from ..domain.entities.discovered_device import DiscoveredDevice
 from ..domain.entities.exceptions import DeviceValidationError, ValidationError
 from ..domain.enums.enums import Status
 from ..domain.value_objects.scan_request import ScanRequest
-from ..gateways.configuration import ConfigurationGateway
 from ..gateways.device import DeviceGateway
 from ..gateways.network import MDNSGateway
 
@@ -19,11 +17,9 @@ class ScanDevicesUseCase:
     def __init__(
         self,
         device_gateway: DeviceGateway,
-        config_gateway: ConfigurationGateway,
         mdns_client: MDNSGateway | None = None,
     ):
         self._device_gateway = device_gateway
-        self._config_gateway = config_gateway
         self._mdns_client = mdns_client
 
     async def execute(self, request: ScanRequest) -> list[DiscoveredDevice]:
@@ -63,49 +59,24 @@ class ScanDevicesUseCase:
         return discovered_devices
 
     def _validate_scan_request(self, request: ScanRequest) -> None:
+        """Validate scan request."""
         if request.use_mdns:
             return
 
-        if request.use_predefined:
-            return
-
-        if not request.start_ip or not request.end_ip:
+        if not request.targets:
             raise ValidationError(
-                "start_end_ips",
-                "start_ip and end_ip required when not using predefined IPs",
-            )
-
-        if not self._validate_ip_address(request.start_ip):
-            raise ValidationError(
-                "start_ip",
-                request.start_ip,
-                f"Invalid start IP address: {request.start_ip}",
-            )
-
-        if not self._validate_ip_address(request.end_ip):
-            raise ValidationError(
-                "end_ip", request.end_ip, f"Invalid end IP address: {request.end_ip}"
-            )
-
-        if not self._validate_scan_range(request.start_ip, request.end_ip):
-            raise ValidationError(
-                "ip_range",
-                f"{request.start_ip}-{request.end_ip}",
-                "Start IP must be less than or equal to end IP",
+                "targets",
+                "At least one target is required when not using mDNS",
             )
 
     async def _get_scan_ips(self, request: ScanRequest) -> list[str]:
+        """Get list of IPs to scan based on request."""
         if request.use_mdns:
             return await self._discover_devices_via_mdns(request)
 
-        if request.use_predefined:
-            return await self._config_gateway.get_predefined_ips()
-        else:
-            if request.start_ip is None or request.end_ip is None:
-                raise ValueError(
-                    "Start IP and end IP must be provided when not using predefined IPs"
-                )
-            return self._generate_ip_range(request.start_ip, request.end_ip)
+        from ..utils.target_parser import expand_targets
+
+        return expand_targets(request.targets)
 
     async def _scan_single_device(
         self, ip: str, timeout: float, semaphore: asyncio.Semaphore
@@ -120,52 +91,6 @@ class ScanDevicesUseCase:
                     last_seen=datetime.now(),
                     error_message="Device scan failed",
                 )
-
-    def _generate_ip_range(self, start_ip: str, end_ip: str) -> list[str]:
-        try:
-            start = ipaddress.IPv4Address(start_ip)
-            end = ipaddress.IPv4Address(end_ip)
-
-            if start > end:
-                raise ValueError("Start IP must be less than or equal to end IP")
-
-            return [
-                str(ipaddress.IPv4Address(ip)) for ip in range(int(start), int(end) + 1)
-            ]
-
-        except ipaddress.AddressValueError as e:
-            raise ValidationError(
-                "ip_format", str(e), f"Invalid IP address format: {e}"
-            ) from e
-
-    def _validate_ip_address(self, ip: str) -> bool:
-        try:
-            ipaddress.IPv4Address(ip)
-            return True
-        except ipaddress.AddressValueError:
-            return False
-
-    def _validate_device_credentials(
-        self, username: str | None, password: str | None
-    ) -> bool:
-        if (username is None) != (password is None):
-            return False
-
-        if username and len(username) < 1:
-            return False
-
-        if password and len(password) < 1:
-            return False
-
-        return True
-
-    def _validate_scan_range(self, start_ip: str, end_ip: str) -> bool:
-        try:
-            start = ipaddress.IPv4Address(start_ip)
-            end = ipaddress.IPv4Address(end_ip)
-            return start <= end
-        except ipaddress.AddressValueError:
-            return False
 
     async def _discover_device(
         self, ip: str, timeout: float = 3.0

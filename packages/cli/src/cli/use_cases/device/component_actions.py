@@ -4,6 +4,7 @@ Component actions CLI use case.
 
 import logging
 
+from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.value_objects.component_action_request import (
     ComponentActionRequest as CoreActionRequest,
 )
@@ -22,6 +23,7 @@ from cli.entities.component_actions import (
     ComponentActionsListResult,
 )
 
+from ..common.device_discovery import DeviceDiscoveryRequest, DeviceDiscoveryUseCase
 from ..common.progress_tracking import ProgressTracker
 from ..common.result_formatting import ResultFormatter
 
@@ -34,6 +36,7 @@ class ComponentActionsUseCase:
     def __init__(self, container: CLIContainer, console: Console):
         self._container = container
         self._console = console
+        self._device_discovery = DeviceDiscoveryUseCase(container)
         self._progress_tracker = ProgressTracker(console)
         self._result_formatter = ResultFormatter(console)
 
@@ -48,27 +51,32 @@ class ComponentActionsUseCase:
         Returns:
             List of component action results
         """
-        if request.from_config:
-            config_gateway = self._container.get_config_gateway()
-            device_ips = await config_gateway.get_predefined_ips()
-        elif request.devices:
-            device_ips = request.devices
-        else:
+        if not request.targets:
             raise ValueError(
-                "No devices specified. Provide device IPs or use --from-config"
+                "No targets specified. Provide device IPs, ranges, or CIDR."
             )
 
+        discovery_request = DeviceDiscoveryRequest(
+            targets=request.targets,
+            timeout=request.timeout,
+            workers=request.workers,
+        )
+        device_list: list[DiscoveredDevice] = (
+            await self._device_discovery.discover_devices(discovery_request)
+        )
+        device_ips = [d.ip for d in device_list]
+
         if not device_ips:
-            raise ValueError("No devices found")
+            return []
 
         if not request.force:
             action_desc = f"{request.action} on {request.component_key}"
-            device_list = ", ".join(device_ips[:3]) + (
+            devices = ", ".join(device_ips[:3]) + (
                 f" and {len(device_ips)-3} more" if len(device_ips) > 3 else ""
             )
 
             self._console.print(f"\n[yellow]About to execute:[/yellow] {action_desc}")
-            self._console.print(f"[yellow]Target devices:[/yellow] {device_list}")
+            self._console.print(f"[yellow]Target devices:[/yellow] {devices}")
 
             if not self._console.input("\nContinue? [y/N]: ").lower().startswith("y"):
                 raise RuntimeError("Operation cancelled by user")
@@ -132,18 +140,21 @@ class ComponentActionsUseCase:
         Returns:
             List of component actions list results
         """
-        if request.from_config:
-            config_gateway = self._container.get_config_gateway()
-            device_ips = await config_gateway.get_predefined_ips()
-        elif request.devices:
-            device_ips = request.devices
-        else:
+        if not request.targets:
             raise ValueError(
-                "No devices specified. Provide device IPs or use --from-config"
+                "No targets specified. Provide device IPs, ranges, or CIDR."
             )
 
+        discovery_request = DeviceDiscoveryRequest(
+            targets=request.targets,
+            timeout=request.timeout,
+            workers=request.workers,
+        )
+        device_list = await self._device_discovery.discover_devices(discovery_request)
+        device_ips = [d.ip for d in device_list]
+
         if not device_ips:
-            raise ValueError("No devices found")
+            return []
 
         results = []
         actions_interactor = self._container.get_component_actions_interactor()

@@ -74,32 +74,6 @@ class APISettings(BaseSettings):
     rate_limit: int = Field(default=100, ge=1, description="Rate limit per minute")
 
 
-class DeviceSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="DEVICE_")
-
-    default_username: str | None = Field(
-        default=None, description="Default device username"
-    )
-    default_password: str | None = Field(
-        default=None, description="Default device password"
-    )
-    update_channel: str = Field(default="stable", description="Default update channel")
-    scan_ranges: list[dict[str, str]] = Field(
-        default=[{"start": "192.168.1.1", "end": "192.168.1.10"}],
-        description="Default scan ranges",
-    )
-
-    @field_validator("update_channel")
-    @classmethod
-    def validate_update_channel(cls, v: str) -> str:
-        valid_channels = ["stable", "beta"]
-        if v not in valid_channels:
-            raise ValueError(
-                f"Invalid update channel. Must be one of: {valid_channels}"
-            )
-        return v
-
-
 class AppSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="SHELLY_", env_file=".env", env_file_encoding="utf-8"
@@ -109,7 +83,6 @@ class AppSettings(BaseSettings):
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     network: NetworkSettings = Field(default_factory=NetworkSettings)
     api: APISettings = Field(default_factory=APISettings)
-    device: DeviceSettings = Field(default_factory=DeviceSettings)
 
     config_file: str = Field(
         default="config.json", description="Configuration file path"
@@ -131,7 +104,7 @@ class AppSettings(BaseSettings):
         in future for transparency).
         """
         config_path = Path(self.config_file)
-        if not config_path.exists():
+        if not config_path.is_file():
             return
 
         try:
@@ -146,8 +119,6 @@ class AppSettings(BaseSettings):
                 self.network = NetworkSettings(**raw["network"])
             if isinstance(raw.get("api"), dict):
                 self.api = APISettings(**raw["api"])
-            if isinstance(raw.get("device"), dict):
-                self.device = DeviceSettings(**raw["device"])
 
             for field_name in ["config_file", "data_dir", "cache_ttl"]:
                 if field_name in raw:
@@ -165,7 +136,6 @@ class AppSettings(BaseSettings):
                 "logging": self.logging.model_dump(),
                 "network": self.network.model_dump(),
                 "api": self.api.model_dump(),
-                "device": self.device.model_dump(),
                 "config_file": self.config_file,
                 "data_dir": self.data_dir,
                 "cache_ttl": self.cache_ttl,
@@ -181,17 +151,6 @@ class AppSettings(BaseSettings):
             raise ConfigurationError(
                 "save_config", f"Failed to save config: {e}"
             ) from e
-
-    def get_device_credentials(self, ip: str) -> dict[str, str] | None:
-        if self.device.default_username and self.device.default_password:
-            return {
-                "username": self.device.default_username,
-                "password": self.device.default_password,
-            }
-        return None
-
-    def get_scan_ranges(self) -> list[dict[str, str]]:
-        return self.device.scan_ranges
 
     def validate_settings(self) -> None:
         try:

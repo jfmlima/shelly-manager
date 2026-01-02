@@ -10,8 +10,6 @@ from cli.commands.common import (
     async_command,
     create_scan_request,
     parse_ip_list,
-    parse_ip_range,
-    validate_ip_address,
 )
 
 
@@ -49,102 +47,42 @@ class TestCommonUtilities:
         with pytest.raises(click.BadParameter):
             parse_ip_list(ip_list_str)
 
-    def test_parse_ip_range_with_dash_format(self):
-        ip_range = "192.168.1.1-192.168.1.50"
-        start, end = parse_ip_range(ip_range)
+    # parse_ip_range was removed, tests moved to core/tests/unit/utils/test_target_parser.py
 
-        assert start == "192.168.1.1"
-        assert end == "192.168.1.50"
+    # Removed validate_ip_address and validate_ip_range tests as they are no longer needed
 
-    def test_parse_ip_range_with_cidr_format(self):
-        ip_range = "192.168.1.0/24"
-        start, end = parse_ip_range(ip_range)
-
-        assert start == "192.168.1.1"
-        assert end == "192.168.1.254"
-
-    def test_parse_ip_range_with_single_ip(self):
-        ip_range = "192.168.1.100"
-        start, end = parse_ip_range(ip_range)
-
-        assert start == "192.168.1.100"
-        assert end == "192.168.1.100"
-
-    def test_parse_ip_range_with_invalid_dash_format(self):
-        ip_range = "192.168.1.1-192.168.1.50-192.168.1.100"
-
-        with pytest.raises(ValueError):
-            parse_ip_range(ip_range)
-
-    def test_parse_ip_range_with_invalid_cidr(self):
-        ip_range = "192.168.1.0/33"
-
-        with pytest.raises(ValueError):
-            parse_ip_range(ip_range)
-
-    def test_validate_ip_address_with_valid_ip(self):
-        ctx = None
-        param = None
-        value = "192.168.1.100"
-
-        result = validate_ip_address(ctx, param, value)
-
-        assert result == value
-
-    def test_validate_ip_address_with_multiple_valid_ips(self):
-        ctx = None
-        param = None
-        value = ("192.168.1.100", "192.168.1.101")
-
-        result = validate_ip_address(ctx, param, value)
-
-        assert result == value
-
-    def test_validate_ip_address_with_invalid_ip(self):
-        ctx = None
-        param = None
-        value = "invalid.ip.address"
-
-        with pytest.raises(click.BadParameter):
-            validate_ip_address(ctx, param, value)
-
-    def test_create_scan_request_with_ip_ranges(self):
+    def test_create_scan_request_with_targets(self):
         scan_request = create_scan_request(
-            ip_ranges=["192.168.1.0/24"],
-            devices=[],
-            from_config=False,
+            targets=["192.168.1.0/24"],
             timeout=3.0,
             workers=10,
         )
 
-        assert scan_request.start_ip is not None
-        assert scan_request.use_predefined is False
+        assert scan_request.targets == ["192.168.1.0/24"]
         assert scan_request.timeout == 3.0
         assert scan_request.max_workers == 10
 
-    def test_create_scan_request_with_specific_devices(self):
+    def test_create_scan_request_with_multiple_targets(self):
         scan_request = create_scan_request(
-            ip_ranges=[],
-            devices=["192.168.1.100", "192.168.1.101"],
-            from_config=False,
+            targets=["192.168.1.100", "192.168.1.101"],
             timeout=5.0,
             workers=20,
         )
 
-        assert scan_request.use_predefined is False
+        assert scan_request.targets == ["192.168.1.100", "192.168.1.101"]
         assert scan_request.timeout == 5.0
         assert scan_request.max_workers == 20
 
-    def test_create_scan_request_from_config(self):
+    def test_create_scan_request_with_mdns(self):
         scan_request = create_scan_request(
-            ip_ranges=[],
-            devices=[],
-            from_config=True,
+            targets=[],
+            use_mdns=True,
             timeout=3.0,
             workers=10,
         )
 
-        assert scan_request.use_predefined is True
+        assert scan_request.use_mdns is True
+        assert scan_request.targets == []
         assert scan_request.timeout == 3.0
         assert scan_request.max_workers == 10
 

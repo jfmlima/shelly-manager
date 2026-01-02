@@ -11,9 +11,7 @@ services:
       HOST: "0.0.0.0"
       PORT: "8000"
       DEBUG: "true"
-      SHELLY_CONFIG_FILE: "/app/config.json"
     volumes:
-      - ./config.json:/app/config.json:ro
       - ./packages/api/src:/app/packages/api/src:rw
       - ./packages/core/src:/app/packages/core/src:rw
     ports:
@@ -51,9 +49,6 @@ services:
       context: .
       dockerfile: packages/cli/dev.Dockerfile
     environment:
-      SHELLY_CONFIG_FILE: "/app/config.json"
-    volumes:
-      - ./config.json:/app/config.json:ro
       - ./packages/cli/src:/app/packages/cli/src:rw
       - ./packages/core/src:/app/packages/core/src:rw
     profiles:

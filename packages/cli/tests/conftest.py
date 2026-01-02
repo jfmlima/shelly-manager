@@ -2,16 +2,17 @@
 Test configuration and shared fixtures for CLI tests.
 """
 
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from cli.main import CliContext
 from click.testing import CliRunner
+from core.domain.entities.device_status import DeviceStatus
 from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.enums.enums import Status
 from core.domain.value_objects.action_result import ActionResult
 from core.domain.value_objects.scan_request import ScanRequest
-from core.gateways.configuration import ConfigurationGateway
 from core.gateways.device import DeviceGateway
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.scan_devices import ScanDevicesUseCase
@@ -29,32 +30,27 @@ def mock_device_gateway():
 
 
 @pytest.fixture
-def mock_config_gateway():
-    gateway = MagicMock(spec=ConfigurationGateway)
-    gateway.get_predefined_ips = AsyncMock(return_value=["192.168.1.100"])
-    return gateway
-
-
-@pytest.fixture
 def mock_scan_interactor():
-    return MagicMock(spec=ScanDevicesUseCase)
+    mock = MagicMock(spec=ScanDevicesUseCase)
+    mock.execute = AsyncMock()
+    return mock
 
 
 @pytest.fixture
 def mock_status_interactor():
-    return MagicMock(spec=CheckDeviceStatusUseCase)
+    mock = MagicMock(spec=CheckDeviceStatusUseCase)
+    mock.execute = AsyncMock()
+    return mock
 
 
 @pytest.fixture
 def mock_container(
     mock_scan_interactor,
     mock_status_interactor,
-    mock_config_gateway,
 ):
     container = MagicMock()
     container.get_scan_interactor.return_value = mock_scan_interactor
     container.get_status_interactor.return_value = mock_status_interactor
-    container.get_config_gateway.return_value = mock_config_gateway
     container.get_execute_component_action_interactor.return_value = MagicMock()
     container.get_component_actions_interactor.return_value = MagicMock()
     container.get_bulk_operations_interactor.return_value = MagicMock()
@@ -94,6 +90,19 @@ def sample_device():
 
 
 @pytest.fixture
+def sample_device_status():
+    return DeviceStatus(
+        device_ip="192.168.1.100",
+        device_name="Test Device",
+        device_type="SHPM-1",
+        firmware_version="v1.14.0",
+        mac_address="AA:BB:CC:DD:EE:FF",
+        components=[],
+        last_updated=datetime.now(),
+    )
+
+
+@pytest.fixture
 def sample_devices(sample_device):
     device2 = DiscoveredDevice(
         ip="192.168.1.101",
@@ -122,7 +131,7 @@ def sample_action_result():
 @pytest.fixture
 def sample_scan_request():
     return ScanRequest(
-        device_ips=["192.168.1.100", "192.168.1.101"], timeout=3.0, max_workers=10
+        targets=["192.168.1.100", "192.168.1.101"], timeout=3.0, max_workers=10
     )
 
 
