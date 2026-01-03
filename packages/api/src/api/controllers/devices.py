@@ -39,11 +39,11 @@ def _require(dep_name: str, dep: T | None) -> T:
 
 @get("/scan", tags=["Devices"], summary="Scan Network for Devices")
 async def scan_devices(
-    start_ip: str | None = None,
-    end_ip: str | None = None,
+    targets: list[str] | None = None,
     use_predefined: bool = True,
     use_mdns: bool = False,
     max_workers: int = 50,
+    timeout: float = 3.0,
     scan_interactor: ScanDevicesUseCase | None = None,
 ) -> list[dict]:
     """
@@ -53,12 +53,11 @@ async def scan_devices(
     Returns device information including IP, status, type, and firmware version.
 
     Args:
-        start_ip: Starting IP address for scan range (e.g., "192.168.1.1")
-        end_ip: Ending IP address for scan range (e.g., "192.168.1.254")
+        targets: List of IP targets (IPs, ranges, or CIDR)
         use_predefined: Whether to use predefined IP ranges from config
         use_mdns: Whether to use mDNS to discover devices
-        timeout: Timeout in seconds for each device probe
         max_workers: Maximum concurrent workers for scanning
+        timeout: Connection timeout per device (seconds) or mDNS scan duration
 
     Returns:
         list[dict]: List of discovered devices with their information
@@ -66,11 +65,10 @@ async def scan_devices(
     scan_interactor = _require("scan_interactor", scan_interactor)
 
     scan_request = ScanRequest(
-        start_ip=start_ip,
-        end_ip=end_ip,
+        targets=targets or [],
         use_predefined=use_predefined,
         use_mdns=use_mdns,
-        timeout=3,
+        timeout=timeout,
         max_workers=max_workers,
     )
 

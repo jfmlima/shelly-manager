@@ -32,19 +32,13 @@ class TestCLIMain:
 
         assert result.exit_code == 0
 
-    def test_it_accepts_config_file_option(self, runner, tmp_path):
-        config_file = tmp_path / "test_config.json"
-        config_file.write_text('{"predefined_ips": []}')
-
-        result = runner.invoke(cli, ["--config", str(config_file)])
-
-        assert result.exit_code == 0
+    # test_it_accepts_config_file_option removed as --config was removed
 
     def test_it_shows_help_for_available_commands(self, runner):
         result = runner.invoke(cli, ["--help"])
 
         assert result.exit_code == 0
         assert "device" in result.output
-        assert "config" in result.output
+        assert "export" in result.output
         assert "export" in result.output
         assert "scan" in result.output

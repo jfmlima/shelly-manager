@@ -94,8 +94,6 @@ services:
     #network_mode: "host" # optional, but if you mDNS please uncomment it
     ports:
       - "8000:8000"
-    volumes:
-      - ./config.json:/app/config.json:ro #optional
     environment:
       - HOST=0.0.0.0
       - PORT=8000
@@ -117,8 +115,6 @@ services:
   shelly-manager-api:
     container_name: shelly-manager-api
     image: ghcr.io/jfmlima/shelly-manager-api:latest
-    volumes:
-      - ./home/shelly-manager/config.json:/app/config.json:ro
     environment:
       - HOST=0.0.0.0
       - PORT=8000
@@ -170,9 +166,8 @@ The add-on provides the same functionality as the Docker deployment but is fully
 ```bash
 # Interactive device scanning
 docker run --rm -it \
-  -v ./config.json:/app/config.json:ro \
   ghcr.io/jfmlima/shelly-manager-cli:latest \
-  scan --range 192.168.1.0/24
+  scan --target 192.168.1.0/24
 
 # Check device status
 docker run --rm -it \
@@ -181,47 +176,31 @@ docker run --rm -it \
 
 # Bulk firmware updates
 docker run --rm -it \
-  -v ./config.json:/app/config.json:ro \
   ghcr.io/jfmlima/shelly-manager-cli:latest \
-  bulk update --from-config
+  bulk update --target 192.168.1.0/24
 ```
 
 **API Only**:
 
 ```bash
 docker run -p 8000:8000 \
-  -v ./config.json:/app/config.json:ro \
   ghcr.io/jfmlima/shelly-manager-api:latest
 ```
 
 ### Configuration
 
-Create a `config.json` file for device management:
+Shelly Manager is zero-configuration by default. All scan and management parameters are provided at runtime via the Web UI, CLI flags, API parameters or ENV variables. This ensures flexibility and removes the need for managing static configuration files.
 
-```json
-{
-  "device_ips": ["192.168.1.100", "192.168.1.101"],
-  "predefined_ranges": [
-    {
-      "start": "192.168.1.1",
-      "end": "192.168.1.254"
-    }
-  ],
-  "timeout": 3.0,
-  "max_workers": 50
-}
-```
+For persistent storage of discovered devices in the Web UI, the application leverages browser localStorage. For API-based integrations, the client is responsible for maintaining device lists.
 
 ## Architecture
 
 ```
-shelly-manager/
 ├── packages/
 │   ├── core/              # 🏛️ Business Logic & Domain Models
 │   ├── api/               # 🌐 HTTP REST API (Litestar)
 │   ├── cli/               # 💻 Command Line Interface (Click)
 │   └── web/               # 🖥️ Modern Web UI (React + TypeScript)
-├── config.json            # Device configuration
 └── docker-compose.yml     # Development environment
 ```
 
@@ -252,10 +231,6 @@ POST /api/devices/bulk/update      # Bulk firmware updates
 # Component Actions
 GET /api/devices/{ip}/components/actions           # Discover available actions
 POST /api/devices/{ip}/components/{id}/action      # Execute component action
-
-# Configuration management
-GET /api/devices/{ip}/config       # Get device configuration
-POST /api/devices/{ip}/config      # Update device configuration
 ```
 
 **API Documentation**: Start the API server and visit `http://localhost:8000/docs` for interactive OpenAPI documentation
@@ -266,8 +241,8 @@ The CLI provides powerful automation capabilities:
 
 ```bash
 # Device discovery
-shelly-manager scan --range 192.168.1.0/24
-shelly-manager device list --from-config
+shelly-manager scan --target 192.168.1.0/24
+shelly-manager scan --use-mdns
 
 # Device operations
 shelly-manager device status 192.168.1.100
@@ -275,8 +250,8 @@ shelly-manager device reboot 192.168.1.100
 shelly-manager update check --all
 
 # Bulk operations
-shelly-manager bulk reboot --scan
-shelly-manager bulk update --from-config
+shelly-manager bulk reboot --target 192.168.1.100-110
+shelly-manager bulk update --target 10.0.0.0/24
 ```
 
 **CLI Documentation**: See [CLI README](packages/cli/README.md) for complete command reference.

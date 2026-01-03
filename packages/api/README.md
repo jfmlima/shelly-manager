@@ -18,7 +18,6 @@ REST API server for Shelly Manager built with Litestar.
 ```bash
 # Run API server
 docker run -p 8000:8000 \
-  -v ./config.json:/app/config.json:ro \
   ghcr.io/jfmlima/shelly-manager-api:latest
 
 # Visit API documentation
@@ -50,9 +49,7 @@ GET /api/health                    # Service health check
 
 ```bash
 GET /api/devices/scan              # Scan network for devices
-  ?start_ip=192.168.1.1            # Start IP address
-  &end_ip=192.168.1.254            # End IP address
-  &use_predefined=true             # Use predefined ranges
+  ?targets=192.168.1.0/24          # Comma-separated targets
   &use_mdns=false                  # Use mDNS discovery
   &timeout=3.0                     # Timeout per device
   &max_workers=50                  # Concurrent workers
@@ -104,7 +101,7 @@ GET /api/health
 ### Device Scan
 
 ```bash
-curl "http://localhost:8000/api/devices/scan?start_ip=192.168.1.1&end_ip=192.168.1.10"
+curl "http://localhost:8000/api/devices/scan?targets=192.168.1.1-10"
 ```
 
 **Response:**
@@ -231,26 +228,8 @@ curl -X POST "http://localhost:8000/api/devices/192.168.1.100/components/cover:0
 | -------------------- | ------------- | -------------------------- |
 | `HOST`               | `127.0.0.1`   | API server host            |
 | `PORT`               | `8000`        | API server port            |
-| `DEBUG`              | `false`       | Enable debug mode          |
-| `SHELLY_CONFIG_FILE` | `config.json` | Path to configuration file |
+| `DEBUG`              | `false`       | Enable debug mode
 
-### Configuration File
-
-Create a `config.json` file:
-
-```json
-{
-  "device_ips": ["192.168.1.100", "192.168.1.101"],
-  "predefined_ranges": [
-    {
-      "start": "192.168.1.1",
-      "end": "192.168.1.254"
-    }
-  ],
-  "timeout": 3.0,
-  "max_workers": 50
-}
-```
 
 ## Docker Deployment
 
@@ -260,7 +239,6 @@ Create a `config.json` file:
 docker run -d \
   --name shelly-manager-api \
   -p 8000:8000 \
-  -v ./config.json:/app/config.json:ro \
   -e HOST=0.0.0.0 \
   -e PORT=8000 \
   ghcr.io/jfmlima/shelly-manager-api:latest
@@ -274,8 +252,6 @@ services:
     image: ghcr.io/jfmlima/shelly-manager-api:latest
     ports:
       - "8000:8000"
-    volumes:
-      - ./config.json:/app/config.json:ro
     environment:
       - HOST=0.0.0.0
       - PORT=8000
@@ -384,7 +360,6 @@ packages/api/src/api/
 ### Common Issues
 
 1. **Port already in use**: Change `PORT` environment variable
-2. **Config file not found**: Ensure `config.json` exists and is mounted
 3. **CORS errors**: Configure CORS settings for your web UI domain
 4. **Health check failures**: Verify API is responding on configured port
 

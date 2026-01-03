@@ -57,7 +57,7 @@ class TestScanCommand:
         result = runner.invoke(device_commands, ["scan", "--help"], obj=cli_context)
 
         assert result.exit_code == 0
-        assert "Scan for Shelly devices" in result.output
+        assert "Discover Shelly devices" in result.output
 
     def test_scan_with_ip_range_success(
         self, cli_context_with_scan, sample_devices, mock_scan_interactor
@@ -67,7 +67,7 @@ class TestScanCommand:
         runner = CliRunner()
         result = runner.invoke(
             device_commands,
-            ["scan", "192.168.1.1-192.168.1.50"],
+            ["scan", "192.168.1.1-50"],
             obj=cli_context_with_scan,
         )
 
@@ -81,7 +81,7 @@ class TestScanCommand:
 
         runner = CliRunner()
         result = runner.invoke(
-            device_commands, ["scan", "--from-config"], obj=cli_context_with_scan
+            device_commands, ["scan", "-t", "192.168.1.100"], obj=cli_context_with_scan
         )
 
         assert result.exit_code == 0
@@ -93,7 +93,7 @@ class TestScanCommand:
         runner = CliRunner()
         result = runner.invoke(
             device_commands,
-            ["scan", "192.168.1.1-192.168.1.50"],
+            ["scan", "192.168.1.1-50"],
             obj=cli_context_with_scan,
         )
 
@@ -108,7 +108,7 @@ class TestScanCommand:
         runner = CliRunner()
         result = runner.invoke(
             device_commands,
-            ["scan", "--devices", "192.168.1.100", "--devices", "192.168.1.101"],
+            ["scan", "-t", "192.168.1.100", "-t", "192.168.1.101"],
             obj=cli_context_with_scan,
         )
 
@@ -123,7 +123,7 @@ class TestScanCommand:
         runner = CliRunner()
         result = runner.invoke(
             device_commands,
-            ["scan", "192.168.1.1-192.168.1.50", "--timeout", "5", "--workers", "20"],
+            ["scan", "192.168.1.1-50", "--timeout", "5", "--workers", "20"],
             obj=cli_context_with_scan,
         )
 
@@ -152,7 +152,7 @@ class TestListCommand:
         result = runner.invoke(device_commands, ["list", "--help"], obj=cli_context)
 
         assert result.exit_code == 0
-        assert "List Shelly devices" in result.output
+        assert "optimized for listing" in result.output
 
     def test_list_devices_success(
         self, cli_context_with_list, sample_devices, mock_scan_interactor
@@ -161,7 +161,7 @@ class TestListCommand:
 
         runner = CliRunner()
         result = runner.invoke(
-            device_commands, ["list", "--from-config"], obj=cli_context_with_list
+            device_commands, ["list", "10.0.0.1"], obj=cli_context_with_list
         )
 
         assert result.exit_code == 0
@@ -172,7 +172,7 @@ class TestListCommand:
 
         runner = CliRunner()
         result = runner.invoke(
-            device_commands, ["list", "--from-config"], obj=cli_context_with_list
+            device_commands, ["list", "10.0.0.1"], obj=cli_context_with_list
         )
 
         assert result.exit_code == 0
@@ -208,7 +208,7 @@ class TestStatusCommand:
         result = runner.invoke(device_commands, ["status", "--help"], obj=cli_context)
 
         assert result.exit_code == 0
-        assert "Check status of specific Shelly devices" in result.output
+        assert "detailed status information" in result.output
 
     def test_status_no_devices_specified(self, cli_context_with_status):
         runner = CliRunner()
@@ -217,8 +217,14 @@ class TestStatusCommand:
         assert result.exit_code != 0
 
     def test_status_specific_devices_success(
-        self, cli_context_with_status, mock_status_interactor, sample_device
+        self,
+        cli_context_with_status,
+        mock_status_interactor,
+        mock_scan_interactor_for_status,
+        sample_devices,
+        sample_device,
     ):
+        mock_scan_interactor_for_status.execute.return_value = sample_devices
         mock_status_interactor.execute.return_value = sample_device
 
         runner = CliRunner()
@@ -244,14 +250,23 @@ class TestStatusCommand:
 
         runner = CliRunner()
         result = runner.invoke(
-            device_commands, ["status", "--from-config"], obj=cli_context_with_status
+            device_commands,
+            ["status", "-t", "192.168.1.100"],
+            obj=cli_context_with_status,
         )
 
         assert result.exit_code == 0
         mock_scan_interactor_for_status.execute.assert_called_once()
         assert mock_status_interactor.execute.call_count == 2
 
-    def test_status_device_error(self, cli_context_with_status, mock_status_interactor):
+    def test_status_device_error(
+        self,
+        cli_context_with_status,
+        mock_status_interactor,
+        mock_scan_interactor_for_status,
+        sample_device,
+    ):
+        mock_scan_interactor_for_status.execute.return_value = [sample_device]
         mock_status_interactor.execute.side_effect = Exception("Connection timeout")
 
         runner = CliRunner()
@@ -263,8 +278,13 @@ class TestStatusCommand:
         mock_status_interactor.execute.assert_called_once()
 
     def test_status_verbose_error_output(
-        self, cli_context_with_status, mock_status_interactor
+        self,
+        cli_context_with_status,
+        mock_status_interactor,
+        mock_scan_interactor_for_status,
+        sample_device,
     ):
+        mock_scan_interactor_for_status.execute.return_value = [sample_device]
         cli_context_with_status.verbose = True
         mock_status_interactor.execute.side_effect = Exception("Connection timeout")
 
@@ -274,6 +294,7 @@ class TestStatusCommand:
         )
 
         assert result.exit_code == 0
+        mock_status_interactor.execute.assert_called_once()
 
 
 class TestDeviceRebootCommand:
@@ -316,6 +337,7 @@ class TestDeviceRebootCommand:
         cli_context_with_component_reboot,
         mock_execute_component_action_interactor,
         sample_action_result,
+        sample_device,
     ):
         mock_execute_component_action_interactor.execute.return_value = (
             sample_action_result
@@ -324,12 +346,14 @@ class TestDeviceRebootCommand:
         mock_scan_interactor = (
             cli_context_with_component_reboot.container.get_scan_interactor.return_value
         )
-        mock_scan_interactor.execute.return_value = ["192.168.1.100"]
+        mock_scan_interactor.execute.return_value = [
+            sample_device
+        ] or []  # needs sample_device fixture from conftest
 
         runner = CliRunner()
         result = runner.invoke(
             device_commands,
-            ["reboot", "--devices", "192.168.1.100", "--force"],
+            ["reboot", "-t", "192.168.1.100", "--force"],
             obj=cli_context_with_component_reboot,
         )
 
@@ -340,18 +364,19 @@ class TestDeviceRebootCommand:
         self,
         cli_context_with_component_reboot,
         mock_execute_component_action_interactor,
+        sample_device,
     ):
         mock_scan_interactor = (
             cli_context_with_component_reboot.container.get_scan_interactor.return_value
         )
-        mock_scan_interactor.execute.return_value = ["192.168.1.100"]
+        mock_scan_interactor.execute.return_value = [sample_device]
 
         cli_context_with_component_reboot.console.input.return_value = "n"
 
         runner = CliRunner()
         result = runner.invoke(
             device_commands,
-            ["reboot", "--devices", "192.168.1.100"],
+            ["reboot", "-t", "192.168.1.100"],
             obj=cli_context_with_component_reboot,
             input="n\n",
         )
@@ -367,6 +392,7 @@ class TestDeviceRebootCommand:
         cli_context_with_component_reboot,
         mock_execute_component_action_interactor,
         sample_action_result,
+        sample_device,
     ):
         mock_execute_component_action_interactor.execute.return_value = (
             sample_action_result
@@ -375,14 +401,14 @@ class TestDeviceRebootCommand:
         mock_scan_interactor = (
             cli_context_with_component_reboot.container.get_scan_interactor.return_value
         )
-        mock_scan_interactor.execute.return_value = ["192.168.1.100"]
+        mock_scan_interactor.execute.return_value = [sample_device]
 
         cli_context_with_component_reboot.console.input.return_value = "y"
 
         runner = CliRunner()
         result = runner.invoke(
             device_commands,
-            ["reboot", "--from-config"],
+            ["reboot", "-t", "192.168.1.100"],
             obj=cli_context_with_component_reboot,
             input="y\n",
         )
@@ -394,6 +420,7 @@ class TestDeviceRebootCommand:
         self,
         cli_context_with_component_reboot,
         mock_execute_component_action_interactor,
+        sample_device,
     ):
         mock_execute_component_action_interactor.execute.side_effect = Exception(
             "Connection failed"
@@ -402,12 +429,12 @@ class TestDeviceRebootCommand:
         mock_scan_interactor = (
             cli_context_with_component_reboot.container.get_scan_interactor.return_value
         )
-        mock_scan_interactor.execute.return_value = ["192.168.1.100"]
+        mock_scan_interactor.execute.return_value = [sample_device]
 
         runner = CliRunner()
         result = runner.invoke(
             device_commands,
-            ["reboot", "--devices", "192.168.1.100", "--force"],
+            ["reboot", "-t", "192.168.1.100", "--force"],
             obj=cli_context_with_component_reboot,
         )
 
@@ -419,6 +446,7 @@ class TestDeviceRebootCommand:
         cli_context_with_component_reboot,
         mock_execute_component_action_interactor,
         sample_action_result,
+        sample_devices,
     ):
         failed_result = AsyncMock()
         failed_result.success = False
@@ -432,16 +460,16 @@ class TestDeviceRebootCommand:
         mock_scan_interactor = (
             cli_context_with_component_reboot.container.get_scan_interactor.return_value
         )
-        mock_scan_interactor.execute.return_value = ["192.168.1.100", "192.168.1.101"]
+        mock_scan_interactor.execute.return_value = sample_devices
 
         runner = CliRunner()
         result = runner.invoke(
             device_commands,
             [
                 "reboot",
-                "--devices",
+                "-t",
                 "192.168.1.100",
-                "--devices",
+                "-t",
                 "192.168.1.101",
                 "--force",
             ],
@@ -477,7 +505,7 @@ class TestStandaloneScandCommand:
 
         runner = CliRunner()
         result = runner.invoke(
-            scan, ["192.168.1.1-192.168.1.50"], obj=cli_context_with_standalone_scan
+            scan, ["192.168.1.1-50"], obj=cli_context_with_standalone_scan
         )
 
         assert result.exit_code == 0

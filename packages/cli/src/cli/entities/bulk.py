@@ -10,11 +10,9 @@ from .common import OperationResult
 
 
 class BulkOperationRequest(BaseModel):
-    devices: list[str] = Field(default_factory=list)
-    from_config: bool = Field(default=False)
-    scan: bool = Field(default=False, description="Scan network for devices")
-    ips: str | None = Field(
-        default=None, description="Comma-separated list of IP addresses"
+    targets: list[str] = Field(
+        default_factory=list,
+        description="List of IP targets (e.g., ['192.168.1.1', '192.168.1.0/24'])",
     )
     timeout: float = Field(default=3.0, gt=0)
     workers: int = Field(default=10, gt=0, le=50)

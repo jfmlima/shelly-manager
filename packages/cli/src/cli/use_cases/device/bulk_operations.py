@@ -17,6 +17,7 @@ from cli.entities.bulk import (
     BulkRebootResult,
 )
 
+from ..common.device_discovery import DeviceDiscoveryRequest, DeviceDiscoveryUseCase
 from ..common.progress_tracking import ProgressTracker
 from ..common.result_formatting import ResultFormatter
 
@@ -29,8 +30,7 @@ class BulkOperationsUseCase:
     def __init__(self, container: CLIContainer, console: Console):
         self._container = container
         self._console = console
-        self._config_gateway = container.get_config_gateway()
-        self._scan_interactor = container.get_scan_interactor()
+        self._device_discovery = DeviceDiscoveryUseCase(container)
         self._bulk_operations_interactor = container.get_bulk_operations_interactor()
         self._progress_tracker = ProgressTracker(console)
         self._result_formatter = ResultFormatter(console)
@@ -200,36 +200,17 @@ class BulkOperationsUseCase:
                 )
 
     async def _resolve_device_ips(self, request: BulkOperationRequest) -> list[str]:
-        device_ips: list[str] = []
+        if not request.targets:
+            return []
 
-        if request.devices:
-            device_ips.extend(request.devices)
+        discovery_request = DeviceDiscoveryRequest(
+            targets=request.targets,
+            timeout=request.timeout,
+            workers=request.workers,
+        )
 
-        if request.ips:
-            ip_list = [ip.strip() for ip in request.ips.split(",") if ip.strip()]
-            device_ips.extend(ip_list)
-
-        if request.from_config:
-            try:
-                config_ips = await self._config_gateway.get_predefined_ips()
-                device_ips.extend(config_ips)
-            except Exception as e:
-                logger.error(f"Error reading configuration: {e}")
-                self._console.print(f"[red]Error reading configuration: {e}[/red]")
-
-        if request.scan:
-            self._console.print(
-                "[yellow]Device scanning not implemented in this context[/yellow]"
-            )
-
-        seen = set()
-        unique_ips = []
-        for ip in device_ips:
-            if ip not in seen:
-                seen.add(ip)
-                unique_ips.append(ip)
-
-        return unique_ips
+        device_list = await self._device_discovery.discover_devices(discovery_request)
+        return [d.ip for d in device_list]
 
     def display_bulk_results(self, result: BulkOperationResult) -> None:
         self._result_formatter.display_bulk_operation_result(result)

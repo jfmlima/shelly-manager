@@ -6,7 +6,10 @@ import click
 
 from ..entities import ExportRequest
 from ..use_cases.export.device_export import DeviceExportUseCase
-from .common import async_command
+from .common import (
+    async_command,
+    device_targeting_options,
+)
 
 
 @click.group()
@@ -15,6 +18,7 @@ def export_commands() -> None:
 
 
 @export_commands.command()
+@click.argument("targets", nargs=-1)
 @click.option(
     "--output", "-o", type=click.Path(), help="Output file path (default: devices.json)"
 )
@@ -25,8 +29,7 @@ def export_commands() -> None:
     help="Export format (default: json)",
 )
 @click.option("--scan", is_flag=True, help="Scan network for devices before export")
-@click.option("--ips", help="Comma-separated list of IP addresses to export")
-@click.option("--network", help="Network range to scan (e.g., 192.168.1.0/24)")
+@device_targeting_options
 @click.option(
     "--timeout",
     type=float,
@@ -45,9 +48,9 @@ async def devices(
     output: str,
     format: str,
     scan: bool,
-    ips: str,
-    network: str,
-    timeout: int,
+    targets: tuple[str, ...],
+    targets_opt: tuple[str, ...],
+    timeout: float,
     include_config: bool,
     pretty: bool,
     force: bool,
@@ -55,14 +58,13 @@ async def devices(
     """
     📤 Export device information and configurations.
 
-    Export device data to JSON, CSV, or YAML format. Supports scanning
-    for devices or using a predefined list of IP addresses.
+    Export device data to JSON, CSV, or YAML format. Supports IP addresses, ranges,
+    and CIDR notation via the targeting system.
 
     Examples:
       shelly-manager export devices --scan
-      shelly-manager export devices --ips 192.168.1.100,192.168.1.101 --format csv
-      shelly-manager export devices --scan --include-config --output my-devices.json
-      shelly-manager export devices --scan --network 192.168.1.0/24 --format yaml
+      shelly-manager export devices 192.168.1.0/24 --format csv
+      shelly-manager export devices -t 192.168.1.100 -t 192.168.1.101 --include-config -o my-devices.json
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -73,8 +75,7 @@ async def devices(
         output=output,
         format=format,
         scan=scan,
-        ips=ips.split(",") if ips else None,
-        network=network,
+        targets=list(targets) + list(targets_opt),
         timeout=timeout,
         include_config=include_config,
         pretty=pretty,

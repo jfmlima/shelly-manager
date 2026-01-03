@@ -25,12 +25,35 @@
     "scanForm": {
       "title": "Scan for Devices",
       "description": "Configure scan parameters to discover Shelly devices on your network",
-      "startIp": "Start IP",
-      "endIp": "End IP",
-      "usePredefined": "Use Predefined IPs",
-      "useMdns": "Use mDNS Discovery",
-      "useMdnsWarning": "mDNS discovery may not work properly in Docker containers due to network isolation.",
-      "timeout": "Timeout (seconds)",
+      "scanMode": "Scan Mode",
+      "modes": {
+        "mdns": {
+          "title": "mDNS Discovery",
+          "description": "Discover devices automatically using multicast DNS"
+        },
+        "manual": {
+          "title": "Manual Discovery",
+          "description": "Specify target IPs, ranges, or CIDR notation"
+        }
+      },
+      "custom": {
+        "cidrPreview": "Scope: {{start}} to {{end}}",
+        "quickFill": "Quick Presets",
+        "willScan": "Scope:",
+        "ips": "IPs",
+        "manualIps": "Manual IPs",
+        "rangeCidr": "Range/CIDR",
+        "ipsInputLabel": "Common-separated IPs",
+        "ipsInputHint": "Enter multiple IPs separated by commas, spaces, or newlines",
+        "rangeCidrLabel": "IP Range or CIDR",
+        "largeRangeWarning": "Large scan may take longer"
+      },
+      "advanced": {
+        "title": "Advanced Settings",
+        "description": "Configure advanced scan parameters"
+      },
+      "useMdnsWarning": "mDNS discovery might not work in some Docker network modes (host mode recommended).",
+      "timeout": "Timeout (seconds, per device)",
       "maxWorkers": "Max Workers",
       "scanButton": "Scan Devices",
       "scanning": "Scanning..."
@@ -364,12 +387,6 @@
       "normal": "Normal",
       "comfortable": "Comfortable",
       "savePreferences": "Save Table Preferences"
-    },
-    "networkPresets": {
-      "title": "Network Presets",
-      "description": "Predefined network ranges for device discovery",
-      "configuration": "Network presets configuration",
-      "comingSoon": "Coming in a future update"
     },
     "footer": {
       "title": "Shelly Manager",

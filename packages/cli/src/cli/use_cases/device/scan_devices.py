@@ -43,9 +43,7 @@ class DeviceScanUseCase:
             List of discovered devices
         """
         discovery_request = DeviceDiscoveryRequest(
-            ip_ranges=request.ip_ranges,
-            devices=request.devices,
-            from_config=request.from_config,
+            targets=request.targets,
             timeout=request.timeout,
             workers=request.workers,
             use_mdns=request.use_mdns,

@@ -10,15 +10,9 @@ from pydantic import BaseModel, Field, field_validator
 class DeviceDiscoveryRequest(BaseModel):
     """Request for discovering devices through various methods."""
 
-    ip_ranges: list[str] = Field(
+    targets: list[str] = Field(
         default_factory=list,
-        description="List of IP ranges to scan (e.g., ['192.168.1.1-192.168.1.50'])",
-    )
-    devices: list[str] = Field(
-        default_factory=list, description="List of specific device IP addresses"
-    )
-    from_config: bool = Field(
-        default=False, description="Whether to discover devices from configuration"
+        description="List of IP targets (e.g., ['192.168.1.1', '192.168.1.0/24'])",
     )
     use_mdns: bool = Field(
         default=False, description="Whether to discover devices via mDNS"
@@ -28,40 +22,19 @@ class DeviceDiscoveryRequest(BaseModel):
         default=50, gt=0, le=200, description="Maximum number of concurrent workers"
     )
 
-    @field_validator("devices")
+    @field_validator("targets")
     @classmethod
-    def validate_device_ips(cls, v: list[str]) -> list[str]:
-        for ip in v:
-            try:
-                ipaddress.ip_address(ip)
-            except ValueError as e:
-                raise ValueError(f"Invalid IP address: {ip}") from e
-        return v
+    def validate_targets(cls, v: list[str]) -> list[str]:
+        if not v:
+            return v
 
-    @field_validator("ip_ranges")
-    @classmethod
-    def validate_ip_ranges(cls, v: list[str]) -> list[str]:
-        for ip_range in v:
-            if "-" in ip_range:
-                # Validate range format (e.g., "192.168.1.1-192.168.1.50")
-                start, end = ip_range.split("-", 1)
-                try:
-                    ipaddress.ip_address(start.strip())
-                    ipaddress.ip_address(end.strip())
-                except ValueError as e:
-                    raise ValueError(f"Invalid IP range: {ip_range}") from e
-            elif "/" in ip_range:
-                # Validate CIDR format (e.g., "192.168.1.0/24")
-                try:
-                    ipaddress.ip_network(ip_range, strict=False)
-                except ValueError as e:
-                    raise ValueError(f"Invalid CIDR notation: {ip_range}") from e
-            else:
-                # Single IP
-                try:
-                    ipaddress.ip_address(ip_range)
-                except ValueError as e:
-                    raise ValueError(f"Invalid IP address: {ip_range}") from e
+        from core.utils.target_parser import validate_target
+
+        for target in v:
+            try:
+                validate_target(target)
+            except ValueError as e:
+                raise ValueError(f"Invalid target: {target} - {str(e)}") from e
         return v
 
 

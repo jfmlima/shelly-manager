@@ -7,6 +7,7 @@ import type {
   ScanRequest,
   ComponentActionResult,
 } from "@/types/api";
+import { loadAppSettings } from "./settings";
 
 declare global {
   interface Window {
@@ -43,6 +44,18 @@ export const apiClient = axios.create({
     "Content-Type": "application/json",
   },
   timeout: 30000,
+  paramsSerializer: (params) => {
+    const searchParams = new URLSearchParams();
+    for (const key in params) {
+      const val = params[key];
+      if (Array.isArray(val)) {
+        val.forEach((v) => searchParams.append(key, v));
+      } else if (val !== undefined && val !== null) {
+        searchParams.append(key, val.toString());
+      }
+    }
+    return searchParams.toString();
+  },
 });
 
 export const updateApiBaseUrl = () => {
@@ -111,9 +124,11 @@ apiClient.interceptors.response.use(
 
 export const deviceApi = {
   scanDevices: async (params: ScanRequest): Promise<Device[]> => {
+    const settings = loadAppSettings();
     const response = await apiClient.get("/devices/scan", {
       params,
-      timeout: (params.timeout || 60) * 1000,
+      // Use configured timeout for the overall request
+      timeout: settings.scanRequestTimeout,
     });
     return response.data;
   },

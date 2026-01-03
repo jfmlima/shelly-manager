@@ -1,6 +1,6 @@
 import type { Device, ScanRequest } from "@/types/api";
 
-export const CACHE_VERSION = "1.0";
+export const CACHE_VERSION = "2.0";
 export const CACHE_KEY = "shelly-scan-results";
 export const MAX_CACHE_AGE_MS = 2 * 24 * 60 * 60 * 1000; // 2 days
 

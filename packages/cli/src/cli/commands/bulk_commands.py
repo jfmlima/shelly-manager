@@ -24,8 +24,7 @@ def bulk() -> None:
     🔄 Bulk operations on multiple devices.
 
     Perform actions on multiple Shelly devices simultaneously.
-    Supports device discovery, configuration-based selection,
-    or specific IP addresses.
+    Supports IP addresses, ranges, and CIDR notation.
     """
     pass
 
@@ -42,8 +41,7 @@ def bulk() -> None:
 @click.pass_context
 def reboot(
     ctx: click.Context,
-    from_config: bool,
-    devices: tuple[str, ...],
+    targets: tuple[str, ...],
     force: bool,
     workers: int,
 ) -> None:
@@ -51,8 +49,8 @@ def reboot(
     🔄 Reboot multiple devices.
 
     Examples:
-      shelly-manager bulk reboot --from-config
-      shelly-manager bulk reboot --devices 192.168.1.100 192.168.1.101
+      shelly-manager bulk reboot 192.168.1.0/24
+      shelly-manager bulk reboot -t 192.168.1.100 -t 192.168.1.101
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -60,8 +58,7 @@ def reboot(
     bulk_use_case = BulkOperationsUseCase(container, console)
 
     request = BulkRebootRequest(
-        devices=list(devices),
-        from_config=from_config,
+        targets=list(targets),
         force=force,
         workers=workers,
     )
@@ -88,8 +85,7 @@ def reboot(
 @click.pass_context
 def update(
     ctx: click.Context,
-    from_config: bool,
-    devices: tuple[str, ...],
+    targets: tuple[str, ...],
     channel: str,
     force: bool,
     workers: int,
@@ -98,8 +94,8 @@ def update(
     📦 Update firmware on multiple devices.
 
     Examples:
-      shelly-manager bulk update --from-config --channel stable
-      shelly-manager bulk update --devices 192.168.1.100 192.168.1.101 --channel beta
+      shelly-manager bulk update 192.168.1.0/24 --channel stable
+      shelly-manager bulk update -t 192.168.1.100 -t 192.168.1.101 --channel beta
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -107,8 +103,7 @@ def update(
     bulk_use_case = BulkOperationsUseCase(container, console)
 
     request = BulkOperationRequest(
-        devices=list(devices),
-        from_config=from_config,
+        targets=list(targets),
         force=force,
         workers=workers,
     )
@@ -151,8 +146,7 @@ def config() -> None:
 @click.pass_context
 def export(
     ctx: click.Context,
-    from_config: bool,
-    devices: tuple[str, ...],
+    targets: tuple[str, ...],
     components: str,
     output: str,
     force: bool,
@@ -162,8 +156,8 @@ def export(
     📤 Export component configurations from multiple devices.
 
     Examples:
-      shelly-manager bulk config export --from-config --components switch,input --output configs.json
-      shelly-manager bulk config export --devices 192.168.1.100,192.168.1.101 --components switch --output switch-configs.json
+      shelly-manager bulk config export 192.168.1.0/24 --components switch,input --output configs.json
+      shelly-manager bulk config export -t 192.168.1.100 -t 192.168.1.101 --components switch -o switch-configs.json
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -180,8 +174,7 @@ def export(
     bulk_use_case = BulkOperationsUseCase(container, console)
 
     request = BulkConfigExportRequest(
-        devices=list(devices),
-        from_config=from_config,
+        targets=list(targets),
         component_types=component_types,
         output_file=output,
         force=force,
@@ -230,8 +223,7 @@ def export(
 @click.pass_context
 def apply(
     ctx: click.Context,
-    from_config: bool,
-    devices: tuple[str, ...],
+    targets: tuple[str, ...],
     component: str,
     config_file: str | None,
     config: str | None,
@@ -245,8 +237,8 @@ def apply(
     Consider creating backups before applying configurations.
 
     Examples:
-      shelly-manager bulk config apply --from-config --component switch --config-file switch.json
-      shelly-manager bulk config apply --devices 192.168.1.100,192.168.1.101 --component switch --config '{"in_mode":"flip"}'
+      shelly-manager bulk config apply 192.168.1.0/24 --component switch --config-file switch.json
+      shelly-manager bulk config apply -t 192.168.1.100 -t 192.168.1.101 --component switch --config '{"in_mode":"flip"}'
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -280,7 +272,7 @@ def apply(
             raise click.Abort() from e
 
     if not force:
-        device_count = len(devices) if devices else "configured"
+        device_count = len(targets) if targets else "discovered"
         console.print(
             f"[yellow]⚠️  You are about to apply configuration to [bold]{component}[/bold] components on [bold]{device_count}[/bold] devices."
         )
@@ -294,8 +286,7 @@ def apply(
     bulk_use_case = BulkOperationsUseCase(container, console)
 
     request = BulkConfigApplyRequest(
-        devices=list(devices),
-        from_config=from_config,
+        targets=list(targets),
         component_type=component,
         config_file=config_file,
         config_data=config_data,

@@ -35,7 +35,6 @@ packages/core/src/core/
 │   └── ...
 ├── gateways/                 # External interfaces (abstract)
 │   ├── device/              # Device communication contracts
-│   ├── configuration/       # Configuration management contracts
 │   └── network/             # Network communication contracts
 └── settings.py              # Configuration and utilities
 ```
@@ -73,11 +72,11 @@ print(f"Status: {'Online' if device.is_online() else 'Offline'}")
 
 # Create a scan request
 scan_request = ScanRequest(
-    start_ip="192.168.1.1",
-    end_ip="192.168.1.10"
+    targets=["192.168.1.1-10", "10.0.0.0/24"],
+    timeout=3.0
 )
 
-print(f"Scanning {scan_request.get_ip_count()} IP addresses")
+print(f"Scanning with {len(scan_request.targets)} targets")
 ```
 
 ## Additional Resources

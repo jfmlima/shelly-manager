@@ -48,8 +48,7 @@ class TestBulkCommands:
         result = runner.invoke(bulk, ["reboot", "--help"])
         assert result.exit_code == 0
         assert "Reboot multiple devices" in result.output
-        assert "--from-config" in result.output
-        assert "--devices" in result.output
+        assert "--target" in result.output
         assert "--force" in result.output
         assert "--workers" in result.output
 
@@ -58,8 +57,7 @@ class TestBulkCommands:
         result = runner.invoke(bulk, ["update", "--help"])
         assert result.exit_code == 0
         assert "Update firmware on multiple devices" in result.output
-        assert "--from-config" in result.output
-        assert "--devices" in result.output
+        assert "--target" in result.output
         assert "--channel" in result.output
         assert "--force" in result.output
         assert "--workers" in result.output
@@ -68,8 +66,8 @@ class TestBulkCommands:
         """Test bulk reboot command structure and options."""
         result = runner.invoke(bulk, ["reboot", "--help"])
         assert result.exit_code == 0
-        assert "--devices" in result.output
-        assert "--from-config" in result.output
+        assert result.exit_code == 0
+        assert "--target" in result.output
         assert "--force" in result.output
         assert "--workers" in result.output
 
@@ -77,8 +75,8 @@ class TestBulkCommands:
         """Test bulk update command structure and options."""
         result = runner.invoke(bulk, ["update", "--help"])
         assert result.exit_code == 0
-        assert "--devices" in result.output
-        assert "--from-config" in result.output
+        assert result.exit_code == 0
+        assert "--target" in result.output
         assert "--channel" in result.output
         assert "--force" in result.output
         assert "--workers" in result.output
@@ -90,7 +88,7 @@ class TestBulkCommands:
                 bulk,
                 [
                     "update",
-                    "--devices",
+                    "--target",
                     "192.168.1.100",
                     "--channel",
                     "invalid",

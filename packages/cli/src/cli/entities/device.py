@@ -10,9 +10,7 @@ from .common import OperationResult
 class DeviceScanRequest(BaseModel):
     """Request for scanning devices."""
 
-    ip_ranges: list[str] = Field(default_factory=list)
-    from_config: bool = Field(default=False)
-    devices: list[str] = Field(default_factory=list)
+    targets: list[str] = Field(default_factory=list)
     use_mdns: bool = Field(default=False)
     timeout: float = Field(default=3.0, gt=0)
     workers: int = Field(default=50, gt=0, le=200)
@@ -25,11 +23,8 @@ class DeviceScanRequest(BaseModel):
 class DeviceStatusRequest(BaseModel):
     """Request for checking device status."""
 
-    devices: list[str] = Field(
-        default_factory=list, description="List of device IP addresses to check"
-    )
-    from_config: bool = Field(
-        default=False, description="Whether to get devices from configuration"
+    targets: list[str] = Field(
+        default_factory=list, description="List of device IP targets to check"
     )
     include_updates: bool = Field(
         default=True, description="Whether to include firmware update information"

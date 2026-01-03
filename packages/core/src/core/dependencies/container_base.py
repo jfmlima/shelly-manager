@@ -28,9 +28,6 @@ class BaseContainer:
     def get_rpc_client(self) -> Any:
         raise NotImplementedError
 
-    def get_config_gateway(self) -> Any:
-        raise NotImplementedError
-
     def get_device_gateway(self) -> ShellyDeviceGateway:
         if self._device_gateway is None:
             legacy_http_client = LegacyHttpClient()
@@ -55,7 +52,6 @@ class BaseContainer:
         if self._scan_interactor is None:
             self._scan_interactor = ScanDevicesUseCase(
                 device_gateway=self.get_device_gateway(),
-                config_gateway=self.get_config_gateway(),
                 mdns_client=self.get_mdns_client(),
             )
         return self._scan_interactor

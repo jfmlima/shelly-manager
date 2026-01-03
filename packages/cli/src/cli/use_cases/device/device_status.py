@@ -23,7 +23,7 @@ class DeviceStatusUseCase:
     Use case for checking status of Shelly devices.
 
     Handles the CLI orchestration for device status checking including:
-    - Device discovery when using --from-config
+    - Device discovery
     - Status checking with progress tracking
     - Error handling and result formatting
     """
@@ -46,39 +46,30 @@ class DeviceStatusUseCase:
             List of status results
 
         Raises:
-            ValueError: If no devices are specified
+            ValueError: If no targets are specified
         """
-        if not request.devices and not request.from_config:
-            raise ValueError("You must specify either device IPs or use --from-config")
+        if not request.targets:
+            raise ValueError(
+                "You must specify at least one target (IP, range, or CIDR)"
+            )
 
         device_ips = await self._get_device_ips(request)
 
         if not device_ips:
-            raise ValueError("No devices found")
+            return []
 
         return await self._check_device_status(device_ips, request)
 
     async def _get_device_ips(self, request: DeviceStatusRequest) -> list[str]:
-        """Get device IPs based on request parameters."""
-        if request.from_config and not request.devices:
-            self._console.print(
-                Messages.config("Getting devices from configuration...")
-            )
+        """Get device IPs by discovering/expanding targets."""
+        discovery_request = DeviceDiscoveryRequest(
+            targets=request.targets,
+            timeout=request.timeout,
+            workers=request.workers,
+        )
 
-            discovery_request = DeviceDiscoveryRequest(
-                ip_ranges=[],
-                devices=[],
-                from_config=True,
-                timeout=request.timeout,
-                workers=request.workers,
-            )
-
-            device_list = await self._device_discovery.discover_devices(
-                discovery_request
-            )
-            return [d.ip for d in device_list]
-        else:
-            return list(request.devices)
+        device_list = await self._device_discovery.discover_devices(discovery_request)
+        return [d.ip for d in device_list]
 
     async def _check_device_status(
         self, device_ips: list[str], request: DeviceStatusRequest

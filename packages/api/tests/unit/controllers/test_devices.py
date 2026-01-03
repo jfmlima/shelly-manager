@@ -50,7 +50,7 @@ class TestDevicesController:
                 )
             },
         ) as client:
-            response = client.get("/scan")
+            response = client.get("/scan", params={"use_mdns": "true"})
 
             assert response.status_code == 200
             data = response.json()
