@@ -1,12 +1,24 @@
-from datetime import datetime
-from unittest.mock import MagicMock
+"""Test fixtures for core package tests."""
 
-import pytest
-from core.domain.entities.discovered_device import DiscoveredDevice
-from core.domain.enums.enums import Status
-from core.domain.value_objects.action_result import ActionResult
-from core.domain.value_objects.scan_request import ScanRequest
-from core.gateways.device import DeviceGateway
+import os
+
+# Generate a valid Fernet key for tests before any other imports.
+# This must happen before settings.py is imported.
+# NOTE: isort:skip and fmt:off are used to prevent linters from reordering.
+if "SHELLY_SECRET_KEY" not in os.environ:  # noqa: E402
+    from cryptography.fernet import Fernet
+
+    os.environ["SHELLY_SECRET_KEY"] = Fernet.generate_key().decode()
+
+from datetime import datetime  # noqa: E402
+from unittest.mock import MagicMock  # noqa: E402
+
+import pytest  # noqa: E402
+from core.domain.entities.discovered_device import DiscoveredDevice  # noqa: E402
+from core.domain.enums.enums import Status  # noqa: E402
+from core.domain.value_objects.action_result import ActionResult  # noqa: E402
+from core.domain.value_objects.scan_request import ScanRequest  # noqa: E402
+from core.gateways.device import DeviceGateway  # noqa: E402
 
 
 @pytest.fixture

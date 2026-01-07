@@ -152,6 +152,10 @@ The interface is fully responsive and optimized for:
 - XSS protection
 - No sensitive data stored in localStorage
 - Environment-based API configuration
+- **Credential Management**: Device passwords stored encrypted on backend
+  - Requires `SHELLY_SECRET_KEY` environment variable on API server
+  - Passwords never exposed in UI or API responses
+  - Credentials Manager UI for adding/removing device passwords
 
 ## 🤝 Contributing
 

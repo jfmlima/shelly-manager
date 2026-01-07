@@ -2,11 +2,14 @@ import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+from core.repositories.db import engine
+from core.repositories.models import Base
 from litestar import Litestar, Router
 from litestar.config.cors import CORSConfig
 from litestar.openapi import OpenAPIConfig
 from litestar.openapi.config import Contact, License, Server, Tag
 
+from .controllers.credentials import credentials_router
 from .controllers.devices import devices_router
 from .controllers.monitoring import (
     health_check,
@@ -56,12 +59,16 @@ def create_app() -> Litestar:
         path="/api",
         route_handlers=[
             devices_router,
+            credentials_router,
             health_check,
         ],
     )
 
     @asynccontextmanager
     async def lifespan(app: Litestar) -> AsyncGenerator[None, None]:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
         try:
             yield
         finally:

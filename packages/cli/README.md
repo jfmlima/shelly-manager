@@ -110,6 +110,31 @@ shelly-manager device reboot 192.168.1.100 --force  # Skip confirmation
 └─────────────────┴──────────┴─────────────┴──────────────────┴─────────────┘
 ```
 
+### Credential Management
+
+Manage credentials for password-protected Shelly Gen2 devices.
+
+**Note:** Requires `SHELLY_SECRET_KEY` environment variable for encryption.
+
+```bash
+# Set credentials for a specific device (by MAC address)
+shelly-manager credentials set AABBCCDDEEFF mypassword
+shelly-manager credentials set AABBCCDDEEFF mypassword --username admin
+
+# Set global fallback credentials (used when device-specific not found)
+shelly-manager credentials set-global myfallbackpassword
+
+# List all stored credentials (passwords hidden)
+shelly-manager credentials list
+
+# Delete credentials for a device
+shelly-manager credentials delete AABBCCDDEEFF
+```
+
+**Credentials Options:**
+
+- `--username`: Device username (default: admin)
+
 ### Firmware Updates
 
 #### Update Commands

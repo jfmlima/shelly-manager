@@ -90,6 +90,12 @@ class AppSettings(BaseSettings):
     data_dir: str = Field(default="./data", description="Data directory")
     cache_ttl: int = Field(default=300, ge=0, description="Cache TTL in seconds")
 
+    secret_key: str = Field(
+        ...,
+        description="Secret key for encryption. Must be a valid Fernet key.",
+        exclude=True,  # Prevent secret from being logged
+    )
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._load_config_file()
@@ -174,12 +180,28 @@ class AppSettings(BaseSettings):
                     "port", self.api.port, "Port must be between 1 and 65535"
                 )
 
+            # Validate secret key format (Fernet)
+            try:
+                from cryptography.fernet import Fernet
+
+                Fernet(self.secret_key.encode())
+            except Exception as e:
+                raise ValidationError(
+                    "secret_key",
+                    "***",
+                    f"Invalid SHELLY_SECRET_KEY. Must be a valid Fernet key. Error: {e}",
+                ) from e
+
         except Exception as e:
             if isinstance(e, (ValidationError | ConfigurationError)):
                 raise
             raise ConfigurationError(
                 "validate", f"Configuration validation failed: {e}"
             ) from e
+
+    def database_path(self) -> str:
+        """Get the absolute path to the database file."""
+        return os.path.join(self.data_dir, "data.db")
 
 
 settings = AppSettings()

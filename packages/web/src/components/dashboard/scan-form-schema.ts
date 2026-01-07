@@ -9,6 +9,7 @@ export const scanFormSchema = z
     range_cidr: z.string().optional(),
     timeout: z.number().min(1).max(300),
     max_workers: z.number().min(1).max(200),
+    use_auth: z.boolean(),
   })
   .refine(
     (data) => {

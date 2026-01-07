@@ -6,6 +6,8 @@ import type {
   BulkUpdateRequest,
   ScanRequest,
   ComponentActionResult,
+  Credential,
+  CredentialCreateRequest,
 } from "@/types/api";
 import { loadAppSettings } from "./settings";
 
@@ -232,6 +234,22 @@ export const deviceApi = {
       { timeout },
     );
     return response.data;
+  },
+};
+
+export const credentialsApi = {
+  listCredentials: async (): Promise<Credential[]> => {
+    const response = await apiClient.get("/credentials");
+    return response.data;
+  },
+
+  setCredential: async (data: CredentialCreateRequest): Promise<Credential> => {
+    const response = await apiClient.post("/credentials", data);
+    return response.data;
+  },
+
+  deleteCredential: async (mac: string): Promise<void> => {
+    await apiClient.delete(`/credentials/${mac}`);
   },
 };
 

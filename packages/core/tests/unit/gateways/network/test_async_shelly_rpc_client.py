@@ -3,6 +3,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
+from core.domain.entities.exceptions import (
+    DeviceAuthenticationError,
+    DeviceCommunicationError,
+)
 from core.gateways.network.async_shelly_rpc_client import AsyncShellyRPCClient
 
 
@@ -60,9 +64,9 @@ class TestAsyncShellyRPCClient:
         )
 
         call_args = mock_session.post.call_args
-        headers = call_args[1]["headers"]
-        assert "Authorization" in headers
-        assert headers["Authorization"].startswith("Basic ")
+        # auth is passed as keyword argument 'auth', not in headers
+        auth_arg = call_args[1].get("auth")
+        assert isinstance(auth_arg, httpx.BasicAuth)
 
     async def test_it_makes_rpc_request_with_custom_timeout(self, client, mock_session):
         mock_response = MagicMock()
@@ -84,19 +88,19 @@ class TestAsyncShellyRPCClient:
         mock_response.text = "Not Found"
         mock_session.post.return_value = mock_response
 
-        with pytest.raises(Exception, match="HTTP 404: Not Found"):
+        with pytest.raises(DeviceCommunicationError, match="HTTP 404: Not Found"):
             await client.make_rpc_request("192.168.1.100", "Shelly.GetDeviceInfo")
 
     async def test_it_handles_network_errors(self, client, mock_session):
         mock_session.post.side_effect = httpx.ConnectError("Connection failed")
 
-        with pytest.raises(Exception, match="Network error: Connection failed"):
+        with pytest.raises(DeviceCommunicationError, match="Connection failed"):
             await client.make_rpc_request("192.168.1.100", "Shelly.GetDeviceInfo")
 
     async def test_it_handles_timeout_errors(self, client, mock_session):
         mock_session.post.side_effect = httpx.TimeoutException("Request timeout")
 
-        with pytest.raises(Exception, match="Network error: Request timeout"):
+        with pytest.raises(DeviceCommunicationError, match="Request timeout"):
             await client.make_rpc_request("192.168.1.100", "Shelly.GetDeviceInfo")
 
     async def test_it_uses_correct_url_format(self, client, mock_session):
@@ -147,7 +151,7 @@ class TestAsyncShellyRPCClient:
 
         mock_session.post.side_effect = slow_error
 
-        with pytest.raises(Exception, match="Network error"):
+        with pytest.raises(DeviceCommunicationError, match="Slow error"):
             await client.make_rpc_request("192.168.1.100", "Shelly.GetDeviceInfo")
 
     async def test_it_closes_session_successfully(self, client, mock_session):
@@ -165,7 +169,8 @@ class TestAsyncShellyRPCClient:
             await client.make_rpc_request("192.168.1.100", "Shelly.GetDeviceInfo")
 
     async def test_it_handles_various_http_status_codes(self, client, mock_session):
-        status_codes = [400, 401, 403, 500, 503]
+        # 401 is handled specially as DeviceAuthenticationError
+        status_codes = [400, 403, 500, 503]
 
         for status_code in status_codes:
             mock_response = MagicMock()
@@ -173,25 +178,37 @@ class TestAsyncShellyRPCClient:
             mock_response.text = f"Error {status_code}"
             mock_session.post.return_value = mock_response
 
-            with pytest.raises(Exception, match=f"HTTP {status_code}"):
+            with pytest.raises(DeviceCommunicationError, match=f"HTTP {status_code}"):
                 await client.make_rpc_request("192.168.1.100", "Test.Method")
+
+    async def test_it_handles_401_as_auth_error(self, client, mock_session):
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+        mock_response.text = "Unauthorized"
+        mock_session.post.return_value = mock_response
+
+        # 401 without auth service configured raises DeviceAuthenticationError
+        with pytest.raises(
+            DeviceAuthenticationError, match="no authentication service is configured"
+        ):
+            await client.make_rpc_request("192.168.1.100", "Test.Method")
 
     async def test_it_handles_read_timeout(self, client, mock_session):
         mock_session.post.side_effect = httpx.ReadTimeout("Read timeout")
 
-        with pytest.raises(Exception, match="Network error: Read timeout"):
+        with pytest.raises(DeviceCommunicationError, match="Read timeout"):
             await client.make_rpc_request("192.168.1.100", "Shelly.GetDeviceInfo")
 
     async def test_it_handles_request_error(self, client, mock_session):
         mock_session.post.side_effect = httpx.RequestError("Request error")
 
-        with pytest.raises(Exception, match="Network error: Request error"):
+        with pytest.raises(DeviceCommunicationError, match="Request error"):
             await client.make_rpc_request("192.168.1.100", "Shelly.GetDeviceInfo")
 
     async def test_it_handles_pool_timeout(self, client, mock_session):
         mock_session.post.side_effect = httpx.PoolTimeout("Pool timeout")
 
-        with pytest.raises(Exception, match="Network error: Pool timeout"):
+        with pytest.raises(DeviceCommunicationError, match="Pool timeout"):
             await client.make_rpc_request("192.168.1.100", "Shelly.GetDeviceInfo")
 
     async def test_it_creates_timeout_correctly(self, client, mock_session):

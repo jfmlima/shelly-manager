@@ -8,6 +8,14 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class CredentialResponse(BaseModel):
+    """Response model for device credentials."""
+
+    mac: str
+    username: str
+    last_seen_ip: str | None = None
+
+
 class DeviceResponse(BaseModel):
 
     ip: str

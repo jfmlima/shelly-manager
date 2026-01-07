@@ -90,6 +90,17 @@ GET /api/devices/{ip}/components/actions    # Get all available actions for devi
 POST /api/devices/{ip}/components/{component_id}/action
 ```
 
+### Credentials Management
+
+For password-protected Shelly Gen2 devices. Requires `SHELLY_SECRET_KEY` environment variable.
+
+```bash
+GET /api/credentials                # List stored credentials (passwords hidden)
+POST /api/credentials               # Set/update device credentials
+  # Body: {"mac": "AABBCCDDEEFF", "password": "secret", "username": "admin"}
+DELETE /api/credentials/{mac}       # Delete stored credentials
+```
+
 ### Monitoring
 
 ```bash
@@ -210,6 +221,50 @@ curl -X POST "http://localhost:8000/api/devices/192.168.1.100/components/cover:0
   -d '{"action": "open", "params": {}}'
 ```
 
+### Credentials Management Examples
+
+#### Set Device Credentials
+
+```bash
+curl -X POST "http://localhost:8000/api/credentials" \
+  -H "Content-Type: application/json" \
+  -d '{"mac": "AABBCCDDEEFF", "password": "mypassword", "username": "admin"}'
+```
+
+**Response:**
+
+```json
+{
+  "mac": "AABBCCDDEEFF",
+  "username": "admin",
+  "last_seen_ip": null
+}
+```
+
+#### List Stored Credentials
+
+```bash
+curl "http://localhost:8000/api/credentials"
+```
+
+**Response:**
+
+```json
+[
+  {
+    "mac": "AABBCCDDEEFF",
+    "username": "admin",
+    "last_seen_ip": "192.168.1.100"
+  }
+]
+```
+
+#### Delete Credentials
+
+```bash
+curl -X DELETE "http://localhost:8000/api/credentials/AABBCCDDEEFF"
+```
+
 ### Error Response
 
 ```json
@@ -228,8 +283,8 @@ curl -X POST "http://localhost:8000/api/devices/192.168.1.100/components/cover:0
 | -------------------- | ------------- | -------------------------- |
 | `HOST`               | `127.0.0.1`   | API server host            |
 | `PORT`               | `8000`        | API server port            |
-| `DEBUG`              | `false`       | Enable debug mode
-
+| `DEBUG`              | `false`       | Enable debug mode          |
+| `SHELLY_SECRET_KEY`  | (required)    | Fernet key for credential encryption. Generate with: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 
 ## Docker Deployment
 

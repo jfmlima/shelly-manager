@@ -1,21 +1,29 @@
-"""
-Test configuration and shared fixtures for CLI tests.
-"""
+"""Test configuration and shared fixtures for CLI tests."""
 
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
+import os
 
-import pytest
-from cli.main import CliContext
-from click.testing import CliRunner
-from core.domain.entities.device_status import DeviceStatus
-from core.domain.entities.discovered_device import DiscoveredDevice
-from core.domain.enums.enums import Status
-from core.domain.value_objects.action_result import ActionResult
-from core.domain.value_objects.scan_request import ScanRequest
-from core.gateways.device import DeviceGateway
-from core.use_cases.check_device_status import CheckDeviceStatusUseCase
-from core.use_cases.scan_devices import ScanDevicesUseCase
+# Generate a valid Fernet key for tests before any other imports.
+# This must happen before settings.py is imported.
+# NOTE: noqa comments prevent linters from reordering these imports.
+if "SHELLY_SECRET_KEY" not in os.environ:  # noqa: E402
+    from cryptography.fernet import Fernet
+
+    os.environ["SHELLY_SECRET_KEY"] = Fernet.generate_key().decode()
+
+from datetime import datetime  # noqa: E402
+from unittest.mock import AsyncMock, MagicMock  # noqa: E402
+
+import pytest  # noqa: E402
+from cli.main import CliContext  # noqa: E402
+from click.testing import CliRunner  # noqa: E402
+from core.domain.entities.device_status import DeviceStatus  # noqa: E402
+from core.domain.entities.discovered_device import DiscoveredDevice  # noqa: E402
+from core.domain.enums.enums import Status  # noqa: E402
+from core.domain.value_objects.action_result import ActionResult  # noqa: E402
+from core.domain.value_objects.scan_request import ScanRequest  # noqa: E402
+from core.gateways.device import DeviceGateway  # noqa: E402
+from core.use_cases.check_device_status import CheckDeviceStatusUseCase  # noqa: E402
+from core.use_cases.scan_devices import ScanDevicesUseCase  # noqa: E402
 
 
 @pytest.fixture

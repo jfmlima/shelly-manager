@@ -1,10 +1,22 @@
-from datetime import datetime
+"""Test configuration and shared fixtures for API tests."""
 
-import pytest
-from api.main import create_app
-from core.domain.entities.discovered_device import DiscoveredDevice
-from core.domain.enums.enums import Status
-from core.domain.value_objects.action_result import ActionResult
+import os
+
+# Generate a valid Fernet key for tests before any other imports.
+# This must happen before settings.py is imported.
+# NOTE: noqa comments prevent linters from reordering these imports.
+if "SHELLY_SECRET_KEY" not in os.environ:  # noqa: E402
+    from cryptography.fernet import Fernet
+
+    os.environ["SHELLY_SECRET_KEY"] = Fernet.generate_key().decode()
+
+from datetime import datetime  # noqa: E402
+
+import pytest  # noqa: E402
+from api.main import create_app  # noqa: E402
+from core.domain.entities.discovered_device import DiscoveredDevice  # noqa: E402
+from core.domain.enums.enums import Status  # noqa: E402
+from core.domain.value_objects.action_result import ActionResult  # noqa: E402
 
 
 @pytest.fixture

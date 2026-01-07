@@ -3,9 +3,31 @@ Request models for API validation.
 """
 
 import ipaddress
+import re
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
+
+
+class CredentialCreateRequest(BaseModel):
+    """Request model for creating or updating device credentials."""
+
+    mac: str = Field(..., description="Device MAC address or '*' for global")
+    username: str = Field(default="admin")
+    password: str = Field(..., min_length=1)
+
+    @field_validator("mac")
+    @classmethod
+    def validate_mac(cls, v: str) -> str:
+        """Validate and normalize MAC address."""
+        if v == "*":
+            return v
+        mac_clean = v.upper().replace(":", "").replace("-", "")
+        if not re.match(r"^[0-9A-F]{12}$", mac_clean):
+            raise ValueError(
+                "Invalid MAC address format. Expected format: AA:BB:CC:DD:EE:FF or AABBCCDDEEFF"
+            )
+        return mac_clean  # Return normalized form (uppercase, no separators)
 
 
 class ScanDevicesRequest(BaseModel):

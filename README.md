@@ -30,8 +30,6 @@ Available as:
 ## Roadmap
 
 - [ ] **Ensure RED compatibility** - Ensure compliance with [EU RED requirements](https://kb.shelly.cloud/knowledge-base/kbuca-what-you-need-to-know-shelly-and-eu-red) for Shelly devices
-- [ ] **Allow offline update (file upload)** - Support firmware updates via local file upload when internet access is unavailable
-- [ ] **Authenticated Connection** - Allow access to devices that are password protected
 - [ ] **Bulk action scheduling** - Schedule bulk operations to run at specific times or intervals
 
 ## Screenshots
@@ -273,6 +271,55 @@ The web interface provides an intuitive management experience:
 - **Docker** (recommended) or **Python 3.11+**
 - **Network access** to Shelly devices on your local network
 - **Optional**: Device credentials for authenticated devices
+
+## Security & Credentials
+
+Shelly Manager supports password-protected Shelly Gen2 devices (HTTP Digest Auth). To enable this feature, you must provide an encryption key.
+
+### 1. Generate an Encryption Key
+
+The application requires a valid Fernet key in the `SHELLY_SECRET_KEY` environment variable.
+
+```bash
+# Generate a key using Python
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+### 2. Set the Environment Variable
+
+**Linux / macOS**
+```bash
+export SHELLY_SECRET_KEY="your-generated-key"
+```
+
+**Docker**
+```bash
+docker run -e SHELLY_SECRET_KEY="your-generated-key" ...
+```
+
+**docker-compose.yml**
+```yaml
+environment:
+  - SHELLY_SECRET_KEY=your-generated-key
+```
+
+### 3. Manage Credentials
+
+Use the CLI to manage device credentials. Data is stored encrypted locally.
+
+```bash
+# Set credentials for a specific device
+shelly-manager credentials set AABBCCDDEEFF mypassword --username admin
+
+# Set a global fallback password (used if device-specific not found)
+shelly-manager credentials set-global myfallbackpass
+
+# List stored credentials (safe, no passwords shown)
+shelly-manager credentials list
+
+# Delete credentials
+shelly-manager credentials delete AABBCCDDEEFF
+```
 
 ## Development
 

@@ -41,6 +41,16 @@ packages/core/src/core/
 
 Dependencies point inward - the domain layer knows nothing about external concerns.
 
+## Authentication Services
+
+The core package provides authentication services for password-protected Shelly Gen2 devices:
+
+- **AuthenticationService** - Resolves credentials for devices (device-specific → global fallback)
+- **AuthStateCache** - Tracks which devices require authentication with TTL-based expiration
+- **EncryptionService** - Fernet symmetric encryption for stored passwords
+
+These services enable the API and CLI to work with password-protected devices using HTTP Digest Auth.
+
 ## Quick Start
 
 ### Installation

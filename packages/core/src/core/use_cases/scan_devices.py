@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime
+from typing import Any
 
 from ..domain.entities.discovered_device import DiscoveredDevice
 from ..domain.entities.exceptions import DeviceValidationError, ValidationError
@@ -18,9 +19,11 @@ class ScanDevicesUseCase:
         self,
         device_gateway: DeviceGateway,
         mdns_client: MDNSGateway | None = None,
+        auth_state_cache: Any | None = None,
     ):
         self._device_gateway = device_gateway
         self._mdns_client = mdns_client
+        self._auth_state_cache = auth_state_cache
 
     async def execute(self, request: ScanRequest) -> list[DiscoveredDevice]:
         """

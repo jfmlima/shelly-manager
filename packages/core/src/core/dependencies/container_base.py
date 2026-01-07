@@ -48,11 +48,19 @@ class BaseContainer:
             self._mdns_client = ZeroconfMDNSClient()
         return self._mdns_client
 
+    def get_auth_state_cache(self) -> Any:
+        from core.services.auth_state_cache import AuthStateCache
+
+        if not hasattr(self, "_auth_state_cache"):
+            self._auth_state_cache = AuthStateCache()
+        return self._auth_state_cache
+
     def get_scan_interactor(self) -> ScanDevicesUseCase:
         if self._scan_interactor is None:
             self._scan_interactor = ScanDevicesUseCase(
                 device_gateway=self.get_device_gateway(),
                 mdns_client=self.get_mdns_client(),
+                auth_state_cache=self.get_auth_state_cache(),
             )
         return self._scan_interactor
 

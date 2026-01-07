@@ -5,6 +5,8 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef } from "react";
 import { Search } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { credentialsApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,6 +20,7 @@ import {
   FormControl,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { parseManualIPs } from "@/lib/ip-utils";
@@ -28,6 +31,8 @@ import {
 import { ScanModeSelector } from "./scan-mode-selector";
 import { ManualDiscoveryPanel } from "./manual-discovery-panel";
 import { AdvancedSettings } from "./advanced-settings";
+import { Checkbox } from "@/components/ui/checkbox";
+import { CredentialsManager } from "./credentials-manager";
 
 import { scanFormSchema, type ScanFormData } from "./scan-form-schema";
 
@@ -41,10 +46,22 @@ export function ScanForm({ onSubmit, isLoading = false }: ScanFormProps) {
 
   const form = useForm<ScanFormData>({
     resolver: zodResolver(scanFormSchema),
-    defaultValues: loadScanPreferences(),
+    defaultValues: {
+      ...loadScanPreferences(),
+      use_auth: false, // Always default to false, don't persist this
+    } as ScanFormData,
   });
 
   const scanMode = form.watch("scan_mode");
+  const useAuth = form.watch("use_auth");
+
+  // Load credentials when authentication is enabled
+  const credentialsQuery = useQuery({
+    queryKey: ["credentials"],
+    queryFn: credentialsApi.listCredentials,
+    enabled: useAuth, // Only fetch when authentication is enabled
+    staleTime: 0, // Always refetch to ensure fresh data
+  });
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {
@@ -54,7 +71,11 @@ export function ScanForm({ onSubmit, isLoading = false }: ScanFormProps) {
       }
 
       timeoutRef.current = setTimeout(() => {
-        saveScanPreferences(value as unknown as Partial<ScanPreferences>);
+        // Don't save use_auth - it should always default to false
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { use_auth, ...prefsToSave } =
+          value as unknown as ScanPreferences & { use_auth: boolean };
+        saveScanPreferences(prefsToSave);
       }, 1000); // Debounce for 1 second
     });
 
@@ -142,6 +163,44 @@ export function ScanForm({ onSubmit, isLoading = false }: ScanFormProps) {
             )}
 
             <AdvancedSettings form={form} />
+
+            <div className="p-4 bg-muted/30 rounded-xl border border-muted-foreground/10 space-y-4">
+              <FormField
+                control={form.control}
+                name="use_auth"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        {t("dashboard.scanForm.credentials.enableAuth")}
+                      </FormLabel>
+                      <p className="text-xs text-muted-foreground">
+                        {t(
+                          "dashboard.scanForm.credentials.enableAuthDescription",
+                        )}
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              {useAuth && (
+                <div className="pt-2 border-t border-muted-foreground/10">
+                  <CredentialsManager
+                    credentials={credentialsQuery.data || []}
+                    isLoading={
+                      credentialsQuery.isLoading || credentialsQuery.isFetching
+                    }
+                  />
+                </div>
+              )}
+            </div>
 
             <div className="pt-2">
               <Button

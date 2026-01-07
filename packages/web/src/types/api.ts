@@ -278,6 +278,19 @@ export interface ScanRequest {
   max_workers?: number;
 }
 
+export interface Credential {
+  mac: string;
+  username: string;
+  last_seen_ip?: string;
+  last_used?: string;
+}
+
+export interface CredentialCreateRequest {
+  mac: string;
+  username?: string;
+  password: string;
+}
+
 export interface ComponentActionResult {
   ip: string;
   component_key: string;

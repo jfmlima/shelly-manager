@@ -3,9 +3,47 @@ Shared validation utilities for the core domain.
 """
 
 import ipaddress
+import re
 from typing import Any
 
 from pydantic import field_validator
+
+
+def normalize_mac(mac: str) -> str:
+    """
+    Normalize a MAC address to uppercase without separators.
+
+    Args:
+        mac: MAC address in any format (with or without colons/dashes)
+
+    Returns:
+        Normalized MAC address (uppercase, no separators)
+
+    Examples:
+        >>> normalize_mac("aa:bb:cc:dd:ee:ff")
+        'AABBCCDDEEFF'
+        >>> normalize_mac("AA-BB-CC-DD-EE-FF")
+        'AABBCCDDEEFF'
+        >>> normalize_mac("AABBCCDDEEFF")
+        'AABBCCDDEEFF'
+    """
+    return mac.upper().replace(":", "").replace("-", "")
+
+
+def is_valid_mac(mac: str) -> bool:
+    """
+    Check if a string is a valid MAC address.
+
+    Args:
+        mac: MAC address to validate (any format)
+
+    Returns:
+        True if valid MAC address, False otherwise
+    """
+    if mac == "*":  # Special case for global fallback
+        return True
+    mac_clean = normalize_mac(mac)
+    return bool(re.match(r"^[0-9A-F]{12}$", mac_clean))
 
 
 def validate_ip_address(cls: Any, v: str) -> str:

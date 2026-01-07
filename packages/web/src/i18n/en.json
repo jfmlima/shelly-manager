@@ -56,7 +56,27 @@
       "timeout": "Timeout (seconds, per device)",
       "maxWorkers": "Max Workers",
       "scanButton": "Scan Devices",
-      "scanning": "Scanning..."
+      "scanning": "Scanning...",
+      "credentials": {
+        "title": "Authentication",
+        "enableAuth": "Authenticated Scan",
+        "enableAuthDescription": "Authenticate with protected devices using stored credentials",
+        "manage": "Manage Credentials",
+        "mac": "MAC Address",
+        "username": "Username",
+        "password": "Password",
+        "global": "Global Fallback",
+        "add": "Add Credential",
+        "save": "Save Credential",
+        "delete": "Delete",
+        "noCredentials": "No credentials stored",
+        "placeholderMac": "AA:BB:CC:DD:EE:FF",
+        "placeholderUsername": "admin",
+        "placeholderPassword": "your-password",
+        "lastSeen": "Last Seen",
+        "lastUsed": "Last Used",
+        "globalLabel": "Global (used if no MAC specific match)"
+      }
     },
     "deviceTable": {
       "title": "Discovered Devices",

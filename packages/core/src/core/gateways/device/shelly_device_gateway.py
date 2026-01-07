@@ -54,6 +54,17 @@ class ShellyDeviceGateway(DeviceGateway):
             )
             device_data = device_info.get("result", device_info)
 
+            # Check if auth is required from cache or if it was just marked during request
+            auth_required = False
+            if (
+                hasattr(self._rpc_client, "auth_state_cache")
+                and self._rpc_client.auth_state_cache
+            ):
+                device_id = device_data.get("id") or ip
+                auth_required = self._rpc_client.auth_state_cache.requires_auth(
+                    device_id
+                )
+
             device = DiscoveredDevice(
                 ip=ip,
                 status=Status.DETECTED,
@@ -61,6 +72,7 @@ class ShellyDeviceGateway(DeviceGateway):
                 device_type=device_data.get("model"),
                 device_name=device_data.get("name"),
                 firmware_version=device_data.get("fw_id"),
+                auth_required=auth_required,
                 response_time=response_time,
                 last_seen=datetime.now(),
             )

@@ -13,6 +13,7 @@ from .commands import (
     export_commands,
 )
 from .commands.device_commands import scan
+from .credential_commands import credential_commands
 from .dependencies.container import CLIContainer
 
 
@@ -60,6 +61,7 @@ def cli(ctx: click.Context, verbose: bool, version: bool) -> None:
 cli.add_command(bulk_commands, name="bulk")
 cli.add_command(device_commands, name="device")
 cli.add_command(export_commands, name="export")
+cli.add_command(credential_commands, name="credentials")
 
 cli.add_command(scan)
 
