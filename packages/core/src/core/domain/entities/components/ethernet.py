@@ -24,7 +24,7 @@ class EthernetComponent(Component):
         return cls(
             **base.model_dump(),
             eth_ip=status.get("ip"),
-            eth_ip6=status.get("ip6", []),
+            eth_ip6=status.get("ip6") or [],
             enabled=config.get("enable", True),
             server_mode=config.get("server_mode", False),
             ipv4_mode=config.get("ipv4mode", "dhcp"),
