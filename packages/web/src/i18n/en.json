@@ -59,7 +59,7 @@
       "scanning": "Scanning...",
       "credentials": {
         "title": "Authentication",
-        "enableAuth": "Authenticated Scan",
+        "enableAuth": "Credentials",
         "enableAuthDescription": "Authenticate with protected devices using stored credentials",
         "manage": "Manage Credentials",
         "mac": "MAC Address",
