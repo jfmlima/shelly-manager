@@ -11,8 +11,8 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "shelly-manager-core",  # Local package dependency
-    "litestar[standard]==2.16.0",
-    "uvicorn[standard]==0.35.0",
+    "litestar[standard]==2.19.0",
+    "uvicorn[standard]==0.40.0",
 ]
 
 [project.optional-dependencies]

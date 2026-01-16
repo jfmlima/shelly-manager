@@ -11,7 +11,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "shelly-manager-core",  # Local package dependency
-    "click==8.2.1",
+    "click==8.3.1",
     "rich==14.1.0",
 ]
 
