@@ -29,6 +29,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@/components/ui/toggle-group";
+import {
   isSwitchComponent,
   isInputComponent,
   isCoverComponent,
@@ -45,26 +49,23 @@ import {
 } from "@/types/api";
 import type { DeviceStatus, Component } from "@/types/api";
 
+type ComponentFilter = "all" | "active" | "inactive";
+
 interface DeviceComponentsProps {
   deviceStatus: DeviceStatus | null;
   isLoading?: boolean;
   onRefresh?: () => void;
 }
 
-const PRIORITY_COMPONENT_TYPES = [
-  "switch",
-  "cover",
-  "zigbee",
-  "wifi",
-  "eth",
-  "cloud",
-  "sys",
-  "mqtt",
-];
+const VISIBLE_COUNT = 6;
 
 const TYPE_ORDER = [
   "switch",
   "cover",
+  "em",
+  "em1",
+  "emdata",
+  "em1data",
   "zigbee",
   "wifi",
   "eth",
@@ -77,20 +78,51 @@ const TYPE_ORDER = [
   "knx",
 ];
 
+function isComponentActive(component: Component): boolean {
+  switch (component.type) {
+    case "cloud":
+    case "mqtt":
+    case "ws":
+      return component.status.connected === true;
+    case "wifi":
+      return component.status.status === "got ip";
+    case "eth":
+      return component.status.ip != null;
+    case "zigbee":
+      return component.status.network_state === "joined";
+    case "ble":
+    case "knx":
+    case "modbus":
+      return component.config.enable === true;
+    case "bthome": {
+      const errors = component.status.errors;
+      return !Array.isArray(errors) || errors.length === 0;
+    }
+    default:
+      return true;
+  }
+}
+
 function sortComponentsByType(components: Component[]): Component[] {
   return [...components].sort((a, b) => {
     const aIndex = TYPE_ORDER.indexOf(a.type);
     const bIndex = TYPE_ORDER.indexOf(b.type);
 
-    if (aIndex !== -1 && bIndex !== -1) {
-      return aIndex - bIndex;
-    }
-
+    if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
     if (aIndex !== -1) return -1;
     if (bIndex !== -1) return 1;
 
     return a.type.localeCompare(b.type);
   });
+}
+
+function filterComponents(
+  components: Component[],
+  filter: ComponentFilter,
+): Component[] {
+  if (filter === "all") return components;
+  if (filter === "active") return components.filter(isComponentActive);
+  return components.filter((c) => !isComponentActive(c));
 }
 
 export function DeviceComponents({
@@ -99,6 +131,8 @@ export function DeviceComponents({
 }: DeviceComponentsProps) {
   const { t } = useTranslation();
   const [showAllComponents, setShowAllComponents] = useState(false);
+  const [componentFilter, setComponentFilter] =
+    useState<ComponentFilter>("all");
 
   if (isLoading) {
     return (
@@ -274,46 +308,79 @@ export function DeviceComponents({
     );
   };
 
-  const priorityComponentsUnsorted = deviceStatus.components.filter(
-    (component) => PRIORITY_COMPONENT_TYPES.includes(component.type),
+  const sorted = sortComponentsByType(
+    filterComponents(deviceStatus.components, componentFilter),
   );
-  const additionalComponentsUnsorted = deviceStatus.components.filter(
-    (component) => !PRIORITY_COMPONENT_TYPES.includes(component.type),
-  );
+  const visibleComponents = sorted.slice(0, VISIBLE_COUNT);
+  const collapsedComponents = sorted.slice(VISIBLE_COUNT);
+  const hasCollapsed = collapsedComponents.length > 0;
 
-  const priorityComponents = sortComponentsByType(priorityComponentsUnsorted);
-  const additionalComponents = sortComponentsByType(
-    additionalComponentsUnsorted,
+  const renderComponentCard = (component: Component) => (
+    <div
+      key={component.key}
+      className={`h-full${
+        isComponentActive(component)
+          ? ""
+          : " opacity-50 transition-opacity hover:opacity-100"
+      }`}
+    >
+      {renderComponent(component)}
+    </div>
   );
-
-  const hasAdditionalComponents = additionalComponents.length > 0;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t("deviceDetail.status.components")}</CardTitle>
-        <CardDescription>
-          {t("deviceDetail.components.componentsDescription", {
-            count: deviceStatus.total_components,
-          })}
-        </CardDescription>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>{t("deviceDetail.status.components")}</CardTitle>
+            <CardDescription>
+              {t("deviceDetail.components.componentsDescription", {
+                count: deviceStatus.total_components,
+              })}
+            </CardDescription>
+          </div>
+          <ToggleGroup
+            type="single"
+            value={componentFilter}
+            onValueChange={(value) => {
+              if (value) setComponentFilter(value as ComponentFilter);
+            }}
+            variant="outline"
+            size="sm"
+          >
+            <ToggleGroupItem value="all">
+              {t("deviceDetail.components.filterAll")}
+            </ToggleGroupItem>
+            <ToggleGroupItem value="active">
+              {t("deviceDetail.components.filterActive")}
+            </ToggleGroupItem>
+            <ToggleGroupItem value="inactive">
+              {t("deviceDetail.components.filterInactive")}
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {/* Always visible priority components */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {priorityComponents.map(renderComponent)}
-          </div>
+          {visibleComponents.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {visibleComponents.map(renderComponentCard)}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              {t("deviceDetail.components.noMatchingComponents")}
+            </p>
+          )}
 
-          {/* Collapsible additional components */}
-          {hasAdditionalComponents && (
+          {hasCollapsed && (
             <Collapsible
               open={showAllComponents}
               onOpenChange={setShowAllComponents}
             >
               <CollapsibleContent>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-4">
-                  {additionalComponents.map(renderComponent)}
+                  {collapsedComponents.map(renderComponentCard)}
                 </div>
               </CollapsibleContent>
 
@@ -332,7 +399,7 @@ export function DeviceComponents({
                     <>
                       <ChevronDown className="mr-2 h-4 w-4" />
                       {t("deviceDetail.components.showMore", {
-                        count: additionalComponents.length,
+                        count: collapsedComponents.length,
                       })}
                     </>
                   )}

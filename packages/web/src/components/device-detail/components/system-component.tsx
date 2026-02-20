@@ -21,7 +21,7 @@ export function SystemComponent({ component, deviceIp }: SystemComponentProps) {
   const { t } = useTranslation();
 
   return (
-    <Card className="border-l-4 border-l-gray-500">
+    <Card className="border-l-4 border-l-gray-500 h-full">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center space-x-2 text-base">
           <Settings className="h-4 w-4" />
@@ -31,7 +31,7 @@ export function SystemComponent({ component, deviceIp }: SystemComponentProps) {
           {t("deviceDetail.components.system.description")}
         </CardDescription>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 flex-1 flex flex-col gap-6">
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -71,7 +71,7 @@ export function SystemComponent({ component, deviceIp }: SystemComponentProps) {
         </div>
 
         {/* Component Actions */}
-        <div className="mt-4 pt-4 border-t">
+        <div className="mt-auto pt-4 border-t">
           <ComponentActions component={component} deviceIp={deviceIp} />
         </div>
       </CardContent>

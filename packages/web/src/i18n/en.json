@@ -230,6 +230,10 @@
     "components": {
       "componentsDescription": "Device components and their current status ({{count}} total)",
       "noComponentData": "No component data available",
+      "filterAll": "All",
+      "filterActive": "Active",
+      "filterInactive": "Inactive",
+      "noMatchingComponents": "No components match the current filter",
       "showMore": "Show {{count}} more component(s)",
       "showLess": "Show less",
       "switch": {
