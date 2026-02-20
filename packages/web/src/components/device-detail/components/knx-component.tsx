@@ -37,9 +37,7 @@ export function KnxComponent({ component, deviceIp }: KnxComponentProps) {
         {component.config.ia && (
           <div className="flex items-center justify-between">
             <span>Individual Address</span>
-            <span className="font-medium font-mono">
-              {component.config.ia}
-            </span>
+            <span className="font-medium font-mono">{component.config.ia}</span>
           </div>
         )}
         {component.config.routing?.addr && (

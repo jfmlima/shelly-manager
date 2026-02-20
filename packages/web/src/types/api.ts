@@ -206,6 +206,79 @@ export interface WebSocketComponent extends Component {
   config: Record<string, unknown>;
 }
 
+export interface EMComponent extends Component {
+  type: "em";
+  status: {
+    a_current?: number;
+    a_voltage?: number;
+    a_act_power?: number;
+    a_aprt_power?: number;
+    a_pf?: number;
+    a_freq?: number;
+    b_current?: number;
+    b_voltage?: number;
+    b_act_power?: number;
+    b_aprt_power?: number;
+    b_pf?: number;
+    b_freq?: number;
+    c_current?: number;
+    c_voltage?: number;
+    c_act_power?: number;
+    c_aprt_power?: number;
+    c_pf?: number;
+    c_freq?: number;
+    n_current?: number;
+    total_current?: number;
+    total_act_power?: number;
+    total_aprt_power?: number;
+  };
+  config: {
+    name?: string | null;
+    ct_type?: string;
+  };
+}
+
+export interface EM1Component extends Component {
+  type: "em1";
+  status: {
+    current?: number;
+    voltage?: number;
+    act_power?: number;
+    aprt_power?: number;
+    pf?: number;
+    freq?: number;
+  };
+  config: {
+    name?: string | null;
+    ct_type?: string;
+    reverse?: boolean;
+  };
+}
+
+export interface EMDataComponent extends Component {
+  type: "emdata";
+  status: {
+    a_total_act_energy?: number;
+    a_total_act_ret_energy?: number;
+    b_total_act_energy?: number;
+    b_total_act_ret_energy?: number;
+    c_total_act_energy?: number;
+    c_total_act_ret_energy?: number;
+    total_act?: number;
+    total_act_ret?: number;
+  };
+  config: Record<string, unknown>;
+}
+
+export interface EM1DataComponent extends Component {
+  type: "em1data";
+  status: {
+    total_act_energy?: number;
+    total_act_ret_energy?: number;
+  };
+  config: Record<string, unknown>;
+}
+
 export interface UpdateInfo {
   version: string;
   build_id: string;
@@ -322,7 +395,11 @@ export type ComponentType =
   | KnxComponent
   | MqttComponent
   | WifiComponent
-  | WebSocketComponent;
+  | WebSocketComponent
+  | EMComponent
+  | EM1Component
+  | EMDataComponent
+  | EM1DataComponent;
 
 export function isSwitchComponent(
   component: Component,
@@ -400,4 +477,26 @@ export function isWebSocketComponent(
   component: Component,
 ): component is WebSocketComponent {
   return component.type === "ws";
+}
+
+export function isEMComponent(component: Component): component is EMComponent {
+  return component.type === "em";
+}
+
+export function isEM1Component(
+  component: Component,
+): component is EM1Component {
+  return component.type === "em1";
+}
+
+export function isEMDataComponent(
+  component: Component,
+): component is EMDataComponent {
+  return component.type === "emdata";
+}
+
+export function isEM1DataComponent(
+  component: Component,
+): component is EM1DataComponent {
+  return component.type === "em1data";
 }

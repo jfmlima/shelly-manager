@@ -6,6 +6,10 @@ import {
   SwitchComponent,
   InputComponent,
   CoverComponent,
+  EMComponent,
+  EM1Component,
+  EMDataComponent,
+  EM1DataComponent,
   SystemComponent,
   CloudComponent,
   ZigbeeComponent,
@@ -28,14 +32,15 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   isSwitchComponent,
   isInputComponent,
   isCoverComponent,
+  isEMComponent,
+  isEM1Component,
+  isEMDataComponent,
+  isEM1DataComponent,
   isSystemComponent,
   isCloudComponent,
   isZigbeeComponent,
@@ -192,6 +197,46 @@ export function DeviceComponents({
     if (isCoverComponent(component)) {
       return (
         <CoverComponent
+          key={component.key}
+          component={component}
+          deviceIp={deviceIp}
+        />
+      );
+    }
+
+    if (isEMComponent(component)) {
+      return (
+        <EMComponent
+          key={component.key}
+          component={component}
+          deviceIp={deviceIp}
+        />
+      );
+    }
+
+    if (isEM1Component(component)) {
+      return (
+        <EM1Component
+          key={component.key}
+          component={component}
+          deviceIp={deviceIp}
+        />
+      );
+    }
+
+    if (isEMDataComponent(component)) {
+      return (
+        <EMDataComponent
+          key={component.key}
+          component={component}
+          deviceIp={deviceIp}
+        />
+      );
+    }
+
+    if (isEM1DataComponent(component)) {
+      return (
+        <EM1DataComponent
           key={component.key}
           component={component}
           deviceIp={deviceIp}

@@ -18,9 +18,7 @@ export function GenericComponent({
       title={`${component.type} ${component.id !== null ? component.id : ""}`}
       description={`Component type: ${component.type}`}
     >
-      <div className="text-sm text-muted-foreground">
-        Key: {component.key}
-      </div>
+      <div className="text-sm text-muted-foreground">Key: {component.key}</div>
     </BaseComponentCard>
   );
 }

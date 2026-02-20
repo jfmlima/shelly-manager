@@ -52,9 +52,7 @@ export function ZigbeeComponent({ component, deviceIp }: ZigbeeComponentProps) {
       <div className="space-y-2 text-sm">
         <div className="flex items-center justify-between">
           <span>{t("deviceDetail.components.zigbee.networkState")}</span>
-          <span className="font-medium">
-            {component.status.network_state}
-          </span>
+          <span className="font-medium">{component.status.network_state}</span>
         </div>
       </div>
     </BaseComponentCard>

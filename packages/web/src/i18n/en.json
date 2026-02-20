@@ -340,6 +340,53 @@
         "description": "WebSocket connection status",
         "connectionStatus": "Connection Status"
       },
+      "em": {
+        "title": "Energy Meter",
+        "description": "3-phase energy meter",
+        "totalPower": "Total Power",
+        "totalCurrent": "Total Current",
+        "totalApparentPower": "Apparent Power",
+        "neutralCurrent": "Neutral",
+        "phaseA": "Phase A",
+        "phaseB": "Phase B",
+        "phaseC": "Phase C",
+        "voltage": "Voltage",
+        "current": "Current",
+        "activePower": "Power",
+        "apparentPower": "Apparent",
+        "powerFactor": "Power Factor",
+        "frequency": "Frequency",
+        "ctType": "CT Type"
+      },
+      "em1": {
+        "title": "Energy Meter",
+        "description": "Single-phase energy meter",
+        "voltage": "Voltage",
+        "current": "Current",
+        "activePower": "Power",
+        "apparentPower": "Apparent Power",
+        "powerFactor": "Power Factor",
+        "frequency": "Frequency",
+        "ctType": "CT Type",
+        "reverse": "Reversed"
+      },
+      "emdata": {
+        "title": "Energy Data",
+        "description": "3-phase accumulated energy",
+        "totalEnergy": "Total Consumed",
+        "totalReturnedEnergy": "Total Returned",
+        "phaseA": "Phase A",
+        "phaseB": "Phase B",
+        "phaseC": "Phase C",
+        "consumed": "Consumed",
+        "returned": "Returned"
+      },
+      "em1data": {
+        "title": "Energy Data",
+        "description": "Single-phase accumulated energy",
+        "totalEnergy": "Total Consumed",
+        "totalReturnedEnergy": "Total Returned"
+      },
       "generic": {
         "componentType": "Component type"
       }

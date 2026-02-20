@@ -42,9 +42,7 @@ export function EthernetComponent({
         {component.status.ip && (
           <div className="flex items-center justify-between">
             <span>IP Address</span>
-            <span className="font-medium font-mono">
-              {component.status.ip}
-            </span>
+            <span className="font-medium font-mono">{component.status.ip}</span>
           </div>
         )}
         <div className="flex items-center justify-between">
@@ -56,9 +54,7 @@ export function EthernetComponent({
         {component.config.gw && (
           <div className="flex items-center justify-between">
             <span>Gateway</span>
-            <span className="font-medium font-mono">
-              {component.config.gw}
-            </span>
+            <span className="font-medium font-mono">{component.config.gw}</span>
           </div>
         )}
         {component.config.nameserver && (
