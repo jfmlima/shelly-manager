@@ -9,6 +9,10 @@ from .components import (
     CloudComponent,
     ComponentType,
     CoverComponent,
+    EM1Component,
+    EM1DataComponent,
+    EMComponent,
+    EMDataComponent,
     EthernetComponent,
     InputComponent,
     KnxComponent,
@@ -19,7 +23,7 @@ from .components import (
     WifiComponent,
     ZigbeeComponent,
 )
-from .factory import ComponentFactory
+from .components.factory import ComponentFactory
 
 
 class DeviceStatus(BaseModel):
@@ -101,6 +105,18 @@ class DeviceStatus(BaseModel):
 
     def get_covers(self) -> list[CoverComponent]:
         return [comp for comp in self.components if isinstance(comp, CoverComponent)]
+
+    def get_em_components(self) -> list[EMComponent]:
+        return [comp for comp in self.components if isinstance(comp, EMComponent)]
+
+    def get_em1_components(self) -> list[EM1Component]:
+        return [comp for comp in self.components if isinstance(comp, EM1Component)]
+
+    def get_em_data_components(self) -> list[EMDataComponent]:
+        return [comp for comp in self.components if isinstance(comp, EMDataComponent)]
+
+    def get_em1_data_components(self) -> list[EM1DataComponent]:
+        return [comp for comp in self.components if isinstance(comp, EM1DataComponent)]
 
     def get_system_info(self) -> SystemComponent | None:
         for comp in self.components:
@@ -219,7 +235,11 @@ class DeviceStatus(BaseModel):
             "switch_count": len(self.get_switches()),
             "input_count": len(self.get_inputs()),
             "cover_count": len(self.get_covers()),
-            "total_power": sum(switch.power for switch in self.get_switches()),
+            "total_power": (
+                sum(switch.power for switch in self.get_switches())
+                + sum(em.total_act_power or 0 for em in self.get_em_components())
+                + sum(em1.act_power or 0 for em1 in self.get_em1_components())
+            ),
             "any_switch_on": any(switch.output for switch in self.get_switches()),
             "has_updates": has_updates,
             "available_updates": update_info,

@@ -5,6 +5,10 @@ from .bluetooth_home import BluetoothHomeComponent
 from .bluetooth_le import BluetoothLEComponent
 from .cloud import CloudComponent
 from .cover import CoverComponent
+from .em import EMComponent
+from .em1 import EM1Component
+from .em1data import EM1DataComponent
+from .emdata import EMDataComponent
 from .ethernet import EthernetComponent
 from .input import InputComponent
 from .knx import KnxComponent
@@ -48,6 +52,14 @@ class ComponentFactory:
             return KnxComponent.from_raw_data(component_data)
         elif component_type == "mqtt":
             return MqttComponent.from_raw_data(component_data)
+        elif component_type == "em":
+            return EMComponent.from_raw_data(component_data)
+        elif component_type == "em1":
+            return EM1Component.from_raw_data(component_data)
+        elif component_type == "emdata":
+            return EMDataComponent.from_raw_data(component_data)
+        elif component_type == "em1data":
+            return EM1DataComponent.from_raw_data(component_data)
         else:
             return Component.from_raw_data(component_data)
 
@@ -55,6 +67,5 @@ class ComponentFactory:
     def create_component_from_status(
         key: str, status_data: dict[str, Any]
     ) -> Component:
-
         component_data = {"key": key, "status": status_data, "config": {}, "attrs": {}}
         return ComponentFactory.create_component(component_data)

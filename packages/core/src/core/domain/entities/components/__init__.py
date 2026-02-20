@@ -3,6 +3,10 @@ from .bluetooth_home import BluetoothHomeComponent
 from .bluetooth_le import BluetoothLEComponent
 from .cloud import CloudComponent
 from .cover import CoverComponent
+from .em import EMComponent
+from .em1 import EM1Component
+from .em1data import EM1DataComponent
+from .emdata import EMDataComponent
 from .ethernet import EthernetComponent
 from .factory import ComponentFactory
 from .input import InputComponent
@@ -29,6 +33,10 @@ ComponentType = (
     | BluetoothLEComponent
     | KnxComponent
     | MqttComponent
+    | EMComponent
+    | EM1Component
+    | EMDataComponent
+    | EM1DataComponent
 )
 
 __all__ = [
@@ -48,4 +56,8 @@ __all__ = [
     "BluetoothLEComponent",
     "KnxComponent",
     "MqttComponent",
+    "EMComponent",
+    "EM1Component",
+    "EMDataComponent",
+    "EM1DataComponent",
 ]

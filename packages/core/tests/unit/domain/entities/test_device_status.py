@@ -1,5 +1,10 @@
+import pytest
 from core.domain.entities.components import (
     CloudComponent,
+    EM1Component,
+    EM1DataComponent,
+    EMComponent,
+    EMDataComponent,
     SwitchComponent,
     SystemComponent,
     ZigbeeComponent,
@@ -522,3 +527,206 @@ class TestDeviceStatusMerging:
         zigbee_comp = device_status.get_zigbee_info()
         assert zigbee_comp is not None
         assert zigbee_comp.network_state == "joined"
+
+
+class TestDeviceStatusEMComponents:
+    """Test EM component support and total_power calculation."""
+
+    def test_total_power_with_em_only(self):
+        """Pro 3EM device with no switches -- total_power should come from EM."""
+        em_comp = EMComponent(
+            key="em:0",
+            component_type="em",
+            total_act_power=312.278,
+            a_act_power=222.9,
+            b_act_power=16.2,
+            c_act_power=73.2,
+        )
+
+        device_status = DeviceStatus(device_ip="192.168.1.100", components=[em_comp])
+
+        summary = device_status.get_device_summary()
+        assert summary["total_power"] == 312.278
+        assert summary["switch_count"] == 0
+
+    def test_total_power_with_em1_only(self):
+        """Pro EM device with multiple EM1 channels and no switches."""
+        em1_a = EM1Component(key="em1:0", component_type="em1", act_power=951.2)
+        em1_b = EM1Component(key="em1:1", component_type="em1", act_power=200.5)
+
+        device_status = DeviceStatus(
+            device_ip="192.168.1.100", components=[em1_a, em1_b]
+        )
+
+        summary = device_status.get_device_summary()
+        assert summary["total_power"] == pytest.approx(1151.7)
+        assert summary["switch_count"] == 0
+
+    def test_total_power_with_switches_and_em(self):
+        """Mixed device with both switches and EM components."""
+        switch_comp = SwitchComponent(
+            key="switch:0", component_type="switch", output=True, power=100.0
+        )
+        em_comp = EMComponent(key="em:0", component_type="em", total_act_power=312.278)
+
+        device_status = DeviceStatus(
+            device_ip="192.168.1.100", components=[switch_comp, em_comp]
+        )
+
+        summary = device_status.get_device_summary()
+        assert summary["total_power"] == pytest.approx(412.278)
+        assert summary["switch_count"] == 1
+
+    def test_total_power_with_switches_only(self):
+        """Backward compatibility: switch-only devices still work."""
+        switch_a = SwitchComponent(
+            key="switch:0", component_type="switch", output=True, power=50.0
+        )
+        switch_b = SwitchComponent(
+            key="switch:1", component_type="switch", output=False, power=0.0
+        )
+
+        device_status = DeviceStatus(
+            device_ip="192.168.1.100", components=[switch_a, switch_b]
+        )
+
+        summary = device_status.get_device_summary()
+        assert summary["total_power"] == 50.0
+        assert summary["switch_count"] == 2
+
+    def test_total_power_with_no_power_components(self):
+        """Pure sensor device with no power-producing components."""
+        device_status = DeviceStatus(device_ip="192.168.1.100", components=[])
+
+        summary = device_status.get_device_summary()
+        assert summary["total_power"] == 0
+
+    def test_total_power_with_null_em_power(self):
+        """EM component with None total_act_power should not break sum."""
+        em_comp = EMComponent(key="em:0", component_type="em", total_act_power=None)
+        switch_comp = SwitchComponent(
+            key="switch:0", component_type="switch", output=True, power=100.0
+        )
+
+        device_status = DeviceStatus(
+            device_ip="192.168.1.100", components=[em_comp, switch_comp]
+        )
+
+        summary = device_status.get_device_summary()
+        assert summary["total_power"] == 100.0
+
+    def test_total_power_with_null_em1_power(self):
+        """EM1 component with None act_power should not break sum."""
+        em1_comp = EM1Component(key="em1:0", component_type="em1", act_power=None)
+
+        device_status = DeviceStatus(device_ip="192.168.1.100", components=[em1_comp])
+
+        summary = device_status.get_device_summary()
+        assert summary["total_power"] == 0
+
+    def test_get_em_components(self):
+        em_comp = EMComponent(key="em:0", component_type="em", total_act_power=312.0)
+        switch_comp = SwitchComponent(
+            key="switch:0", component_type="switch", output=True, power=50.0
+        )
+
+        device_status = DeviceStatus(
+            device_ip="192.168.1.100", components=[em_comp, switch_comp]
+        )
+
+        em_components = device_status.get_em_components()
+        assert len(em_components) == 1
+        assert em_components[0].total_act_power == 312.0
+
+    def test_get_em1_components(self):
+        em1_a = EM1Component(key="em1:0", component_type="em1", act_power=951.2)
+        em1_b = EM1Component(key="em1:1", component_type="em1", act_power=200.5)
+
+        device_status = DeviceStatus(
+            device_ip="192.168.1.100", components=[em1_a, em1_b]
+        )
+
+        em1_components = device_status.get_em1_components()
+        assert len(em1_components) == 2
+
+    def test_get_em_data_components(self):
+        emdata_comp = EMDataComponent(
+            key="emdata:0", component_type="emdata", total_act=344297.48
+        )
+
+        device_status = DeviceStatus(
+            device_ip="192.168.1.100", components=[emdata_comp]
+        )
+
+        em_data = device_status.get_em_data_components()
+        assert len(em_data) == 1
+        assert em_data[0].total_act == 344297.48
+
+    def test_get_em1_data_components(self):
+        em1data_comp = EM1DataComponent(
+            key="em1data:0", component_type="em1data", total_act_energy=12345.67
+        )
+
+        device_status = DeviceStatus(
+            device_ip="192.168.1.100", components=[em1data_comp]
+        )
+
+        em1_data = device_status.get_em1_data_components()
+        assert len(em1_data) == 1
+        assert em1_data[0].total_act_energy == 12345.67
+
+    def test_em_components_created_from_raw_response(self):
+        """Test that EM components are properly created from raw API response."""
+        device_ip = "192.168.1.100"
+        response_data = {
+            "components": [
+                {
+                    "key": "em:0",
+                    "status": {
+                        "id": 0,
+                        "a_current": 1.713,
+                        "a_voltage": 242.5,
+                        "a_act_power": 222.9,
+                        "b_act_power": 16.2,
+                        "c_act_power": 73.2,
+                        "total_act_power": 312.278,
+                        "total_current": 3.24,
+                    },
+                    "config": {"name": "Pro3EM", "ct_type": "120A"},
+                    "attrs": {},
+                },
+                {
+                    "key": "emdata:0",
+                    "status": {
+                        "id": 0,
+                        "a_total_act_energy": 186618.98,
+                        "total_act": 344297.48,
+                        "total_act_ret": 0.01,
+                    },
+                    "config": {},
+                    "attrs": {},
+                },
+            ],
+            "cfg_rev": 20,
+            "total": 2,
+            "offset": 0,
+        }
+
+        device_status = DeviceStatus.from_raw_response(device_ip, response_data)
+
+        assert len(device_status.components) == 2
+
+        em_comp = device_status.get_component_by_key("em:0")
+        assert em_comp is not None
+        assert isinstance(em_comp, EMComponent)
+        assert em_comp.total_act_power == 312.278
+        assert em_comp.a_act_power == 222.9
+        assert em_comp.name == "Pro3EM"
+
+        emdata_comp = device_status.get_component_by_key("emdata:0")
+        assert emdata_comp is not None
+        assert isinstance(emdata_comp, EMDataComponent)
+        assert emdata_comp.total_act == 344297.48
+
+        summary = device_status.get_device_summary()
+        assert summary["total_power"] == 312.278

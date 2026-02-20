@@ -5,6 +5,10 @@ from .components import (
     Component,
     ComponentType,
     CoverComponent,
+    EM1Component,
+    EM1DataComponent,
+    EMComponent,
+    EMDataComponent,
     EthernetComponent,
     InputComponent,
     KnxComponent,
@@ -15,6 +19,7 @@ from .components import (
     WifiComponent,
     ZigbeeComponent,
 )
+from .components.factory import ComponentFactory
 from .device_status import DeviceStatus
 from .discovered_device import DiscoveredDevice
 from .exceptions import (
@@ -23,7 +28,6 @@ from .exceptions import (
     DeviceValidationError,
     ValidationError,
 )
-from .factory import ComponentFactory
 
 __all__ = [
     "DeviceAuthenticationError",
@@ -47,5 +51,9 @@ __all__ = [
     "BluetoothLEComponent",
     "KnxComponent",
     "MqttComponent",
+    "EMComponent",
+    "EM1Component",
+    "EMDataComponent",
+    "EM1DataComponent",
     "ComponentFactory",
 ]
