@@ -11,7 +11,6 @@ import {
   Settings as SettingsIcon,
   Palette,
   Server,
-  Table,
   Check,
   X,
   Loader2,
@@ -343,70 +342,6 @@ export function Settings() {
               <div className="text-xs text-muted-foreground">
                 Current: {apiUrl}/api
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Table Preferences */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Table className="h-5 w-5" />
-                <span>{t("settings.table.title")}</span>
-              </CardTitle>
-              <CardDescription>
-                {t("settings.table.description")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>{t("settings.table.pageSize")}</Label>
-                <Select
-                  value={settings.tablePageSize.toString()}
-                  onValueChange={(value) =>
-                    updateSetting("tablePageSize", parseInt(value))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5 rows</SelectItem>
-                    <SelectItem value="10">10 rows</SelectItem>
-                    <SelectItem value="20">20 rows</SelectItem>
-                    <SelectItem value="50">50 rows</SelectItem>
-                    <SelectItem value="100">100 rows</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t("settings.table.density")}</Label>
-                <Select
-                  value={settings.tableDensity}
-                  onValueChange={(
-                    value: "compact" | "normal" | "comfortable",
-                  ) => updateSetting("tableDensity", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="compact">
-                      {t("settings.table.compact")}
-                    </SelectItem>
-                    <SelectItem value="normal">
-                      {t("settings.table.normal")}
-                    </SelectItem>
-                    <SelectItem value="comfortable">
-                      {t("settings.table.comfortable")}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button onClick={saveSettings} className="w-full">
-                {t("settings.table.savePreferences")}
-              </Button>
             </CardContent>
           </Card>
 

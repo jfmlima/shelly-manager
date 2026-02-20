@@ -28,6 +28,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -43,12 +50,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ScanTimestamp } from "@/components/dashboard/scan-timestamp";
+import { loadAppSettings, saveAppSettings } from "@/lib/settings";
 import type { Device } from "@/types/api";
 
 interface DeviceTableProps {
   devices: Device[];
   onBulkAction: (selectedDevices: Device[]) => void;
 }
+
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100, 250, 500] as const;
+const DENSITY_OPTIONS = ["compact", "normal", "comfortable"] as const;
+type TableDensity = (typeof DENSITY_OPTIONS)[number];
+
+const densityClasses: Record<TableDensity, string> = {
+  compact: "py-1",
+  normal: "py-2",
+  comfortable: "py-4",
+};
 
 export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
   const { t } = useTranslation();
@@ -57,6 +75,12 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
   const [globalFilter, setGlobalFilter] = useState<string>("");
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
+
+  const initialSettings = loadAppSettings();
+  const [pageSize, setPageSize] = useState(initialSettings.tablePageSize);
+  const [density, setDensity] = useState<TableDensity>(
+    initialSettings.tableDensity,
+  );
 
   const getStatusBadge = (status: string) => {
     const statusLower = status?.toLowerCase() || "";
@@ -237,6 +261,11 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
     onRowSelectionChange: setRowSelection,
     globalFilterFn: "includesString",
     onGlobalFilterChange: setGlobalFilter,
+    initialState: {
+      pagination: {
+        pageSize,
+      },
+    },
     state: {
       sorting,
       globalFilter,
@@ -352,6 +381,7 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
                       {row.getVisibleCells().map((cell) => (
                         <TableCell
                           key={cell.id}
+                          className={densityClasses[density]}
                           onClick={(e) => {
                             // Prevent row click when interacting with checkbox
                             if (cell.column.id === "select") {
@@ -381,13 +411,61 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
             </Table>
           </div>
 
-          {/* Pagination */}
-          <div className="flex items-center justify-end space-x-2 py-4">
-            <div className="flex-1 text-sm text-muted-foreground">
-              {t("dashboard.deviceTable.rowsSelected", {
-                selected: table.getFilteredSelectedRowModel().rows.length,
-                total: table.getFilteredRowModel().rows.length,
-              })}
+          {/* Pagination & Table Settings */}
+          <div className="flex items-center justify-between py-4">
+            <div className="flex items-center space-x-4">
+              <div className="text-sm text-muted-foreground">
+                {t("dashboard.deviceTable.rowsSelected", {
+                  selected: table.getFilteredSelectedRowModel().rows.length,
+                  total: table.getFilteredRowModel().rows.length,
+                })}
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">Rows</span>
+                <Select
+                  value={pageSize.toString()}
+                  onValueChange={(value) => {
+                    const size = parseInt(value);
+                    setPageSize(size);
+                    table.setPageSize(size);
+                    const current = loadAppSettings();
+                    saveAppSettings({ ...current, tablePageSize: size });
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-[80px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAGE_SIZE_OPTIONS.map((size) => (
+                      <SelectItem key={size} value={size.toString()}>
+                        {size}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">Density</span>
+                <Select
+                  value={density}
+                  onValueChange={(value: TableDensity) => {
+                    setDensity(value);
+                    const current = loadAppSettings();
+                    saveAppSettings({ ...current, tableDensity: value });
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-[120px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DENSITY_OPTIONS.map((opt) => (
+                      <SelectItem key={opt} value={opt}>
+                        {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-x-2">
               <Button
