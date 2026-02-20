@@ -103,7 +103,7 @@ services:
     environment:
       - VITE_BASE_API_URL=http://localhost:8000
     depends_on:
-      - api
+      - shelly-manager-api
 ```
 
 **With Traefik**:
