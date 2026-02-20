@@ -1,3 +1,4 @@
+export { BaseComponentCard } from "./base-component-card";
 export { SwitchComponent } from "./switch-component";
 export { InputComponent } from "./input-component";
 export { CoverComponent } from "./cover-component";

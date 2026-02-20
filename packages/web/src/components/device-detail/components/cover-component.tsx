@@ -1,14 +1,6 @@
 import { PanelTopClose } from "lucide-react";
 
-import { ComponentActions } from "../component-actions";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { BaseComponentCard } from "./base-component-card";
 import type { CoverComponent as CoverComponentType } from "@/types/api";
 
 interface CoverComponentProps {
@@ -18,60 +10,50 @@ interface CoverComponentProps {
 
 export function CoverComponent({ component, deviceIp }: CoverComponentProps) {
   return (
-    <Card className="border-l-4 border-l-purple-500 h-full">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center justify-between text-base">
-          <div className="flex items-center space-x-2">
-            <PanelTopClose className="h-4 w-4" />
-            <span>Cover {component.id}</span>
+    <BaseComponentCard
+      component={component}
+      deviceIp={deviceIp}
+      borderColor="border-l-purple-500"
+      icon={<PanelTopClose className="h-4 w-4" />}
+      title={`Cover ${component.id}`}
+      description={component.config.name || `Cover ${component.id}`}
+      badge={{
+        label: component.status.state?.toUpperCase() || "UNKNOWN",
+        variant: "outline",
+      }}
+    >
+      <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span>Position</span>
+            <span className="font-medium">
+              {component.status.current_pos || 0}%
+            </span>
           </div>
-          <Badge variant="outline">
-            {component.status.state?.toUpperCase()}
-          </Badge>
-        </CardTitle>
-        <CardDescription>
-          {component.config.name || `Cover ${component.id}`}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pt-0 flex-1 flex flex-col gap-6">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span>Position</span>
-              <span className="font-medium">
-                {component.status.current_pos || 0}%
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Power</span>
-              <span className="font-medium">
-                {component.status.apower?.toFixed(1) || "0"}W
-              </span>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span>Direction</span>
-              <span className="font-medium">
-                {component.status.last_direction}
-              </span>
-            </div>
-            {component.status.temperature && (
-              <div className="flex items-center justify-between">
-                <span>Temperature</span>
-                <span className="font-medium">
-                  {component.status.temperature.tC?.toFixed(1)}°C
-                </span>
-              </div>
-            )}
+          <div className="flex items-center justify-between">
+            <span>Power</span>
+            <span className="font-medium">
+              {component.status.apower?.toFixed(1) || "0"}W
+            </span>
           </div>
         </div>
-
-        {/* Component Actions */}
-        <div className="mt-auto pt-4 border-t">
-          <ComponentActions component={component} deviceIp={deviceIp} />
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span>Direction</span>
+            <span className="font-medium">
+              {component.status.last_direction}
+            </span>
+          </div>
+          {component.status.temperature && (
+            <div className="flex items-center justify-between">
+              <span>Temperature</span>
+              <span className="font-medium">
+                {component.status.temperature.tC?.toFixed(1)}°C
+              </span>
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </BaseComponentCard>
   );
 }

@@ -1,15 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Wifi } from "lucide-react";
 
-import { ComponentActions } from "../component-actions";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { BaseComponentCard } from "./base-component-card";
 import type { ZigbeeComponent as ZigbeeComponentType } from "@/types/api";
 
 interface ZigbeeComponentProps {
@@ -25,11 +17,11 @@ export function ZigbeeComponent({ component, deviceIp }: ZigbeeComponentProps) {
   const getStatusVariant = (networkState: string) => {
     switch (networkState.toLowerCase()) {
       case "joined":
-        return "default";
+        return "default" as const;
       case "joining":
-        return "secondary";
+        return "secondary" as const;
       default:
-        return "destructive";
+        return "destructive" as const;
     }
   };
 
@@ -45,36 +37,26 @@ export function ZigbeeComponent({ component, deviceIp }: ZigbeeComponentProps) {
   };
 
   return (
-    <Card className="border-l-4 border-l-orange-500 h-full">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center justify-between text-base">
-          <div className="flex items-center space-x-2">
-            <Wifi className="h-4 w-4" />
-            <span>Zigbee</span>
-          </div>
-          <Badge variant={getStatusVariant(component.status.network_state)}>
-            {getStatusLabel(component.status.network_state)}
-          </Badge>
-        </CardTitle>
-        <CardDescription>
-          {t("deviceDetail.components.zigbee.description")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pt-0 flex-1 flex flex-col gap-6">
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center justify-between">
-            <span>{t("deviceDetail.components.zigbee.networkState")}</span>
-            <span className="font-medium">
-              {component.status.network_state}
-            </span>
-          </div>
+    <BaseComponentCard
+      component={component}
+      deviceIp={deviceIp}
+      borderColor="border-l-orange-500"
+      icon={<Wifi className="h-4 w-4" />}
+      title="Zigbee"
+      description={t("deviceDetail.components.zigbee.description")}
+      badge={{
+        label: getStatusLabel(component.status.network_state),
+        variant: getStatusVariant(component.status.network_state),
+      }}
+    >
+      <div className="space-y-2 text-sm">
+        <div className="flex items-center justify-between">
+          <span>{t("deviceDetail.components.zigbee.networkState")}</span>
+          <span className="font-medium">
+            {component.status.network_state}
+          </span>
         </div>
-
-        {/* Component Actions */}
-        <div className="mt-auto pt-4 border-t">
-          <ComponentActions component={component} deviceIp={deviceIp} />
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </BaseComponentCard>
   );
 }

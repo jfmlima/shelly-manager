@@ -1,14 +1,6 @@
 import { Zap } from "lucide-react";
 
-import { ComponentActions } from "../component-actions";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { BaseComponentCard } from "./base-component-card";
 import type { WebSocketComponent as WebSocketComponentType } from "@/types/api";
 import { useTranslation } from "react-i18next";
 
@@ -26,38 +18,28 @@ export function WebSocketComponent({
     t(`deviceDetail.components.websocket.${key}`).toUpperCase();
 
   return (
-    <Card className="border-l-4 border-l-teal-500 h-full">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center justify-between text-base">
-          <div className="flex items-center space-x-2">
-            <Zap className="h-4 w-4" />
-            <span>WebSocket</span>
-          </div>
-          <Badge
-            variant={component.status.connected ? "default" : "destructive"}
-          >
-            {component.status.connected
-              ? tUpper("connected")
-              : tUpper("disconnected")}
-          </Badge>
-        </CardTitle>
-        <CardDescription>WebSocket connection status</CardDescription>
-      </CardHeader>
-      <CardContent className="pt-0 flex-1 flex flex-col gap-6">
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center justify-between">
-            <span>Connection Status</span>
-            <span className="font-medium">
-              {component.status.connected ? "Connected" : "Disconnected"}
-            </span>
-          </div>
+    <BaseComponentCard
+      component={component}
+      deviceIp={deviceIp}
+      borderColor="border-l-teal-500"
+      icon={<Zap className="h-4 w-4" />}
+      title="WebSocket"
+      description="WebSocket connection status"
+      badge={{
+        label: component.status.connected
+          ? tUpper("connected")
+          : tUpper("disconnected"),
+        variant: component.status.connected ? "default" : "destructive",
+      }}
+    >
+      <div className="space-y-2 text-sm">
+        <div className="flex items-center justify-between">
+          <span>Connection Status</span>
+          <span className="font-medium">
+            {component.status.connected ? "Connected" : "Disconnected"}
+          </span>
         </div>
-
-        {/* Component Actions */}
-        <div className="mt-auto pt-4 border-t">
-          <ComponentActions component={component} deviceIp={deviceIp} />
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </BaseComponentCard>
   );
 }
