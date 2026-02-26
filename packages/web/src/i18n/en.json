@@ -16,6 +16,7 @@
   },
   "navigation": {
     "dashboard": "Dashboard",
+    "provisioning": "Provisioning",
     "settings": "Settings",
     "deviceDetail": "Device Detail"
   },
@@ -561,6 +562,117 @@
         "errors": "Configuration Errors",
         "warnings": "Configuration Warnings"
       }
+    }
+  },
+  "provisioning": {
+    "title": "Device Provisioning",
+    "subtitle": "Set up new Shelly devices with predefined configurations",
+    "profiles": {
+      "title": "Provisioning Profiles",
+      "description": "Configuration templates applied to new devices during setup",
+      "newProfile": "New Profile",
+      "noProfiles": "No profiles yet. Create one to get started.",
+      "name": "Name",
+      "wifi": "Wi-Fi",
+      "mqtt": "MQTT",
+      "auth": "Auth",
+      "actions": "Actions",
+      "default": "default",
+      "set": "set",
+      "setAsDefault": "Set as default",
+      "deleteProfile": "Delete",
+      "loadFailed": "Failed to load profiles: {{error}}",
+      "created": "Profile created",
+      "deleted": "Profile deleted",
+      "defaultUpdated": "Default profile updated",
+      "nameRequired": "Profile name is required"
+    },
+    "createDialog": {
+      "title": "Create Provisioning Profile",
+      "description": "Define a configuration template for new device setup.",
+      "create": "Create"
+    },
+    "editDialog": {
+      "title": "Edit Provisioning Profile",
+      "description": "Modify the configuration template for device setup.",
+      "save": "Save Changes",
+      "updated": "Profile updated"
+    },
+    "form": {
+      "profileName": "Profile Name",
+      "profileNamePlaceholder": "e.g., home-default",
+      "wifi": {
+        "title": "Wi-Fi Configuration",
+        "ssid": "Wi-Fi SSID",
+        "ssidPlaceholder": "Your network name",
+        "password": "Wi-Fi Password",
+        "passwordPlaceholder": "Network password"
+      },
+      "mqtt": {
+        "title": "MQTT",
+        "enable": "Enable MQTT",
+        "server": "MQTT Server (host:port)",
+        "serverPlaceholder": "mqtt.example.com:1883",
+        "username": "MQTT Username",
+        "password": "MQTT Password",
+        "topicPrefix": "Topic Prefix Template",
+        "topicPrefixPlaceholder": "home/shelly/{device_id}",
+        "placeholders": "Placeholders: {device_id}, {model}, {mac}, {mac_suffix}"
+      },
+      "device": {
+        "title": "Device Settings",
+        "authPassword": "Device Auth Password",
+        "authPasswordPlaceholder": "Device authentication password",
+        "nameTemplate": "Device Name Template",
+        "nameTemplatePlaceholder": "shelly-{app}-{mac_suffix}",
+        "timezone": "Timezone",
+        "timezonePlaceholder": "Europe/Berlin",
+        "cloudEnabled": "Enable Cloud Connection"
+      }
+    },
+    "provision": {
+      "title": "Provision Device",
+      "description": "Connect to a new Shelly device's AP and apply a provisioning profile",
+      "detect": {
+        "title": "1. Detect Device",
+        "description": "Connect your computer to the Shelly device's Wi-Fi AP, then detect it.",
+        "ipPlaceholder": "192.168.33.1",
+        "button": "Detect",
+        "success": "Detected {{app}} (Gen{{generation}})"
+      },
+      "deviceInfo": {
+        "device": "Device",
+        "generation": "Generation",
+        "mac": "MAC",
+        "firmware": "Firmware",
+        "auth": "Auth",
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      },
+      "selectProfile": {
+        "title": "2. Select Profile & Provision",
+        "label": "Profile",
+        "defaultLabel": "Default: {{name}}",
+        "selectPlaceholder": "Select a profile...",
+        "button": "Provision Device"
+      },
+      "result": {
+        "title": "3. Provisioning Result",
+        "success": "Device provisioned successfully!",
+        "failed": "Provisioning failed"
+      },
+      "verify": {
+        "title": "4. Verify on Target Network",
+        "description": "Reconnect your computer to your main network, enter the network range, and verify the device joined.",
+        "networkPlaceholder": "192.168.1.0/24",
+        "button": "Verify",
+        "found": "Device found at {{ip}}!",
+        "notFound": "Device not found on the target network yet. It may still be connecting."
+      }
+    },
+    "messages": {
+      "provisionSuccess": "Device provisioned successfully!",
+      "provisionFailed": "Provisioning failed"
     }
   }
 }

@@ -14,6 +14,7 @@ from .controllers.devices import devices_router
 from .controllers.monitoring import (
     health_check,
 )
+from .controllers.provisioning import provisioning_router
 from .dependencies.container import APIContainer, get_dependencies
 from .presentation.handlers import EXCEPTION_HANDLERS
 
@@ -45,6 +46,9 @@ def create_app() -> Litestar:
             Tag(name="Devices", description="Device discovery and management"),
             Tag(name="Components", description="Device component actions"),
             Tag(name="Configuration", description="Device configuration management"),
+            Tag(
+                name="Provisioning", description="Device provisioning and initial setup"
+            ),
         ],
         servers=[
             Server(url="http://localhost:8000", description="Development server"),
@@ -60,6 +64,7 @@ def create_app() -> Litestar:
         route_handlers=[
             devices_router,
             credentials_router,
+            provisioning_router,
             health_check,
         ],
     )

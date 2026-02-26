@@ -11,6 +11,9 @@ from core.repositories.db import async_session_factory
 from core.repositories.sqlalchemy_credentials_repository import (
     SQLAlchemyCredentialsRepository,
 )
+from core.repositories.sqlalchemy_provisioning_profile_repository import (
+    SQLAlchemyProvisioningProfileRepository,
+)
 from core.services.authentication_service import AuthenticationService
 from core.services.encryption_service import EncryptionService
 from core.settings import settings as core_settings
@@ -51,6 +54,18 @@ class APIContainer(BaseContainer):
         async with async_session_factory() as session:
             try:
                 yield SQLAlchemyCredentialsRepository(
+                    session, self.get_encryption_service()
+                )
+            finally:
+                await session.close()
+
+    @asynccontextmanager
+    async def create_provisioning_profile_repository(
+        self,
+    ) -> AsyncGenerator[SQLAlchemyProvisioningProfileRepository, None]:
+        async with async_session_factory() as session:
+            try:
+                yield SQLAlchemyProvisioningProfileRepository(
                     session, self.get_encryption_service()
                 )
             finally:
@@ -130,6 +145,14 @@ def get_dependencies(container: APIContainer) -> dict:
         ),
         "authentication_service": Provide(
             lambda: container.get_authentication_service(),
+            sync_to_thread=False,
+        ),
+        "manage_profiles_use_case": Provide(
+            lambda: container.get_manage_profiles_interactor(),
+            sync_to_thread=False,
+        ),
+        "provision_device_use_case": Provide(
+            lambda: container.get_provision_device_interactor(),
             sync_to_thread=False,
         ),
     }

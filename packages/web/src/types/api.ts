@@ -381,6 +381,96 @@ export interface BulkOperationRequest {
   [key: string]: unknown;
 }
 
+// --- Provisioning types ---
+
+export interface ProvisioningProfile {
+  id: number;
+  name: string;
+  wifi_ssid: string | null;
+  mqtt_enabled: boolean;
+  mqtt_server: string | null;
+  mqtt_user: string | null;
+  mqtt_topic_prefix_template: string | null;
+  device_name_template: string | null;
+  timezone: string | null;
+  cloud_enabled: boolean;
+  is_default: boolean;
+  has_wifi_password: boolean;
+  has_mqtt_password: boolean;
+  has_auth_password: boolean;
+  created_at: number | null;
+  updated_at: number | null;
+}
+
+export interface CreateProvisioningProfileRequest {
+  name: string;
+  wifi_ssid?: string | null;
+  wifi_password?: string | null;
+  mqtt_enabled?: boolean;
+  mqtt_server?: string | null;
+  mqtt_user?: string | null;
+  mqtt_password?: string | null;
+  mqtt_topic_prefix_template?: string | null;
+  auth_password?: string | null;
+  device_name_template?: string | null;
+  timezone?: string | null;
+  cloud_enabled?: boolean;
+  is_default?: boolean;
+}
+
+export interface UpdateProvisioningProfileRequest {
+  name?: string | null;
+  wifi_ssid?: string | null;
+  wifi_password?: string | null;
+  mqtt_enabled?: boolean | null;
+  mqtt_server?: string | null;
+  mqtt_user?: string | null;
+  mqtt_password?: string | null;
+  mqtt_topic_prefix_template?: string | null;
+  auth_password?: string | null;
+  device_name_template?: string | null;
+  timezone?: string | null;
+  cloud_enabled?: boolean | null;
+  is_default?: boolean | null;
+}
+
+export interface APDeviceInfo {
+  device_id: string;
+  mac: string;
+  model: string;
+  generation: number;
+  firmware_version: string;
+  auth_enabled: boolean;
+  auth_domain: string | null;
+  app: string | null;
+}
+
+export interface ProvisionStep {
+  name: string;
+  success: boolean;
+  message: string | null;
+  restart_required: boolean;
+}
+
+export interface ProvisionResult {
+  success: boolean;
+  device_id: string | null;
+  device_model: string | null;
+  device_mac: string | null;
+  generation: number | null;
+  steps_completed: ProvisionStep[];
+  steps_failed: ProvisionStep[];
+  final_ip: string | null;
+  error: string | null;
+  needs_verification: boolean;
+}
+
+export interface VerifyResult {
+  found: boolean;
+  device_ip: string | null;
+  device_mac: string;
+}
+
 // Type guards for components
 export type ComponentType =
   | SwitchComponent

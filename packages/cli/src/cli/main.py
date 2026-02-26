@@ -13,12 +13,12 @@ from .commands import (
     export_commands,
 )
 from .commands.device_commands import scan
+from .commands.provision_commands import provision_commands
 from .credential_commands import credential_commands
 from .dependencies.container import CLIContainer
 
 
 class CliContext:
-
     def __init__(self) -> None:
         self.console = Console()
         self.container = CLIContainer()
@@ -62,6 +62,7 @@ cli.add_command(bulk_commands, name="bulk")
 cli.add_command(device_commands, name="device")
 cli.add_command(export_commands, name="export")
 cli.add_command(credential_commands, name="credentials")
+cli.add_command(provision_commands, name="provision")
 
 cli.add_command(scan)
 

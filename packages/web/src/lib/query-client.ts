@@ -24,7 +24,7 @@ export const queryClient = new QueryClient({
       enabled: false,
     },
     mutations: {
-      retry: 1,
+      retry: 0,
     },
   },
 });

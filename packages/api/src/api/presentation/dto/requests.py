@@ -70,7 +70,6 @@ class ScanDevicesRequest(BaseModel):
 
 
 class DeviceActionRequest(BaseModel):
-
     action_type: str = Field(..., description="Type of action to perform")
     parameters: dict[str, Any] = Field(
         default_factory=dict, description="Action parameters"
@@ -93,7 +92,6 @@ class DeviceActionRequest(BaseModel):
 
 
 class BulkActionRequest(BaseModel):
-
     action_type: str = Field(..., description="Type of action to perform")
     device_ips: list[str] = Field(
         ..., min_length=1, description="List of device IP addresses"
@@ -119,7 +117,6 @@ class BulkActionRequest(BaseModel):
 
 
 class UpdateConfigRequest(BaseModel):
-
     predefined_ips: list[str] | None = Field(
         None, description="List of predefined IP addresses"
     )
@@ -140,7 +137,6 @@ class UpdateConfigRequest(BaseModel):
 
 
 class AddIPRequest(BaseModel):
-
     ip: str = Field(..., description="IP address to add")
 
     @field_validator("ip")
@@ -150,7 +146,6 @@ class AddIPRequest(BaseModel):
 
 
 class RemoveIPRequest(BaseModel):
-
     ip: str = Field(..., description="IP address to remove")
 
     @field_validator("ip")
@@ -160,7 +155,6 @@ class RemoveIPRequest(BaseModel):
 
 
 class UpdateDeviceConfigRequest(BaseModel):
-
     config: dict[str, Any] = Field(..., description="Device configuration object")
 
 
@@ -212,6 +206,88 @@ class BulkApplyConfigRequest(BaseModel):
         if not v:
             raise ValueError("Configuration cannot be empty")
         return v
+
+
+class CreateProvisioningProfileRequest(BaseModel):
+    """Request model for creating a provisioning profile."""
+
+    name: str = Field(..., min_length=1, max_length=100)
+    wifi_ssid: str | None = Field(None, max_length=32)
+    wifi_password: str | None = Field(None)
+    mqtt_enabled: bool = Field(default=False)
+    mqtt_server: str | None = Field(None)
+    mqtt_user: str | None = Field(None)
+    mqtt_password: str | None = Field(None)
+    mqtt_topic_prefix_template: str | None = Field(None, max_length=300)
+    auth_password: str | None = Field(None)
+    device_name_template: str | None = Field(None, max_length=100)
+    timezone: str | None = Field(None)
+    cloud_enabled: bool = Field(default=False)
+    is_default: bool = Field(default=False)
+
+
+class UpdateProvisioningProfileRequest(BaseModel):
+    """Request model for updating a provisioning profile."""
+
+    name: str | None = Field(None, min_length=1, max_length=100)
+    wifi_ssid: str | None = Field(None, max_length=32)
+    wifi_password: str | None = Field(None)
+    mqtt_enabled: bool | None = Field(None)
+    mqtt_server: str | None = Field(None)
+    mqtt_user: str | None = Field(None)
+    mqtt_password: str | None = Field(None)
+    mqtt_topic_prefix_template: str | None = Field(None, max_length=300)
+    auth_password: str | None = Field(None)
+    device_name_template: str | None = Field(None, max_length=100)
+    timezone: str | None = Field(None)
+    cloud_enabled: bool | None = Field(None)
+    is_default: bool | None = Field(None)
+
+
+class ProvisionDeviceAPIRequest(BaseModel):
+    """Request model for provisioning a device."""
+
+    device_ip: str = Field(
+        default="192.168.33.1",
+        description="IP address of the device in AP mode",
+    )
+    profile_id: int | None = Field(
+        default=None,
+        description="Profile ID to use. None uses the default profile.",
+    )
+    timeout: float = Field(default=10.0, ge=1.0, le=60.0)
+
+    @field_validator("device_ip")
+    @classmethod
+    def validate_device_ip(cls, v: str) -> str:
+        return _validate_ip_address(v)
+
+
+class DetectDeviceAPIRequest(BaseModel):
+    """Request model for detecting a device at AP IP."""
+
+    device_ip: str = Field(
+        default="192.168.33.1",
+        description="IP address of the device in AP mode",
+    )
+    timeout: float = Field(default=5.0, ge=1.0, le=30.0)
+
+    @field_validator("device_ip")
+    @classmethod
+    def validate_device_ip(cls, v: str) -> str:
+        return _validate_ip_address(v)
+
+
+class VerifyProvisionRequest(BaseModel):
+    """Request model for verifying a provisioned device on the target network."""
+
+    device_mac: str = Field(..., description="MAC address of the provisioned device")
+    scan_targets: list[str] = Field(
+        ...,
+        min_length=1,
+        description="Network targets to scan for the device",
+    )
+    timeout: float = Field(default=30.0, ge=5.0, le=120.0)
 
 
 def _validate_ip_address(ip: str) -> str:

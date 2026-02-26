@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Settings, Home } from "lucide-react";
+import { Settings, Home, Radio } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,21 @@ export function Navbar() {
               <Link to="/">
                 <Home className="h-4 w-4" />
                 <span>{t("navigation.dashboard")}</span>
+              </Link>
+            </Button>
+            <Button
+              variant={isActive("/provisioning") ? "default" : "ghost"}
+              size="sm"
+              asChild
+              className={cn(
+                "flex items-center space-x-2",
+                isActive("/provisioning") &&
+                  "bg-primary text-primary-foreground",
+              )}
+            >
+              <Link to="/provisioning">
+                <Radio className="h-4 w-4" />
+                <span>{t("navigation.provisioning")}</span>
               </Link>
             </Button>
           </div>

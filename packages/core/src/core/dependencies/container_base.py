@@ -3,6 +3,7 @@
 from typing import Any
 
 from core.gateways.device import LegacyDeviceGateway
+from core.gateways.device.ap_device_detector import APDeviceDetector
 from core.gateways.device.legacy_component_mapper import LegacyComponentMapper
 from core.gateways.device.shelly_device_gateway import ShellyDeviceGateway
 from core.gateways.network import LegacyHttpClient, MDNSGateway, ZeroconfMDNSClient
@@ -10,6 +11,10 @@ from core.use_cases.bulk_operations import BulkOperationsUseCase
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
 from core.use_cases.get_component_actions import GetComponentActionsUseCase
+from core.use_cases.manage_provisioning_profiles import (
+    ManageProvisioningProfilesUseCase,
+)
+from core.use_cases.provision_device import ProvisionDeviceUseCase
 from core.use_cases.scan_devices import ScanDevicesUseCase
 
 
@@ -24,6 +29,11 @@ class BaseContainer:
         self._component_actions_interactor: GetComponentActionsUseCase | None = None
         self._status_interactor: CheckDeviceStatusUseCase | None = None
         self._bulk_operations_interactor: BulkOperationsUseCase | None = None
+        self._manage_profiles_interactor: ManageProvisioningProfilesUseCase | None = (
+            None
+        )
+        self._provision_device_interactor: ProvisionDeviceUseCase | None = None
+        self._ap_device_detector: APDeviceDetector | None = None
 
     def get_rpc_client(self) -> Any:
         raise NotImplementedError
@@ -91,3 +101,31 @@ class BaseContainer:
                 device_gateway=self.get_device_gateway()
             )
         return self._bulk_operations_interactor
+
+    def get_ap_device_detector(self) -> APDeviceDetector:
+        if self._ap_device_detector is None:
+            self._ap_device_detector = APDeviceDetector()
+        return self._ap_device_detector
+
+    def get_manage_profiles_interactor(self) -> ManageProvisioningProfilesUseCase:
+        if self._manage_profiles_interactor is None:
+            self._manage_profiles_interactor = ManageProvisioningProfilesUseCase(
+                repository_factory=self.create_provisioning_profile_repository,
+            )
+        return self._manage_profiles_interactor
+
+    def get_provision_device_interactor(self) -> ProvisionDeviceUseCase:
+        if self._provision_device_interactor is None:
+            self._provision_device_interactor = ProvisionDeviceUseCase(
+                rpc_client=self.get_rpc_client(),
+                detector=self.get_ap_device_detector(),
+                profile_repository_factory=self.create_provisioning_profile_repository,
+                credentials_repository_factory=self.create_credentials_repository,
+            )
+        return self._provision_device_interactor
+
+    def create_provisioning_profile_repository(self) -> Any:
+        raise NotImplementedError
+
+    def create_credentials_repository(self) -> Any:
+        raise NotImplementedError

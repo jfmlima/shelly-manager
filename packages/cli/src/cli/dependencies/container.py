@@ -10,6 +10,9 @@ from core.repositories.db import async_session_factory
 from core.repositories.sqlalchemy_credentials_repository import (
     SQLAlchemyCredentialsRepository,
 )
+from core.repositories.sqlalchemy_provisioning_profile_repository import (
+    SQLAlchemyProvisioningProfileRepository,
+)
 from core.services.authentication_service import AuthenticationService
 from core.services.encryption_service import EncryptionService
 from core.use_cases.scan_devices import ScanDevicesUseCase
@@ -34,6 +37,18 @@ class CLIContainer(BaseContainer):
         async with async_session_factory() as session:
             try:
                 yield SQLAlchemyCredentialsRepository(
+                    session, self.get_encryption_service()
+                )
+            finally:
+                await session.close()
+
+    @asynccontextmanager
+    async def create_provisioning_profile_repository(
+        self,
+    ) -> AsyncGenerator[SQLAlchemyProvisioningProfileRepository, None]:
+        async with async_session_factory() as session:
+            try:
+                yield SQLAlchemyProvisioningProfileRepository(
                     session, self.get_encryption_service()
                 )
             finally:

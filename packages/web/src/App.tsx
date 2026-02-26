@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Layout } from "@/components/layout/layout";
 import { Dashboard } from "@/pages/dashboard";
 import { DeviceDetail } from "@/pages/device-detail";
+import { Provisioning } from "@/pages/provisioning";
 import { Settings } from "@/pages/settings";
 import { queryClient, persister } from "@/lib/query-client";
 
@@ -36,6 +37,7 @@ function App() {
             <Route path="/" element={<Layout />}>
               <Route index element={<Dashboard />} />
               <Route path="devices/:ip" element={<DeviceDetail />} />
+              <Route path="provisioning" element={<Provisioning />} />
               <Route path="settings" element={<Settings />} />
             </Route>
           </Routes>

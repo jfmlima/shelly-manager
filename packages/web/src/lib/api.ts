@@ -8,6 +8,12 @@ import type {
   ComponentActionResult,
   Credential,
   CredentialCreateRequest,
+  ProvisioningProfile,
+  CreateProvisioningProfileRequest,
+  UpdateProvisioningProfileRequest,
+  APDeviceInfo,
+  ProvisionResult,
+  VerifyResult,
 } from "@/types/api";
 import { loadAppSettings } from "./settings";
 
@@ -250,6 +256,89 @@ export const credentialsApi = {
 
   deleteCredential: async (mac: string): Promise<void> => {
     await apiClient.delete(`/credentials/${mac}`);
+  },
+};
+
+export const provisioningApi = {
+  listProfiles: async (): Promise<ProvisioningProfile[]> => {
+    const response = await apiClient.get("/provisioning/profiles");
+    return response.data;
+  },
+
+  getProfile: async (id: number): Promise<ProvisioningProfile> => {
+    const response = await apiClient.get(`/provisioning/profiles/${id}`);
+    return response.data;
+  },
+
+  createProfile: async (
+    data: CreateProvisioningProfileRequest,
+  ): Promise<ProvisioningProfile> => {
+    const response = await apiClient.post("/provisioning/profiles", data);
+    return response.data;
+  },
+
+  updateProfile: async (
+    id: number,
+    data: UpdateProvisioningProfileRequest,
+  ): Promise<ProvisioningProfile> => {
+    const response = await apiClient.put(`/provisioning/profiles/${id}`, data);
+    return response.data;
+  },
+
+  deleteProfile: async (id: number): Promise<void> => {
+    await apiClient.delete(`/provisioning/profiles/${id}`);
+  },
+
+  setDefaultProfile: async (id: number): Promise<ProvisioningProfile> => {
+    const response = await apiClient.post(
+      `/provisioning/profiles/${id}/set-default`,
+    );
+    return response.data;
+  },
+
+  detectDevice: async (
+    deviceIp: string = "192.168.33.1",
+    timeout: number = 5,
+  ): Promise<APDeviceInfo> => {
+    const response = await apiClient.post("/provisioning/detect", {
+      device_ip: deviceIp,
+      timeout,
+    });
+    return response.data;
+  },
+
+  provisionDevice: async (
+    deviceIp: string = "192.168.33.1",
+    profileId?: number | null,
+    timeout: number = 10,
+  ): Promise<ProvisionResult> => {
+    const response = await apiClient.post(
+      "/provisioning/provision",
+      {
+        device_ip: deviceIp,
+        profile_id: profileId,
+        timeout,
+      },
+      { timeout: 60000 },
+    );
+    return response.data;
+  },
+
+  verifyProvision: async (
+    deviceMac: string,
+    scanTargets: string[],
+    timeout: number = 30,
+  ): Promise<VerifyResult> => {
+    const response = await apiClient.post(
+      "/provisioning/verify",
+      {
+        device_mac: deviceMac,
+        scan_targets: scanTargets,
+        timeout,
+      },
+      { timeout: timeout * 1000 + 10000 },
+    );
+    return response.data;
   },
 };
 
