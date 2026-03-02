@@ -13,28 +13,40 @@ class LegacyHttpClient:
         self.timeout = timeout
         self._session = session or requests.Session()
 
-    async def fetch_json(self, ip: str, endpoint: str) -> dict[str, Any]:
+    async def fetch_json(
+        self, ip: str, endpoint: str, auth: tuple[str, str] | None = None
+    ) -> dict[str, Any]:
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self._sync_fetch_json, ip, endpoint)
+        return await loop.run_in_executor(
+            None, self._sync_fetch_json, ip, endpoint, auth
+        )
 
-    async def fetch_json_optional(self, ip: str, endpoint: str) -> dict[str, Any]:
+    async def fetch_json_optional(
+        self, ip: str, endpoint: str, auth: tuple[str, str] | None = None
+    ) -> dict[str, Any]:
         try:
-            return await self.fetch_json(ip, endpoint)
+            return await self.fetch_json(ip, endpoint, auth=auth)
         except Exception:
             return {}
 
     async def get_with_params(
-        self, ip: str, endpoint: str, params: dict[str, Any]
+        self,
+        ip: str,
+        endpoint: str,
+        params: dict[str, Any],
+        auth: tuple[str, str] | None = None,
     ) -> dict[str, Any]:
         loop = asyncio.get_event_loop()
 
         return await loop.run_in_executor(
-            None, self._sync_get_with_params, ip, endpoint, params
+            None, self._sync_get_with_params, ip, endpoint, params, auth
         )
 
-    def _sync_fetch_json(self, ip: str, endpoint: str) -> dict[str, Any]:
+    def _sync_fetch_json(
+        self, ip: str, endpoint: str, auth: tuple[str, str] | None = None
+    ) -> dict[str, Any]:
         url = f"http://{ip}/{endpoint.lstrip('/')}"
-        response = self._session.get(url, timeout=self.timeout)
+        response = self._session.get(url, timeout=self.timeout, auth=auth)
         response.raise_for_status()
         data = response.json()
 
@@ -44,10 +56,16 @@ class LegacyHttpClient:
         return cast(dict[str, Any], data)
 
     def _sync_get_with_params(
-        self, ip: str, endpoint: str, params: dict[str, Any]
+        self,
+        ip: str,
+        endpoint: str,
+        params: dict[str, Any],
+        auth: tuple[str, str] | None = None,
     ) -> dict[str, Any]:
         url = f"http://{ip}/{endpoint.lstrip('/')}"
-        response = self._session.get(url, params=params, timeout=self.timeout)
+        response = self._session.get(
+            url, params=params, timeout=self.timeout, auth=auth
+        )
         response.raise_for_status()
 
         try:
