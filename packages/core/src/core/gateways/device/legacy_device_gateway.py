@@ -2,17 +2,27 @@
 Legacy device gateway for Gen1 Shelly devices.
 """
 
+from __future__ import annotations
+
 import logging
 import time
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+import requests
 
 from ...domain.entities.device_status import DeviceStatus
 from ...domain.entities.discovered_device import DiscoveredDevice
+from ...domain.entities.exceptions import DeviceAuthenticationError
 from ...domain.enums.enums import Status
 from ...domain.value_objects.action_result import ActionResult
+from ...utils.validation import normalize_mac
 from ..network.legacy_http_client import LegacyHttpClient
 from .legacy_component_mapper import LegacyComponentMapper
+
+if TYPE_CHECKING:
+    from ...services.auth_state_cache import AuthStateCache
+    from ...services.authentication_service import AuthenticationService
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +34,67 @@ class LegacyDeviceGateway:
         self,
         http_client: LegacyHttpClient,
         component_mapper: LegacyComponentMapper,
+        authentication_service: AuthenticationService | None = None,
+        auth_state_cache: AuthStateCache | None = None,
     ) -> None:
         self._http_client = http_client
         self._component_mapper = component_mapper
+        self._authentication_service = authentication_service
+        self._auth_state_cache = auth_state_cache
+        self._ip_to_mac: dict[str, str] = {}
+        self._basic_auth_cache: dict[str, tuple[str, str]] = {}
+
+    async def _ensure_mac(self, ip: str) -> str | None:
+        """Get MAC address for an IP, fetching from /shelly if not cached."""
+        normalized_ip = normalize_mac(ip)
+        if normalized_ip in self._ip_to_mac:
+            return self._ip_to_mac[normalized_ip]
+        try:
+            shelly_data = await self._http_client.fetch_json(ip, "shelly")
+            mac = shelly_data.get("mac")
+            if mac:
+                normalized_mac = normalize_mac(mac)
+                self._ip_to_mac[normalized_ip] = normalized_mac
+                return normalized_mac
+        except Exception:
+            pass
+        return None
+
+    async def _resolve_auth(self, ip: str) -> tuple[str, str] | None:
+        """Resolve Basic Auth credentials for a device by IP."""
+        if not self._authentication_service:
+            return None
+
+        mac = await self._ensure_mac(ip)
+        if not mac:
+            return None
+
+        if mac in self._basic_auth_cache:
+            return self._basic_auth_cache[mac]
+
+        credential = await self._authentication_service.resolve_credentials(mac)
+        if credential:
+            auth_tuple = (credential.username, credential.password)
+            self._basic_auth_cache[mac] = auth_tuple
+            return auth_tuple
+        return None
+
+    async def _fetch_with_auth(self, ip: str, endpoint: str) -> dict[str, Any]:
+        """Fetch JSON with automatic 401 retry using stored credentials."""
+        try:
+            return await self._http_client.fetch_json(ip, endpoint)
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code == 401:
+                auth = await self._resolve_auth(ip)
+                if auth:
+                    return await self._http_client.fetch_json(ip, endpoint, auth=auth)
+                raise DeviceAuthenticationError(ip, "No credentials available") from e
+            raise
+
+    def invalidate_credential_cache(self, mac: str) -> None:
+        """Clear cached credentials for a device."""
+        normalized_mac = normalize_mac(mac)
+        self._basic_auth_cache.pop(normalized_mac, None)
 
     async def discover_device(self, ip: str) -> DiscoveredDevice | None:
         """Discover a legacy Gen1 Shelly device.
@@ -42,8 +110,23 @@ class LegacyDeviceGateway:
             device_info = await self._http_client.fetch_json(ip, "shelly")
             response_time = time.perf_counter() - start_time
 
-            status_data = await self._http_client.fetch_json_optional(ip, "status")
-            settings_data = await self._http_client.fetch_json_optional(ip, "settings")
+            # Detect auth requirement from /shelly response
+            auth_enabled = device_info.get("auth", False)
+            mac = device_info.get("mac")
+            auth: tuple[str, str] | None = None
+
+            if auth_enabled and mac and self._auth_state_cache:
+                normalized_mac = normalize_mac(mac)
+                self._ip_to_mac[normalize_mac(ip)] = normalized_mac
+                self._auth_state_cache.mark_auth_required(normalized_mac)
+                auth = await self._resolve_auth(ip)
+
+            status_data = await self._http_client.fetch_json_optional(
+                ip, "status", auth=auth
+            )
+            settings_data = await self._http_client.fetch_json_optional(
+                ip, "settings", auth=auth
+            )
 
             device_name = self._derive_device_name(device_info, settings_data)
             firmware_version = (
@@ -74,6 +157,7 @@ class LegacyDeviceGateway:
                 response_time=response_time,
                 last_seen=datetime.now(),
                 has_update=has_update_value,
+                auth_required=auth_enabled,
             )
         except Exception as e:
             logger.debug(
@@ -95,8 +179,16 @@ class LegacyDeviceGateway:
         """
         try:
             device_info = await self._http_client.fetch_json(ip, "shelly")
-            status_data = await self._http_client.fetch_json(ip, "status")
-            settings_data = await self._http_client.fetch_json_optional(ip, "settings")
+            status_data = await self._fetch_with_auth(ip, "status")
+            auth = (
+                await self._resolve_auth(ip) if self._authentication_service else None
+            )
+            settings_data = await self._http_client.fetch_json_optional(
+                ip, "settings", auth=auth
+            )
+        except DeviceAuthenticationError:
+            logger.warning("Authentication failed for Gen1 device %s", ip)
+            return None
         except Exception as e:
             logger.debug(
                 "Failed to fetch legacy data for %s: %s",
@@ -174,8 +266,11 @@ class LegacyDeviceGateway:
             )
 
         try:
+            auth = (
+                await self._resolve_auth(ip) if self._authentication_service else None
+            )
             response = await self._http_client.get_with_params(
-                ip, command["endpoint"], command["params"]
+                ip, command["endpoint"], command["params"], auth=auth
             )
             return ActionResult(
                 device_ip=ip,

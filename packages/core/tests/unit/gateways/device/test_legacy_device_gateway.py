@@ -140,7 +140,7 @@ class TestLegacyDeviceGateway:
         assert result.success is True
         assert result.data == {"ison": True}
         mock_http_client.get_with_params.assert_called_once_with(
-            "192.168.1.100", "relay/0", {"turn": "on"}
+            "192.168.1.100", "relay/0", {"turn": "on"}, auth=None
         )
 
     async def test_it_handles_unsupported_legacy_action(self, gateway):
