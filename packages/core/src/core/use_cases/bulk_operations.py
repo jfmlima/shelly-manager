@@ -224,6 +224,9 @@ class BulkOperationsUseCase:
         """
         Apply component configuration to multiple devices.
 
+        Resolves actual component keys (e.g. cover:0) per device to ensure
+        the RPC call includes the required component ID.
+
         Args:
             device_ips: List of device IP addresses
             component_type: Type of component to apply configuration to
@@ -235,9 +238,27 @@ class BulkOperationsUseCase:
         all_results = []
 
         for device_ip in device_ips:
-            result = await self._device_gateway.execute_component_action(
-                device_ip, component_type, "SetConfig", {"config": config}
+            keys = await self._device_gateway.get_component_keys(
+                device_ip, component_type
             )
-            all_results.append(result)
+
+            if not keys:
+                all_results.append(
+                    ActionResult(
+                        device_ip=device_ip,
+                        action_type=f"{component_type}.SetConfig",
+                        success=False,
+                        message=f"No {component_type} components found on device",
+                        error=f"Component type {component_type} not present"
+                        " or device unreachable",
+                    )
+                )
+                continue
+
+            for key in keys:
+                result = await self._device_gateway.execute_component_action(
+                    device_ip, key, "SetConfig", {"config": config}
+                )
+                all_results.append(result)
 
         return all_results

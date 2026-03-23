@@ -186,6 +186,24 @@ class ShellyDeviceGateway(DeviceGateway):
                     return legacy_status
             return None
 
+    async def get_component_keys(self, ip: str, component_type: str) -> list[str]:
+        """Get component keys for a given type using a single RPC call."""
+        try:
+            response, _ = await self._rpc_client.make_rpc_request(
+                ip,
+                RpcMethods.GET_COMPONENTS,
+                params={"offset": 0},
+                timeout=self.timeout,
+            )
+            components = response.get("result", response).get("components", [])
+            return [
+                c["key"]
+                for c in components
+                if c.get("key", "").split(":")[0] == component_type
+            ]
+        except Exception:
+            return []
+
     async def get_available_methods(self, ip: str) -> list[str]:
         """Get available RPC methods for action validation.
 
