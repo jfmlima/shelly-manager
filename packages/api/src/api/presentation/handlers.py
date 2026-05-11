@@ -6,6 +6,7 @@ from collections.abc import Callable, MutableMapping
 from datetime import datetime
 from typing import Any
 
+from core.domain.entities.exceptions import DeviceAuthenticationError
 from litestar.connection import Request
 from litestar.exceptions import HTTPException
 from litestar.response import Response
@@ -35,6 +36,20 @@ def handle_value_error(request: Request, exc: ValueError) -> Response:
             "timestamp": datetime.now().isoformat(),
         },
         status_code=400,
+        media_type="application/json",
+    )
+
+
+def handle_device_authentication_error(
+    request: Request, exc: DeviceAuthenticationError
+) -> Response:
+    return Response(
+        content={
+            "error": "Authentication Required",
+            "message": str(exc),
+            "timestamp": datetime.now().isoformat(),
+        },
+        status_code=401,
         media_type="application/json",
     )
 
@@ -84,6 +99,7 @@ EXCEPTION_HANDLERS: (
     ]
     | None
 ) = {
+    DeviceAuthenticationError: handle_device_authentication_error,
     DeviceNotFoundHTTPException: handle_device_not_found_exception,
     ValueError: handle_value_error,
     HTTPException: handle_http_exception,

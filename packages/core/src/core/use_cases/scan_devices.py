@@ -56,6 +56,7 @@ class ScanDevicesUseCase:
                 Status.DETECTED,
                 Status.UPDATE_AVAILABLE,
                 Status.NO_UPDATE_NEEDED,
+                Status.AUTH_REQUIRED,
             ]:
                 discovered_devices.append(result)
 
@@ -124,11 +125,7 @@ class ScanDevicesUseCase:
             )
 
     def _apply_device_status_rules(self, device: DiscoveredDevice) -> None:
-        if device.auth_required and device.status in [
-            Status.DETECTED,
-            Status.UPDATE_AVAILABLE,
-            Status.NO_UPDATE_NEEDED,
-        ]:
+        if device.auth_required and device.status == Status.DETECTED:
             device.status = Status.AUTH_REQUIRED
 
     async def _discover_devices_via_mdns(self, request: ScanRequest) -> list[str]:
