@@ -15,6 +15,7 @@ from ...domain.entities.exceptions import (
 )
 from ...domain.enums.enums import Status
 from ...domain.value_objects.action_result import ActionResult
+from ...utils.validation import normalize_mac
 from ..network.network import RpcNetworkGateway
 from .component_type_mapping import get_api_component_type
 from .device import DeviceGateway
@@ -54,16 +55,21 @@ class ShellyDeviceGateway(DeviceGateway):
             )
             device_data = device_info.get("result", device_info)
 
-            # Check if auth is required from cache or if it was just marked during request
-            auth_required = False
+            auth_required = device_data.get("auth_en", False)
+
             if (
                 hasattr(self._rpc_client, "auth_state_cache")
                 and self._rpc_client.auth_state_cache
             ):
-                device_id = device_data.get("id") or ip
-                auth_required = self._rpc_client.auth_state_cache.requires_auth(
-                    device_id
-                )
+                if auth_required:
+                    self._rpc_client.auth_state_cache.mark_auth_required(
+                        normalize_mac(ip)
+                    )
+                else:
+                    device_id = device_data.get("id") or ip
+                    auth_required = self._rpc_client.auth_state_cache.requires_auth(
+                        device_id
+                    )
 
             device = DiscoveredDevice(
                 ip=ip,
@@ -136,6 +142,16 @@ class ShellyDeviceGateway(DeviceGateway):
                     "result", device_info_response
                 )
                 rpc_success = True
+
+                if (
+                    device_info_data
+                    and device_info_data.get("auth_en", False)
+                    and hasattr(self._rpc_client, "auth_state_cache")
+                    and self._rpc_client.auth_state_cache
+                ):
+                    self._rpc_client.auth_state_cache.mark_auth_required(
+                        normalize_mac(ip)
+                    )
             except Exception as e:
                 logger.error(f"Error getting device info: {e}", exc_info=True)
 
@@ -149,6 +165,8 @@ class ShellyDeviceGateway(DeviceGateway):
                 )
                 components_data = components_response.get("result", components_response)
                 rpc_success = True
+            except DeviceAuthenticationError:
+                raise
             except Exception as e:
                 logger.error(f"Error getting components: {e}", exc_info=True)
 
@@ -159,6 +177,8 @@ class ShellyDeviceGateway(DeviceGateway):
                 )
                 status_response = status_response.get("result", status_response)
                 rpc_success = True
+            except DeviceAuthenticationError:
+                raise
             except Exception as e:
                 logger.error(f"Error getting device status: {e}", exc_info=True)
 
@@ -175,6 +195,8 @@ class ShellyDeviceGateway(DeviceGateway):
                 status_data=status_response,
             )
 
+        except DeviceAuthenticationError:
+            raise
         except Exception as e:
             logger.error(
                 f"Error getting device status via RPC, attempting legacy fallback: {e}",

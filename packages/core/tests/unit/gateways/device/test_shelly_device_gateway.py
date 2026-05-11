@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from core.domain.entities.device_status import DeviceStatus
 from core.domain.entities.discovered_device import DiscoveredDevice
+from core.domain.entities.exceptions import DeviceAuthenticationError
 from core.domain.enums.enums import Status
 from core.gateways.device.legacy_device_gateway import LegacyDeviceGateway
 from core.gateways.device.shelly_device_gateway import ShellyDeviceGateway
@@ -401,6 +402,100 @@ class TestShellyDeviceGateway:
         assert result is not None
 
         assert result.status == Status.DETECTED
+
+    async def test_it_detects_auth_required_from_auth_en(
+        self, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.auth_state_cache = MagicMock()
+        mock_rpc_client.auth_state_cache.requires_auth.return_value = False
+        gateway = ShellyDeviceGateway(
+            rpc_client=mock_rpc_client, legacy_gateway=mock_legacy_gateway
+        )
+
+        device_info = {
+            "id": "ShellyWallDisplay-000822891495",
+            "model": "SAWD-0A1XX10EU1",
+            "fw_id": "20260313-152112/2.5.8-4ec844c8",
+            "auth_en": True,
+        }
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                (device_info, 0.1),
+                Exception("Auth required for update check"),
+            ]
+        )
+
+        result = await gateway.discover_device("192.168.1.100")
+
+        assert result is not None
+        assert result.auth_required is True
+        mock_rpc_client.auth_state_cache.mark_auth_required.assert_called_once()
+
+    async def test_it_keeps_update_status_when_auth_succeeds(
+        self, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.auth_state_cache = MagicMock()
+        mock_rpc_client.auth_state_cache.requires_auth.return_value = False
+        gateway = ShellyDeviceGateway(
+            rpc_client=mock_rpc_client, legacy_gateway=mock_legacy_gateway
+        )
+
+        device_info = {
+            "id": "ShellyWallDisplay-000822891495",
+            "model": "SAWD-0A1XX10EU1",
+            "fw_id": "20260313-152112/2.5.8-4ec844c8",
+            "auth_en": True,
+        }
+        update_info = {"stable": {"version": "2.6.0"}}
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[(device_info, 0.1), (update_info, 0.05)]
+        )
+
+        result = await gateway.discover_device("192.168.1.100")
+
+        assert result is not None
+        assert result.auth_required is True
+        assert result.status == Status.UPDATE_AVAILABLE
+
+    async def test_it_propagates_auth_error_from_get_device_status(
+        self, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.auth_state_cache = None
+        gateway = ShellyDeviceGateway(
+            rpc_client=mock_rpc_client, legacy_gateway=mock_legacy_gateway
+        )
+
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                ({"name": "Test", "model": "SAWD-0A1XX10EU1"}, 0.05),
+                DeviceAuthenticationError("192.168.1.100", "No credentials stored"),
+            ]
+        )
+
+        with pytest.raises(DeviceAuthenticationError):
+            await gateway.get_device_status("192.168.1.100")
+
+    async def test_it_continues_on_generic_error_in_get_device_status(
+        self, gateway, mock_rpc_client
+    ):
+        components_data = {
+            "components": [],
+            "cfg_rev": 1,
+            "total": 0,
+        }
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                ({"name": "Test", "model": "SHPM-1"}, 0.05),
+                (components_data, 0.1),
+                Exception("Status temporarily unavailable"),
+                ({"methods": []}, 0.05),
+            ]
+        )
+
+        result = await gateway.get_device_status("192.168.1.100")
+
+        assert result is not None
+        assert isinstance(result, DeviceStatus)
 
     async def test_it_executes_component_update_action_successfully(
         self, gateway, mock_rpc_client

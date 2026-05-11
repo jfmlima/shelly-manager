@@ -85,8 +85,7 @@ class TestShellyDigestAuth:
     def test_it_supports_md5_algorithm(self):
         auth = ShellyDigestAuth(username="admin", password="pass123")
         challenge = (
-            'Digest realm="shelly1-abc", '
-            'qop="auth", nonce="def456", algorithm=MD5'
+            'Digest realm="shelly1-abc", ' 'qop="auth", nonce="def456", algorithm=MD5'
         )
         request = self._run_auth_flow(auth, challenge)
         header = request.headers["Authorization"]
