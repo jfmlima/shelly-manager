@@ -16,6 +16,7 @@ from core.services.authentication_service import AuthenticationService
 from core.utils.validation import normalize_mac
 
 from .network import RpcNetworkGateway
+from .shelly_digest_auth import ShellyDigestAuth
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
         self.auth_state_cache = auth_state_cache
         self._closed = False
         self._ip_to_mac: dict[str, str] = {}
-        self._digest_auth_cache: dict[str, httpx.DigestAuth] = {}
+        self._digest_auth_cache: dict[str, ShellyDigestAuth] = {}
 
     async def make_rpc_request(
         self,
@@ -138,7 +139,7 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
 
     async def _get_or_create_digest_auth(
         self, ip: str, mac: str
-    ) -> httpx.DigestAuth | None:
+    ) -> ShellyDigestAuth | None:
         """Get cached or create new DigestAuth instance for a device.
 
         Args:
@@ -163,7 +164,7 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
             return None
 
         logger.debug("Creating new DigestAuth for %s (MAC: %s)", ip, mac)
-        digest_auth = httpx.DigestAuth(
+        digest_auth = ShellyDigestAuth(
             username=credential.username, password=credential.password
         )
         self._digest_auth_cache[mac] = digest_auth
