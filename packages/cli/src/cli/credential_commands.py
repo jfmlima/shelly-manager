@@ -1,7 +1,7 @@
 import click
 from rich.table import Table
 
-from cli.commands.common import async_command, common_options
+from cli.commands.common import async_command
 from cli.presentation.styles import Messages
 
 
@@ -15,7 +15,6 @@ def credential_commands() -> None:
 @click.argument("mac")
 @click.argument("password")
 @click.option("--username", default="admin", help="Username (default: admin)")
-@common_options
 @click.pass_context
 @async_command
 async def set_credential(
@@ -40,7 +39,6 @@ async def set_credential(
 @credential_commands.command("set-global")
 @click.argument("password")
 @click.option("--username", default="admin", help="Username (default: admin)")
-@common_options
 @click.pass_context
 @async_command
 async def set_global_credential(
@@ -62,7 +60,6 @@ async def set_global_credential(
 
 
 @credential_commands.command("list")
-@common_options
 @click.pass_context
 @async_command
 async def list_credentials(ctx: click.Context) -> None:
@@ -95,7 +92,6 @@ async def list_credentials(ctx: click.Context) -> None:
 
 @credential_commands.command("delete")
 @click.argument("mac")
-@common_options
 @click.pass_context
 @async_command
 async def delete_credential(ctx: click.Context, mac: str) -> None:
