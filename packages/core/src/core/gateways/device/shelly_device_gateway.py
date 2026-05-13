@@ -39,6 +39,10 @@ class ShellyDeviceGateway(DeviceGateway):
         self.timeout = timeout
         self._legacy_gateway = legacy_gateway
 
+    def invalidate_legacy_credential_cache(self, mac: str) -> None:
+        if self._legacy_gateway:
+            self._legacy_gateway.invalidate_credential_cache(mac)
+
     async def discover_device(self, ip: str) -> DiscoveredDevice | None:
         """
         Discover basic device information (original get_device_status logic).
