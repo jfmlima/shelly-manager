@@ -1,7 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-import requests
 from core.domain.credentials import Credential
 from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.entities.exceptions import DeviceAuthenticationError
@@ -143,65 +142,6 @@ class TestLegacyDeviceGatewayAuth:
 
         assert auth is None
 
-    # --- _fetch_with_auth ---
-
-    async def test_fetch_with_auth_succeeds_without_401(
-        self, gateway, mock_http_client
-    ):
-        mock_http_client.fetch_json.return_value = {"ok": True}
-
-        result = await gateway._fetch_with_auth("192.168.1.100", "status")
-
-        assert result == {"ok": True}
-        mock_http_client.fetch_json.assert_called_once_with("192.168.1.100", "status")
-
-    async def test_fetch_with_auth_retries_on_401(
-        self, gateway, mock_http_client, mock_auth_service, sample_credential
-    ):
-        # First call raises 401, second succeeds with auth
-        response_401 = MagicMock()
-        response_401.status_code = 401
-        http_error = requests.exceptions.HTTPError(response=response_401)
-
-        mock_http_client.fetch_json.side_effect = [
-            http_error,
-            {"status": "ok"},
-        ]
-        # Pre-populate MAC cache
-        gateway._ip_to_mac["192.168.1.100"] = "AABBCCDDEEFF"
-        mock_auth_service.resolve_credentials.return_value = sample_credential
-
-        result = await gateway._fetch_with_auth("192.168.1.100", "status")
-
-        assert result == {"status": "ok"}
-        assert mock_http_client.fetch_json.call_count == 2
-        second_call = mock_http_client.fetch_json.call_args_list[1]
-        assert second_call[1]["auth"] == ("admin", "secret")
-
-    async def test_fetch_with_auth_raises_auth_error_when_no_credentials(
-        self, gateway, mock_http_client, mock_auth_service
-    ):
-        response_401 = MagicMock()
-        response_401.status_code = 401
-        http_error = requests.exceptions.HTTPError(response=response_401)
-        mock_http_client.fetch_json.side_effect = http_error
-        mock_auth_service.resolve_credentials.return_value = None
-        gateway._ip_to_mac["192.168.1.100"] = "AABBCCDDEEFF"
-
-        with pytest.raises(DeviceAuthenticationError):
-            await gateway._fetch_with_auth("192.168.1.100", "status")
-
-    async def test_fetch_with_auth_re_raises_non_401_errors(
-        self, gateway, mock_http_client
-    ):
-        response_500 = MagicMock()
-        response_500.status_code = 500
-        http_error = requests.exceptions.HTTPError(response=response_500)
-        mock_http_client.fetch_json.side_effect = http_error
-
-        with pytest.raises(requests.exceptions.HTTPError):
-            await gateway._fetch_with_auth("192.168.1.100", "status")
-
     # --- discover_device with auth ---
 
     async def test_discover_detects_auth_and_fetches_with_credentials(
@@ -252,7 +192,7 @@ class TestLegacyDeviceGatewayAuth:
 
     # --- get_device_status with auth ---
 
-    async def test_get_device_status_retries_on_401(
+    async def test_get_device_status_uses_proactive_auth(
         self,
         gateway,
         mock_http_client,
@@ -260,17 +200,10 @@ class TestLegacyDeviceGatewayAuth:
         mock_auth_service,
         sample_credential,
     ):
-        device_info = {"mac": "AABBCCDDEEFF", "type": "SHSW-1"}
+        device_info = {"mac": "AABBCCDDEEFF", "type": "SHSW-1", "auth": True}
 
-        response_401 = MagicMock()
-        response_401.status_code = 401
-        http_error = requests.exceptions.HTTPError(response=response_401)
-
-        # fetch_json: first call is /shelly (ok), second is status (401 via _fetch_with_auth),
-        # third is status retry with auth (ok)
         mock_http_client.fetch_json.side_effect = [
             device_info,
-            http_error,
             {"relays": []},
         ]
         mock_http_client.fetch_json_optional.return_value = {}
@@ -280,26 +213,26 @@ class TestLegacyDeviceGatewayAuth:
         status = await gateway.get_device_status("192.168.1.100")
 
         assert status is not None
+        # Second fetch_json call (status) should include auth
+        status_call = mock_http_client.fetch_json.call_args_list[1]
+        assert status_call[1].get("auth") == ("admin", "secret")
 
-    async def test_get_device_status_returns_none_on_auth_failure(
+    async def test_get_device_status_raises_on_auth_failure(
         self,
         gateway,
         mock_http_client,
         mock_auth_service,
     ):
-        device_info = {"mac": "AABBCCDDEEFF", "type": "SHSW-1"}
+        device_info = {"mac": "AABBCCDDEEFF", "type": "SHSW-1", "auth": True}
 
-        response_401 = MagicMock()
-        response_401.status_code = 401
-        http_error = requests.exceptions.HTTPError(response=response_401)
-
-        mock_http_client.fetch_json.side_effect = [device_info, http_error]
+        mock_http_client.fetch_json.side_effect = [
+            device_info,
+            DeviceAuthenticationError("192.168.1.100"),
+        ]
         mock_auth_service.resolve_credentials.return_value = None
-        gateway._ip_to_mac["192.168.1.100"] = "AABBCCDDEEFF"
 
-        status = await gateway.get_device_status("192.168.1.100")
-
-        assert status is None
+        with pytest.raises(DeviceAuthenticationError):
+            await gateway.get_device_status("192.168.1.100")
 
     # --- execute_action with auth ---
 

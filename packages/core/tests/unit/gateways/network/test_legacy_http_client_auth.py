@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 import requests
+from core.domain.entities.exceptions import DeviceAuthenticationError
 from core.gateways.network.legacy_http_client import LegacyHttpClient
 
 
@@ -69,3 +70,21 @@ class TestLegacyHttpClientAuth:
 
         call_kwargs = mock_session.get.call_args[1]
         assert call_kwargs["auth"] is None
+
+    async def test_it_raises_device_auth_error_on_401(self, client, mock_session):
+        resp = MagicMock()
+        resp.status_code = 401
+        mock_session.get.return_value = resp
+
+        with pytest.raises(DeviceAuthenticationError):
+            await client.fetch_json("192.168.1.1", "status")
+
+    async def test_it_raises_device_auth_error_on_401_get_with_params(
+        self, client, mock_session
+    ):
+        resp = MagicMock()
+        resp.status_code = 401
+        mock_session.get.return_value = resp
+
+        with pytest.raises(DeviceAuthenticationError):
+            await client.get_with_params("192.168.1.1", "relay/0", {"turn": "on"})

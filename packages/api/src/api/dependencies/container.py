@@ -93,10 +93,7 @@ class APIContainer(BaseContainer):
 
             def on_credential_changed(mac: str) -> None:
                 self.get_rpc_client().invalidate_credential_cache(mac)
-                # Also invalidate Gen1 basic auth cache
-                gateway = self.get_device_gateway()
-                if gateway._legacy_gateway:
-                    gateway._legacy_gateway.invalidate_credential_cache(mac)
+                self.get_device_gateway().invalidate_legacy_credential_cache(mac)
 
             self._credentials_use_case = ManageCredentialsUseCase(
                 repository_factory=self.create_credentials_repository,

@@ -1,6 +1,11 @@
 """Shared container base providing common gateway and interactor factories (no cast)."""
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from core.services.authentication_service import AuthenticationService
 
 from core.gateways.device import LegacyDeviceGateway
 from core.gateways.device.ap_device_detector import APDeviceDetector
@@ -55,10 +60,11 @@ class BaseContainer:
             )
         return self._device_gateway
 
-    def _get_authentication_service_optional(self) -> Any:
+    def _get_authentication_service_optional(self) -> AuthenticationService | None:
         """Return AuthenticationService if available, None otherwise."""
         if hasattr(self, "get_authentication_service"):
-            return self.get_authentication_service()
+            service: AuthenticationService = self.get_authentication_service()
+            return service
         return None
 
     def get_mdns_client(self) -> MDNSGateway:

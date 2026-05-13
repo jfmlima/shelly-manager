@@ -9,8 +9,6 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-import requests
-
 from ...domain.entities.device_status import DeviceStatus
 from ...domain.entities.discovered_device import DiscoveredDevice
 from ...domain.entities.exceptions import DeviceAuthenticationError
@@ -78,18 +76,6 @@ class LegacyDeviceGateway:
             self._basic_auth_cache[mac] = auth_tuple
             return auth_tuple
         return None
-
-    async def _fetch_with_auth(self, ip: str, endpoint: str) -> dict[str, Any]:
-        """Fetch JSON with automatic 401 retry using stored credentials."""
-        try:
-            return await self._http_client.fetch_json(ip, endpoint)
-        except requests.exceptions.HTTPError as e:
-            if e.response is not None and e.response.status_code == 401:
-                auth = await self._resolve_auth(ip)
-                if auth:
-                    return await self._http_client.fetch_json(ip, endpoint, auth=auth)
-                raise DeviceAuthenticationError(ip, "No credentials available") from e
-            raise
 
     def invalidate_credential_cache(self, mac: str) -> None:
         """Clear cached credentials for a device."""
@@ -179,16 +165,21 @@ class LegacyDeviceGateway:
         """
         try:
             device_info = await self._http_client.fetch_json(ip, "shelly")
-            status_data = await self._fetch_with_auth(ip, "status")
-            auth = (
-                await self._resolve_auth(ip) if self._authentication_service else None
-            )
+
+            auth: tuple[str, str] | None = None
+            if device_info.get("auth", False):
+                mac = device_info.get("mac")
+                if mac:
+                    normalized_mac = normalize_mac(mac)
+                    self._ip_to_mac[normalize_mac(ip)] = normalized_mac
+                auth = await self._resolve_auth(ip)
+
+            status_data = await self._http_client.fetch_json(ip, "status", auth=auth)
             settings_data = await self._http_client.fetch_json_optional(
                 ip, "settings", auth=auth
             )
         except DeviceAuthenticationError:
-            logger.warning("Authentication failed for Gen1 device %s", ip)
-            return None
+            raise
         except Exception as e:
             logger.debug(
                 "Failed to fetch legacy data for %s: %s",

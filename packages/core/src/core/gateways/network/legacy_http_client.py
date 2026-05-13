@@ -3,6 +3,8 @@ from typing import Any, cast
 
 import requests
 
+from core.domain.entities.exceptions import DeviceAuthenticationError
+
 
 class LegacyHttpClient:
     """HTTP client for legacy Gen1 Shelly devices using simple HTTP GET requests."""
@@ -47,6 +49,8 @@ class LegacyHttpClient:
     ) -> dict[str, Any]:
         url = f"http://{ip}/{endpoint.lstrip('/')}"
         response = self._session.get(url, timeout=self.timeout, auth=auth)
+        if response.status_code == 401:
+            raise DeviceAuthenticationError(ip)
         response.raise_for_status()
         data = response.json()
 
@@ -66,6 +70,8 @@ class LegacyHttpClient:
         response = self._session.get(
             url, params=params, timeout=self.timeout, auth=auth
         )
+        if response.status_code == 401:
+            raise DeviceAuthenticationError(ip)
         response.raise_for_status()
 
         try:
