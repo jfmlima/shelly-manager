@@ -12,14 +12,17 @@ Manage Shelly devices on your local network without connecting them to the Shell
 
 ## Features
 
+- Gen1 (legacy HTTP) and Gen2 (RPC) device support with automatic detection
 - Device discovery using mDNS and Network Scanning
 - Firmware update management (stable/beta channels)
-- Device configuration changes
+- Device configuration management with bulk export/apply
 - Bulk operations across multiple devices
 - Status monitoring
 - Component action discovery and execution
 - Dynamic device capability detection
 - Component-specific controls (switches, covers, lights, etc.)
+- Credential management for password-protected devices (Gen1 Basic Auth, Gen2 Digest Auth)
+- Device provisioning via Access Point
 
 Available as:
 
@@ -68,7 +71,7 @@ Available as:
     <td width="50%">
       <h3>Bulk Configuration Apply</h3>
       <img src="docs/images/bulk-apply-1.png" width="100%" alt="Bulk Actions">
-      <em>Apply configurations in bulk to multipled evices</em>
+      <em>Apply configurations in bulk to multiple devices</em>
     </td>
   </tr>
 </table>
@@ -95,6 +98,7 @@ services:
     environment:
       - HOST=0.0.0.0
       - PORT=8000
+      - SHELLY_SECRET_KEY=your-generated-key
 
   shelly-manager-web:
     image: ghcr.io/jfmlima/shelly-manager-web:latest
@@ -116,6 +120,7 @@ services:
     environment:
       - HOST=0.0.0.0
       - PORT=8000
+      - SHELLY_SECRET_KEY=your-generated-key
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.shelly-manager-api.rule=Host(`shelly-manager-api.your.domain`)"
@@ -164,16 +169,19 @@ The add-on provides the same functionality as the Docker deployment but is fully
 ```bash
 # Interactive device scanning
 docker run --rm -it \
+  -e SHELLY_SECRET_KEY="your-generated-key" \
   ghcr.io/jfmlima/shelly-manager-cli:latest \
   scan --target 192.168.1.0/24
 
 # Check device status
 docker run --rm -it \
+  -e SHELLY_SECRET_KEY="your-generated-key" \
   ghcr.io/jfmlima/shelly-manager-cli:latest \
   device status 192.168.1.100
 
 # Bulk firmware updates
 docker run --rm -it \
+  -e SHELLY_SECRET_KEY="your-generated-key" \
   ghcr.io/jfmlima/shelly-manager-cli:latest \
   bulk update --target 192.168.1.0/24
 ```
@@ -182,6 +190,7 @@ docker run --rm -it \
 
 ```bash
 docker run -p 8000:8000 \
+  -e SHELLY_SECRET_KEY="your-generated-key" \
   ghcr.io/jfmlima/shelly-manager-api:latest
 ```
 
@@ -217,18 +226,36 @@ The REST API provides complete device management capabilities:
 
 ```bash
 # Health and status
-GET /api/health                    # Service health check
-GET /api/devices/scan              # Discover devices on network
-GET /api/devices/{ip}/status       # Get device status
+GET  /api/health                                              # Service health check
+GET  /api/devices/scan                                        # Discover devices on network
+GET  /api/devices/{ip}/status                                 # Get device status
 
 # Device operations
-POST /api/devices/{ip}/update      # Update device firmware
-POST /api/devices/{ip}/reboot      # Reboot device
-POST /api/devices/bulk/update      # Bulk firmware updates
+POST /api/devices/{ip}/update                                 # Update device firmware
+POST /api/devices/{ip}/reboot                                 # Reboot device
+POST /api/devices/bulk                                        # Bulk operations (update/reboot/factory_reset)
+POST /api/devices/bulk/config/export                          # Export device configurations
+POST /api/devices/bulk/config/apply                           # Apply configurations to devices
 
-# Component Actions
-GET /api/devices/{ip}/components/actions           # Discover available actions
-POST /api/devices/{ip}/components/{id}/action      # Execute component action
+# Component actions
+GET  /api/devices/{ip}/components/actions                     # Discover available actions
+POST /api/devices/{ip}/components/{key}/actions/{action}      # Execute component action
+
+# Credentials
+GET    /api/credentials                                       # List stored credentials
+POST   /api/credentials                                       # Set device credentials
+DELETE /api/credentials/{mac}                                  # Delete device credentials
+
+# Provisioning
+GET    /api/provisioning/profiles                             # List provisioning profiles
+POST   /api/provisioning/profiles                             # Create provisioning profile
+GET    /api/provisioning/profiles/{id}                        # Get profile details
+PUT    /api/provisioning/profiles/{id}                        # Update profile
+DELETE /api/provisioning/profiles/{id}                        # Delete profile
+POST   /api/provisioning/profiles/{id}/set-default            # Set default profile
+POST   /api/provisioning/detect                               # Detect device at AP IP
+POST   /api/provisioning/provision                            # Provision device via AP
+POST   /api/provisioning/verify                               # Verify provisioned device
 ```
 
 **API Documentation**: Start the API server and visit `http://localhost:8000/docs` for interactive OpenAPI documentation
@@ -245,11 +272,21 @@ shelly-manager scan --use-mdns
 # Device operations
 shelly-manager device status 192.168.1.100
 shelly-manager device reboot 192.168.1.100
-shelly-manager update check --all
+shelly-manager device actions list 192.168.1.100
 
 # Bulk operations
 shelly-manager bulk reboot --target 192.168.1.100-110
 shelly-manager bulk update --target 10.0.0.0/24
+shelly-manager bulk config export --target 192.168.1.0/24
+shelly-manager bulk config apply --target 192.168.1.0/24
+
+# Export
+shelly-manager export devices --target 192.168.1.0/24
+
+# Provisioning
+shelly-manager provision detect
+shelly-manager provision run
+shelly-manager provision profiles list
 ```
 
 **CLI Documentation**: See [CLI README](packages/cli/README.md) for complete command reference.
@@ -258,11 +295,13 @@ shelly-manager bulk update --target 10.0.0.0/24
 
 The web interface provides an intuitive management experience:
 
-- **Device Discovery**: Network scanning with visual results
+- **Device Discovery**: Network scanning with visual results and advanced settings
 - **Bulk Operations**: Select multiple devices for batch operations
 - **Real-time Status**: Live device status monitoring
-- **Configuration Management**: Easy device configuration editing
-- **Dark Mode**: System-aware theme switching
+- **Configuration Management**: Device configuration editing with bulk export/apply
+- **Credentials Management**: Set device-specific or global fallback credentials
+- **Device Provisioning**: Set up new devices via Access Point
+- **Settings**: API URL configuration, connection testing, theme selection (light/dark/system)
 
 **Web Documentation**: See [Web README](packages/web/README.md) for setup and features.
 
@@ -270,11 +309,11 @@ The web interface provides an intuitive management experience:
 
 - **Docker** (recommended) or **Python 3.11+**
 - **Network access** to Shelly devices on your local network
-- **Optional**: Device credentials for authenticated devices
+- **SHELLY_SECRET_KEY**: Fernet encryption key for credential storage (see [Security & Credentials](#security--credentials))
 
 ## Security & Credentials
 
-Shelly Manager supports password-protected Shelly Gen2 devices (HTTP Digest Auth). To enable this feature, you must provide an encryption key.
+Shelly Manager supports password-protected Shelly Gen1 (HTTP Basic Auth) and Gen2 devices (HTTP Digest Auth). To enable this feature, you must provide an encryption key.
 
 ### 1. Generate an Encryption Key
 
