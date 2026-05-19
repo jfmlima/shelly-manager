@@ -65,6 +65,7 @@ class ZeroconfMDNSClient(MDNSGateway):
         # Nothing to close - each scan cleans up after itself
         pass
 
+
 class ShellyServiceListener(ServiceListener):
     def __init__(self, discovered_ips: set[str]):
         self.discovered_ips = discovered_ips
@@ -75,7 +76,7 @@ class ShellyServiceListener(ServiceListener):
             None, self._resolve_service, zc, type_, name
         )
 
-    def _resolve_service(self, zc: Zeroconf, type_: str, name: str) -> None:        
+    def _resolve_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         try:
             logger.debug(f"Discovered service: {name} of type {type_}")
 
