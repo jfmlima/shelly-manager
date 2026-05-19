@@ -3,8 +3,8 @@ import logging
 import socket
 from typing import Any
 
-from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
-from zeroconf.asyncio import AsyncZeroconf
+from zeroconf import ServiceListener, Zeroconf
+from zeroconf.asyncio import AsyncServiceBrowser, AsyncZeroconf
 
 from .mdns import MDNSGateway
 
@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 class ZeroconfMDNSClient(MDNSGateway):
 
     def __init__(self) -> None:
-        self._aiozc: AsyncZeroconf | None = None
         self._discovered_ips: set[str] = set()
 
     async def discover_device_ips(
@@ -25,25 +24,24 @@ class ZeroconfMDNSClient(MDNSGateway):
 
         self._discovered_ips.clear()
 
+        # Fresh AsyncZeroconf per scan - avoids zombie browser threads
+        # from accumulating across multiple scan calls
+        aiozc = AsyncZeroconf()
         try:
-            if self._aiozc is None:
-                self._aiozc = AsyncZeroconf()
-
-            listeners = []
             browsers = []
 
             for service_type in service_types:
                 listener = ShellyServiceListener(self._discovered_ips)
-                listeners.append(listener)
-
-                browser = ServiceBrowser(self._aiozc.zeroconf, service_type, listener)
+                browser = AsyncServiceBrowser(
+                    aiozc.zeroconf, service_type, listener=listener
+                )
                 browsers.append(browser)
 
             logger.info(f"Starting mDNS discovery for {timeout} seconds...")
             await asyncio.sleep(timeout)
 
             for browser in browsers:
-                browser.cancel()
+                await browser.async_cancel()
 
             discovered_list = list(self._discovered_ips)
             logger.info(
@@ -56,21 +54,28 @@ class ZeroconfMDNSClient(MDNSGateway):
             logger.error(f"Error during mDNS discovery: {e}", exc_info=True)
             return []
 
-    async def close(self) -> None:
-        if self._aiozc is not None:
+        finally:
+            # Always clean up, even on exception
             try:
-                await self._aiozc.async_close()
-                self._aiozc = None
-                logger.debug("AsyncZeroconf resources cleaned up")
+                await aiozc.async_close()
             except Exception as e:
                 logger.error(f"Error cleaning up AsyncZeroconf: {e}", exc_info=True)
 
+    async def close(self) -> None:
+        # Nothing to close - each scan cleans up after itself
+        pass
 
 class ShellyServiceListener(ServiceListener):
     def __init__(self, discovered_ips: set[str]):
         self.discovered_ips = discovered_ips
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        # Schedule the blocking get_service_info call off the event loop
+        asyncio.get_event_loop().run_in_executor(
+            None, self._resolve_service, zc, type_, name
+        )
+
+    def _resolve_service(self, zc: Zeroconf, type_: str, name: str) -> None:        
         try:
             logger.debug(f"Discovered service: {name} of type {type_}")
 
