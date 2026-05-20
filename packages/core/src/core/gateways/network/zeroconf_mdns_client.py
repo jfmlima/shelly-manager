@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import socket
+import threading
 from typing import Any
 
 from zeroconf import ServiceListener, Zeroconf
@@ -24,14 +25,13 @@ class ZeroconfMDNSClient(MDNSGateway):
 
         self._discovered_ips.clear()
 
-        # Fresh AsyncZeroconf per scan - avoids zombie browser threads
-        # from accumulating across multiple scan calls
+        loop = asyncio.get_running_loop()
+        listener = ShellyServiceListener(self._discovered_ips, loop)
         aiozc = AsyncZeroconf()
         try:
             browsers = []
 
             for service_type in service_types:
-                listener = ShellyServiceListener(self._discovered_ips)
                 browser = AsyncServiceBrowser(
                     aiozc.zeroconf, service_type, listener=listener
                 )
@@ -42,6 +42,11 @@ class ZeroconfMDNSClient(MDNSGateway):
 
             for browser in browsers:
                 await browser.async_cancel()
+
+            # Wait for all in-flight _resolve_service calls to complete
+            # before closing the Zeroconf instance they reference
+            if listener.pending_futures:
+                await asyncio.gather(*listener.pending_futures, return_exceptions=True)
 
             discovered_list = list(self._discovered_ips)
             logger.info(
@@ -55,26 +60,27 @@ class ZeroconfMDNSClient(MDNSGateway):
             return []
 
         finally:
-            # Always clean up, even on exception
             try:
                 await aiozc.async_close()
             except Exception as e:
                 logger.error(f"Error cleaning up AsyncZeroconf: {e}", exc_info=True)
 
     async def close(self) -> None:
-        # Nothing to close - each scan cleans up after itself
         pass
 
 
 class ShellyServiceListener(ServiceListener):
-    def __init__(self, discovered_ips: set[str]):
+    def __init__(self, discovered_ips: set[str], loop: asyncio.AbstractEventLoop) -> None:
         self.discovered_ips = discovered_ips
+        self._loop = loop
+        self._lock = threading.Lock()
+        self.pending_futures: list[asyncio.Future] = []
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
-        # Schedule the blocking get_service_info call off the event loop
-        asyncio.get_event_loop().run_in_executor(
+        future = self._loop.run_in_executor(
             None, self._resolve_service, zc, type_, name
         )
+        self.pending_futures.append(future)
 
     def _resolve_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         try:
@@ -90,7 +96,8 @@ class ShellyServiceListener(ServiceListener):
                     ip = socket.inet_ntoa(address)
 
                     if self._is_likely_shelly_device(name, info):
-                        self.discovered_ips.add(ip)
+                        with self._lock:
+                            self.discovered_ips.add(ip)
                         logger.info(f"Added Shelly device IP: {ip} (service: {name})")
                     else:
                         logger.debug(
