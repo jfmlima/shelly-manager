@@ -27,8 +27,9 @@ class ZeroconfMDNSClient(MDNSGateway):
 
         loop = asyncio.get_running_loop()
         listener = ShellyServiceListener(self._discovered_ips, loop)
-        aiozc = AsyncZeroconf()
+
         try:
+            aiozc = AsyncZeroconf()
             browsers = []
 
             for service_type in service_types:
