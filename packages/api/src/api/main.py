@@ -94,5 +94,6 @@ def create_app() -> Litestar:
 
 app = create_app()
 
+
 def app_factory() -> Litestar:
     return create_app()

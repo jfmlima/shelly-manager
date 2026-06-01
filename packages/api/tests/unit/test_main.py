@@ -1,6 +1,8 @@
 from datetime import datetime
 
 from api.controllers.monitoring import health_check
+from api.main import app_factory
+from litestar import Litestar
 from litestar.config.cors import CORSConfig
 from litestar.testing import create_test_client
 
@@ -10,6 +12,9 @@ class TestMainApp:
     def test_it_creates_app_with_default_config(self, app):
         assert app is not None
         assert len(app.routes) > 0
+
+    def test_it_app_factory_returns_litestar_app(self):
+        assert isinstance(app_factory(), Litestar)
 
     def test_it_handles_cors_correctly(self):
         cors_config = CORSConfig(

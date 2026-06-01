@@ -32,4 +32,4 @@ WORKDIR /app
 USER app
 EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn api.main:app_factory --factory --host ${HOST} --port ${PORT} --log-level info --workers ${API_WORKERS:-4}"]
+CMD ["sh", "-c", "uvicorn api.main:app_factory --factory --host ${HOST} --port ${PORT} --log-level info"]
