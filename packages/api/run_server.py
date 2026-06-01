@@ -19,9 +19,10 @@ if __name__ == "__main__":
     print(f"Health check: http://{host}:{port}/api/health")
 
     uvicorn.run(
-        "api.main:app",
+        "api.main:app_factory",
         host=host,
         port=port,
+        factory=True,
         reload=debug,
         log_level="info" if not debug else "debug",
     )
