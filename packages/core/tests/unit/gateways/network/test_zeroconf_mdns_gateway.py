@@ -1,5 +1,6 @@
+import asyncio
 import socket
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from core.gateways.network.zeroconf_mdns_client import (
@@ -10,136 +11,104 @@ from core.gateways.network.zeroconf_mdns_client import (
 
 class TestZeroconfMDNSGateway:
     @pytest.fixture
-    def gateway(self):
-        return ZeroconfMDNSClient()
+    def aiozc(self):
+        instance = Mock()
+        instance.zeroconf = Mock()
+        instance.async_close = AsyncMock()
+        return instance
 
     @pytest.fixture
-    def mock_aiozc(self):
-        mock = Mock()
-        mock.zeroconf = Mock()
-        return mock
+    def browser(self):
+        instance = Mock()
+        instance.async_cancel = AsyncMock()
+        return instance
 
-    async def test_discover_device_ips_success(self, gateway):
-        """Test successful device discovery."""
-        with patch(
-            "core.gateways.network.zeroconf_mdns_client.AsyncZeroconf"
-        ) as mock_azc_class:
-            mock_azc = AsyncMock()
-            mock_azc_class.return_value = mock_azc
+    @pytest.fixture
+    def browser_factory(self, browser):
+        return Mock(return_value=browser)
 
-            with patch(
-                "core.gateways.network.zeroconf_mdns_client.ServiceBrowser"
-            ) as mock_browser_class:
-                mock_browser = Mock()
-                mock_browser_class.return_value = mock_browser
+    @pytest.fixture
+    def gateway(self, aiozc, browser_factory):
+        return ZeroconfMDNSClient(
+            aiozc_factory=Mock(return_value=aiozc),
+            browser_factory=browser_factory,
+        )
 
-                # Simulate discovery by adding IPs to the set
-                gateway._discovered_ips.add("192.168.1.100")
-                gateway._discovered_ips.add("192.168.1.101")
+    async def test_it_discovers_device_ips_successfully(
+        self, gateway, browser, browser_factory
+    ):
+        """Devices added by the listener during the scan are returned."""
 
-                result = await gateway.discover_device_ips(timeout=0.1)
+        def add_ip(_zeroconf, _service_type, listener=None):
+            listener.discovered_ips.add("192.168.1.100")
+            return browser
 
-                assert len(result) == 2
-                assert "192.168.1.100" in result
-                assert "192.168.1.101" in result
-                mock_browser.cancel.assert_called()
+        browser_factory.side_effect = add_ip
 
-    async def test_discover_device_ips_timeout(self, gateway):
-        """Test discovery with timeout."""
-        with patch(
-            "core.gateways.network.zeroconf_mdns_client.AsyncZeroconf"
-        ) as mock_azc_class:
-            mock_azc = AsyncMock()
-            mock_azc_class.return_value = mock_azc
+        result = await gateway.discover_device_ips(timeout=0)
 
-            with patch(
-                "core.gateways.network.zeroconf_mdns_client.ServiceBrowser"
-            ) as mock_browser_class:
-                mock_browser = Mock()
-                mock_browser_class.return_value = mock_browser
+        assert result == ["192.168.1.100"]
 
-                result = await gateway.discover_device_ips(timeout=0.1)
+    async def test_it_returns_empty_list_when_no_devices_found(self, gateway):
+        result = await gateway.discover_device_ips(timeout=0)
 
-                assert result == []
-                mock_browser.cancel.assert_called()
+        assert result == []
 
-    async def test_discover_device_ips_no_devices(self, gateway):
-        """Test discovery when no devices are found."""
-        with patch(
-            "core.gateways.network.zeroconf_mdns_client.AsyncZeroconf"
-        ) as mock_azc_class:
-            mock_azc = AsyncMock()
-            mock_azc_class.return_value = mock_azc
-
-            with patch(
-                "core.gateways.network.zeroconf_mdns_client.ServiceBrowser"
-            ) as mock_browser_class:
-                mock_browser = Mock()
-                mock_browser_class.return_value = mock_browser
-
-                result = await gateway.discover_device_ips(timeout=0.1)
-
-                assert result == []
-
-    async def test_discover_device_ips_exception_handling(self, gateway):
-        """Test exception handling during discovery."""
-        with patch(
-            "core.gateways.network.zeroconf_mdns_client.AsyncZeroconf"
-        ) as mock_azc_class:
-            mock_azc_class.side_effect = Exception("Zeroconf initialization failed")
-
-            result = await gateway.discover_device_ips(timeout=0.1)
-
-            assert result == []
-
-    async def test_discover_device_ips_custom_service_types(self, gateway):
-        """Test discovery with custom service types."""
+    async def test_it_creates_a_browser_for_each_service_type(
+        self, gateway, browser_factory
+    ):
         custom_types = ["_custom._tcp.local.", "_test._tcp.local."]
 
-        with patch(
-            "core.gateways.network.zeroconf_mdns_client.AsyncZeroconf"
-        ) as mock_azc_class:
-            mock_azc = AsyncMock()
-            mock_azc_class.return_value = mock_azc
+        await gateway.discover_device_ips(timeout=0, service_types=custom_types)
 
-            with patch(
-                "core.gateways.network.zeroconf_mdns_client.ServiceBrowser"
-            ) as mock_browser_class:
-                mock_browser = Mock()
-                mock_browser_class.return_value = mock_browser
+        assert browser_factory.call_count == len(custom_types)
 
-                await gateway.discover_device_ips(
-                    timeout=0.1, service_types=custom_types
-                )
+    async def test_it_cancels_browsers_and_closes_zeroconf(
+        self, gateway, browser, aiozc
+    ):
+        await gateway.discover_device_ips(timeout=0)
 
-                # Verify ServiceBrowser was called for each service type
-                assert mock_browser_class.call_count == 2
+        browser.async_cancel.assert_awaited()
+        aiozc.async_close.assert_awaited_once()
 
-    async def test_close_cleanup(self, gateway):
-        """Test resource cleanup."""
-        mock_azc = AsyncMock()
-        gateway._aiozc = mock_azc
+    async def test_it_returns_empty_list_on_initialization_error(self, browser_factory):
+        """If the AsyncZeroconf factory raises, discovery is caught and returns []."""
+        gateway = ZeroconfMDNSClient(
+            aiozc_factory=Mock(side_effect=Exception("init failed")),
+            browser_factory=browser_factory,
+        )
 
+        result = await gateway.discover_device_ips(timeout=0)
+
+        assert result == []
+
+    async def test_it_awaits_pending_resolutions_before_returning(
+        self, gateway, browser, browser_factory
+    ):
+        """Services resolved off-thread via the listener are gathered before return."""
+
+        def resolve_a_shelly(_zeroconf, _service_type, listener=None):
+            info = Mock()
+            info.addresses = [socket.inet_aton("192.168.1.50")]
+            info.properties = {}
+            zc = Mock()
+            zc.get_service_info.return_value = info
+            listener.add_service(
+                zc, "_http._tcp.local.", "shelly1-abc._http._tcp.local."
+            )
+            return browser
+
+        browser_factory.side_effect = resolve_a_shelly
+
+        result = await gateway.discover_device_ips(timeout=0)
+
+        assert result == ["192.168.1.50"]
+
+    async def test_it_close_is_a_noop(self, gateway):
+        """close() no longer manages state; each scan cleans up after itself."""
         await gateway.close()
 
-        mock_azc.async_close.assert_called_once()
-        assert gateway._aiozc is None
-
-    async def test_close_cleanup_exception(self, gateway):
-        """Test cleanup handles exceptions gracefully."""
-        mock_azc = AsyncMock()
-        mock_azc.async_close.side_effect = Exception("Cleanup failed")
-        gateway._aiozc = mock_azc
-
-        # Should not raise exception
-        await gateway.close()
-
-        mock_azc.async_close.assert_called_once()
-
-    async def test_close_no_aiozc(self, gateway):
-        """Test cleanup when no AsyncZeroconf instance exists."""
-        # Should not raise exception
-        await gateway.close()
+        assert not hasattr(gateway, "_aiozc")
 
 
 class TestShellyServiceListener:
@@ -149,126 +118,130 @@ class TestShellyServiceListener:
 
     @pytest.fixture
     def listener(self, discovered_ips):
-        return ShellyServiceListener(discovered_ips)
+        return ShellyServiceListener(discovered_ips, Mock())
 
     @pytest.fixture
     def mock_zc(self):
         return Mock()
 
-    def test_add_service_shelly_device(self, listener, mock_zc, discovered_ips):
-        """Test adding a Shelly device service."""
-        service_name = "shelly1-123456._http._tcp.local."
-        service_type = "_http._tcp.local."
+    def test_it_adds_shelly_device_ip(self, listener, mock_zc, discovered_ips):
+        info = Mock()
+        info.addresses = [socket.inet_aton("192.168.1.100")]
+        info.properties = {"device": "shelly"}
+        mock_zc.get_service_info.return_value = info
 
-        # Mock service info
-        mock_info = Mock()
-        mock_info.addresses = [socket.inet_aton("192.168.1.100")]
-        mock_info.properties = {"device": "shelly"}
-
-        mock_zc.get_service_info.return_value = mock_info
-
-        listener.add_service(mock_zc, service_type, service_name)
+        listener._resolve_service(
+            mock_zc, "_http._tcp.local.", "shelly1-123456._http._tcp.local."
+        )
 
         assert "192.168.1.100" in discovered_ips
 
-    def test_add_service_non_shelly_device(self, listener, mock_zc, discovered_ips):
-        """Test adding a non-Shelly device service."""
-        service_name = "printer._http._tcp.local."
-        service_type = "_http._tcp.local."
+    def test_it_adds_http_service_ip(self, listener, mock_zc, discovered_ips):
+        """Non-Shelly HTTP services are kept for validation by the device gateway."""
+        info = Mock()
+        info.addresses = [socket.inet_aton("192.168.1.200")]
+        info.properties = {"device": "printer"}
+        mock_zc.get_service_info.return_value = info
 
-        # Mock service info
-        mock_info = Mock()
-        mock_info.addresses = [socket.inet_aton("192.168.1.200")]
-        mock_info.properties = {"device": "printer"}
-
-        mock_zc.get_service_info.return_value = mock_info
-
-        listener.add_service(mock_zc, service_type, service_name)
-
-        # Should still add HTTP services for validation by device gateway
-        assert "192.168.1.200" in discovered_ips
-
-    def test_add_service_no_info(self, listener, mock_zc, discovered_ips):
-        """Test adding service when no service info is available."""
-        service_name = "test._http._tcp.local."
-        service_type = "_http._tcp.local."
-
-        mock_zc.get_service_info.return_value = None
-
-        listener.add_service(mock_zc, service_type, service_name)
-
-        assert len(discovered_ips) == 0
-
-    def test_add_service_invalid_address(self, listener, mock_zc, discovered_ips):
-        """Test handling invalid IP addresses."""
-        service_name = "shelly1-123456._http._tcp.local."
-        service_type = "_http._tcp.local."
-
-        # Mock service info with invalid address
-        mock_info = Mock()
-        mock_info.addresses = [b"invalid"]
-        mock_info.properties = {"device": "shelly"}
-
-        mock_zc.get_service_info.return_value = mock_info
-
-        with patch("socket.inet_ntoa", side_effect=OSError("Invalid address")):
-            listener.add_service(mock_zc, service_type, service_name)
-
-        assert len(discovered_ips) == 0
-
-    def test_add_service_exception_handling(self, listener, mock_zc, discovered_ips):
-        """Test exception handling during service addition."""
-        service_name = "test._http._tcp.local."
-        service_type = "_http._tcp.local."
-
-        mock_zc.get_service_info.side_effect = Exception("Service info failed")
-
-        # Should not raise exception
-        listener.add_service(mock_zc, service_type, service_name)
-
-        assert len(discovered_ips) == 0
-
-    def test_is_likely_shelly_device_name_patterns(self, listener):
-        """Test Shelly device identification by name patterns."""
-        mock_info = Mock()
-        mock_info.properties = {}
-
-        # Test various Shelly name patterns
-        assert listener._is_likely_shelly_device("shelly1-123456", mock_info) is True
-        assert listener._is_likely_shelly_device("shellyplus1-789", mock_info) is True
-        assert listener._is_likely_shelly_device("shellypro4pm-abc", mock_info) is True
-        assert listener._is_likely_shelly_device("SHELLY1-UPPER", mock_info) is True
-
-        # Test non-Shelly names
-        assert listener._is_likely_shelly_device("printer", mock_info) is False
-        assert listener._is_likely_shelly_device("router", mock_info) is False
-
-    def test_is_likely_shelly_device_txt_records(self, listener):
-        """Test Shelly device identification by TXT records."""
-        # Test with Shelly in properties
-        mock_info = Mock()
-        mock_info.properties = {"manufacturer": "allterco"}
-
-        assert listener._is_likely_shelly_device("device", mock_info) is True
-
-        # Test with non-Shelly properties
-        mock_info.properties = {"manufacturer": "other"}
-        assert listener._is_likely_shelly_device("device", mock_info) is False
-
-    def test_is_likely_shelly_device_http_service(self, listener):
-        """Test HTTP service handling."""
-        mock_info = Mock()
-        mock_info.properties = {}
-
-        # HTTP services should be accepted for validation by device gateway
-        assert (
-            listener._is_likely_shelly_device("unknown._http._tcp", mock_info) is True
+        listener._resolve_service(
+            mock_zc, "_http._tcp.local.", "printer._http._tcp.local."
         )
 
-    def test_remove_service(self, listener, mock_zc):
-        """Test service removal (should not raise exception)."""
+        assert "192.168.1.200" in discovered_ips
+
+    def test_it_skips_non_shelly_non_http_service(
+        self, listener, mock_zc, discovered_ips
+    ):
+        info = Mock()
+        info.addresses = [socket.inet_aton("192.168.1.201")]
+        info.properties = {"device": "printer"}
+        mock_zc.get_service_info.return_value = info
+
+        listener._resolve_service(
+            mock_zc, "_ipp._tcp.local.", "printer._ipp._tcp.local."
+        )
+
+        assert len(discovered_ips) == 0
+
+    def test_it_skips_when_no_service_info(self, listener, mock_zc, discovered_ips):
+        mock_zc.get_service_info.return_value = None
+
+        listener._resolve_service(
+            mock_zc, "_http._tcp.local.", "test._http._tcp.local."
+        )
+
+        assert len(discovered_ips) == 0
+
+    def test_it_handles_invalid_address(self, listener, mock_zc, discovered_ips):
+        info = Mock()
+        info.addresses = [b"invalid"]  # not 4 bytes -> socket.inet_ntoa raises OSError
+        info.properties = {"device": "shelly"}
+        mock_zc.get_service_info.return_value = info
+
+        listener._resolve_service(
+            mock_zc, "_http._tcp.local.", "shelly1-123456._http._tcp.local."
+        )
+
+        assert len(discovered_ips) == 0
+
+    def test_it_handles_resolution_exception(self, listener, mock_zc, discovered_ips):
+        mock_zc.get_service_info.side_effect = Exception("Service info failed")
+
+        # Should not raise
+        listener._resolve_service(
+            mock_zc, "_http._tcp.local.", "test._http._tcp.local."
+        )
+
+        assert len(discovered_ips) == 0
+
+    async def test_it_schedules_resolution_off_the_event_loop(self):
+        """add_service offloads the blocking resolve and tracks the future."""
+        discovered: set[str] = set()
+        listener = ShellyServiceListener(discovered, asyncio.get_running_loop())
+
+        info = Mock()
+        info.addresses = [socket.inet_aton("192.168.1.77")]
+        info.properties = {}
+        mock_zc = Mock()
+        mock_zc.get_service_info.return_value = info
+
+        listener.add_service(
+            mock_zc, "_http._tcp.local.", "shelly1-x._http._tcp.local."
+        )
+
+        assert len(listener.pending_futures) == 1
+        await asyncio.gather(*listener.pending_futures)
+        assert "192.168.1.77" in discovered
+
+    def test_it_identifies_shelly_devices_by_name(self, listener):
+        info = Mock()
+        info.properties = {}
+
+        assert listener._is_likely_shelly_device("shelly1-123456", info) is True
+        assert listener._is_likely_shelly_device("shellyplus1-789", info) is True
+        assert listener._is_likely_shelly_device("shellypro4pm-abc", info) is True
+        assert listener._is_likely_shelly_device("SHELLY1-UPPER", info) is True
+
+        assert listener._is_likely_shelly_device("router", info) is False
+
+    def test_it_identifies_shelly_devices_by_txt_records(self, listener):
+        info = Mock()
+        info.properties = {"manufacturer": "allterco"}
+        assert listener._is_likely_shelly_device("device", info) is True
+
+        info.properties = {"manufacturer": "other"}
+        assert listener._is_likely_shelly_device("device", info) is False
+
+    def test_it_identifies_http_services(self, listener):
+        info = Mock()
+        info.properties = {}
+
+        assert listener._is_likely_shelly_device("unknown._http._tcp", info) is True
+
+    def test_it_ignores_removed_services(self, listener, mock_zc):
+        # Should not raise
         listener.remove_service(mock_zc, "_http._tcp.local.", "test")
 
-    def test_update_service(self, listener, mock_zc):
-        """Test service update (should not raise exception)."""
+    def test_it_ignores_updated_services(self, listener, mock_zc):
+        # Should not raise
         listener.update_service(mock_zc, "_http._tcp.local.", "test")
