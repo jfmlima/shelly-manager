@@ -1,10 +1,12 @@
 import asyncio
 import logging
 import socket
+import threading
+from collections.abc import Callable
 from typing import Any
 
-from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
-from zeroconf.asyncio import AsyncZeroconf
+from zeroconf import ServiceListener, Zeroconf
+from zeroconf.asyncio import AsyncServiceBrowser, AsyncZeroconf
 
 from .mdns import MDNSGateway
 
@@ -13,8 +15,13 @@ logger = logging.getLogger(__name__)
 
 class ZeroconfMDNSClient(MDNSGateway):
 
-    def __init__(self) -> None:
-        self._aiozc: AsyncZeroconf | None = None
+    def __init__(
+        self,
+        aiozc_factory: Callable[..., AsyncZeroconf] = AsyncZeroconf,
+        browser_factory: Callable[..., AsyncServiceBrowser] = AsyncServiceBrowser,
+    ) -> None:
+        self._aiozc_factory = aiozc_factory
+        self._browser_factory = browser_factory
         self._discovered_ips: set[str] = set()
 
     async def discover_device_ips(
@@ -25,25 +32,30 @@ class ZeroconfMDNSClient(MDNSGateway):
 
         self._discovered_ips.clear()
 
-        try:
-            if self._aiozc is None:
-                self._aiozc = AsyncZeroconf()
+        loop = asyncio.get_running_loop()
+        listener = ShellyServiceListener(self._discovered_ips, loop)
+        aiozc: AsyncZeroconf | None = None
 
-            listeners = []
+        try:
+            aiozc = self._aiozc_factory()
             browsers = []
 
             for service_type in service_types:
-                listener = ShellyServiceListener(self._discovered_ips)
-                listeners.append(listener)
-
-                browser = ServiceBrowser(self._aiozc.zeroconf, service_type, listener)
+                browser = self._browser_factory(
+                    aiozc.zeroconf, service_type, listener=listener
+                )
                 browsers.append(browser)
 
             logger.info(f"Starting mDNS discovery for {timeout} seconds...")
             await asyncio.sleep(timeout)
 
             for browser in browsers:
-                browser.cancel()
+                await browser.async_cancel()
+
+            # Wait for all in-flight _resolve_service calls to complete
+            # before closing the Zeroconf instance they reference
+            if listener.pending_futures:
+                await asyncio.gather(*listener.pending_futures, return_exceptions=True)
 
             discovered_list = list(self._discovered_ips)
             logger.info(
@@ -56,21 +68,33 @@ class ZeroconfMDNSClient(MDNSGateway):
             logger.error(f"Error during mDNS discovery: {e}", exc_info=True)
             return []
 
+        finally:
+            if aiozc is not None:
+                try:
+                    await aiozc.async_close()
+                except Exception as e:
+                    logger.error(f"Error cleaning up AsyncZeroconf: {e}", exc_info=True)
+
     async def close(self) -> None:
-        if self._aiozc is not None:
-            try:
-                await self._aiozc.async_close()
-                self._aiozc = None
-                logger.debug("AsyncZeroconf resources cleaned up")
-            except Exception as e:
-                logger.error(f"Error cleaning up AsyncZeroconf: {e}", exc_info=True)
+        pass
 
 
 class ShellyServiceListener(ServiceListener):
-    def __init__(self, discovered_ips: set[str]):
+    def __init__(
+        self, discovered_ips: set[str], loop: asyncio.AbstractEventLoop
+    ) -> None:
         self.discovered_ips = discovered_ips
+        self._loop = loop
+        self._lock = threading.Lock()
+        self.pending_futures: list[asyncio.Future] = []
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        future = self._loop.run_in_executor(
+            None, self._resolve_service, zc, type_, name
+        )
+        self.pending_futures.append(future)
+
+    def _resolve_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         try:
             logger.debug(f"Discovered service: {name} of type {type_}")
 
@@ -84,7 +108,8 @@ class ShellyServiceListener(ServiceListener):
                     ip = socket.inet_ntoa(address)
 
                     if self._is_likely_shelly_device(name, info):
-                        self.discovered_ips.add(ip)
+                        with self._lock:
+                            self.discovered_ips.add(ip)
                         logger.info(f"Added Shelly device IP: {ip} (service: {name})")
                     else:
                         logger.debug(
