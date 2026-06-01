@@ -2,6 +2,7 @@ import asyncio
 import logging
 import socket
 import threading
+from collections.abc import Callable
 from typing import Any
 
 from zeroconf import ServiceListener, Zeroconf
@@ -14,7 +15,13 @@ logger = logging.getLogger(__name__)
 
 class ZeroconfMDNSClient(MDNSGateway):
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        aiozc_factory: Callable[..., AsyncZeroconf] = AsyncZeroconf,
+        browser_factory: Callable[..., AsyncServiceBrowser] = AsyncServiceBrowser,
+    ) -> None:
+        self._aiozc_factory = aiozc_factory
+        self._browser_factory = browser_factory
         self._discovered_ips: set[str] = set()
 
     async def discover_device_ips(
@@ -27,13 +34,14 @@ class ZeroconfMDNSClient(MDNSGateway):
 
         loop = asyncio.get_running_loop()
         listener = ShellyServiceListener(self._discovered_ips, loop)
+        aiozc: AsyncZeroconf | None = None
 
         try:
-            aiozc = AsyncZeroconf()
+            aiozc = self._aiozc_factory()
             browsers = []
 
             for service_type in service_types:
-                browser = AsyncServiceBrowser(
+                browser = self._browser_factory(
                     aiozc.zeroconf, service_type, listener=listener
                 )
                 browsers.append(browser)
@@ -61,17 +69,20 @@ class ZeroconfMDNSClient(MDNSGateway):
             return []
 
         finally:
-            try:
-                await aiozc.async_close()
-            except Exception as e:
-                logger.error(f"Error cleaning up AsyncZeroconf: {e}", exc_info=True)
+            if aiozc is not None:
+                try:
+                    await aiozc.async_close()
+                except Exception as e:
+                    logger.error(f"Error cleaning up AsyncZeroconf: {e}", exc_info=True)
 
     async def close(self) -> None:
         pass
 
 
 class ShellyServiceListener(ServiceListener):
-    def __init__(self, discovered_ips: set[str], loop: asyncio.AbstractEventLoop) -> None:
+    def __init__(
+        self, discovered_ips: set[str], loop: asyncio.AbstractEventLoop
+    ) -> None:
         self.discovered_ips = discovered_ips
         self._loop = loop
         self._lock = threading.Lock()
