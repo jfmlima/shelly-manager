@@ -6,7 +6,14 @@ import ipaddress
 import re
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+EVERY_PRESETS: dict[str, int] = {
+    "hourly": 3600,
+    "daily": 86400,
+    "weekly": 604800,
+}
+MIN_INTERVAL_SECONDS = 60
 
 
 class CredentialCreateRequest(BaseModel):
@@ -290,6 +297,31 @@ class VerifyProvisionRequest(BaseModel):
     timeout: float = Field(default=30.0, ge=5.0, le=120.0)
 
 
+def _validate_targets(targets: list[str]) -> list[str]:
+    """Validate IP / range / CIDR target strings without expanding them."""
+    from core.utils.target_parser import validate_target
+
+    for target in targets:
+        try:
+            validate_target(target)
+        except ValueError as e:
+            raise ValueError(f"Invalid target '{target}': {e}") from e
+    return targets
+
+
+def _normalize_mac(mac: str) -> str:
+    mac_clean = mac.upper().replace(":", "").replace("-", "")
+    if not re.match(r"^[0-9A-F]{12}$", mac_clean):
+        raise ValueError(
+            "Invalid MAC address format. Expected AA:BB:CC:DD:EE:FF or AABBCCDDEEFF"
+        )
+    return mac_clean
+
+
+def _normalize_macs(macs: list[str]) -> list[str]:
+    return [_normalize_mac(mac) for mac in macs]
+
+
 def _validate_ip_address(ip: str) -> str:
     try:
         ipaddress.IPv4Address(ip)
@@ -357,6 +389,105 @@ class CreateBackupRequest(BaseModel):
         except ipaddress.AddressValueError as e:
             raise ValueError(f"Invalid IP address: {v}") from e
         return v
+
+
+class CreateBackupScheduleRequest(BaseModel):
+    """Request model for creating a backup schedule.
+
+    Cadence is set with exactly one of ``every`` (a preset) or ``interval_seconds``.
+    """
+
+    name: str = Field(..., min_length=1, max_length=100)
+    target_ips: list[str] = Field(default_factory=list)
+    target_macs: list[str] = Field(default_factory=list)
+    all_credentialed: bool = Field(default=False)
+    every: str | None = Field(
+        default=None, description="Preset cadence: hourly, daily, or weekly"
+    )
+    interval_seconds: int | None = Field(default=None, ge=MIN_INTERVAL_SECONDS)
+    enabled: bool = Field(default=True)
+    retention_keep_last: int | None = Field(default=None, ge=1)
+    retention_max_age_days: int | None = Field(default=None, ge=1)
+
+    @field_validator("target_ips")
+    @classmethod
+    def validate_target_ips(cls, v: list[str]) -> list[str]:
+        return _validate_targets(v)
+
+    @field_validator("target_macs")
+    @classmethod
+    def validate_target_macs(cls, v: list[str]) -> list[str]:
+        return _normalize_macs(v)
+
+    @field_validator("every")
+    @classmethod
+    def validate_every(cls, v: str | None) -> str | None:
+        if v is not None and v not in EVERY_PRESETS:
+            raise ValueError(
+                f"Invalid cadence '{v}'. Must be one of: {sorted(EVERY_PRESETS)}"
+            )
+        return v
+
+    @model_validator(mode="after")
+    def validate_cadence_and_targets(self) -> "CreateBackupScheduleRequest":
+        if (self.every is None) == (self.interval_seconds is None):
+            raise ValueError("Provide exactly one of 'every' or 'interval_seconds'")
+        if not (self.target_ips or self.target_macs or self.all_credentialed):
+            raise ValueError(
+                "A schedule needs at least one target "
+                "(target_ips, target_macs, or all_credentialed)"
+            )
+        return self
+
+    def resolved_interval_seconds(self) -> int:
+        if self.every is not None:
+            return EVERY_PRESETS[self.every]
+        assert self.interval_seconds is not None  # guaranteed by the validator
+        return self.interval_seconds
+
+
+class UpdateBackupScheduleRequest(BaseModel):
+    """Request model for partially updating a backup schedule."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    target_ips: list[str] | None = Field(default=None)
+    target_macs: list[str] | None = Field(default=None)
+    all_credentialed: bool | None = Field(default=None)
+    every: str | None = Field(default=None)
+    interval_seconds: int | None = Field(default=None, ge=MIN_INTERVAL_SECONDS)
+    enabled: bool | None = Field(default=None)
+    retention_keep_last: int | None = Field(default=None, ge=1)
+    retention_max_age_days: int | None = Field(default=None, ge=1)
+
+    @field_validator("target_ips")
+    @classmethod
+    def validate_target_ips(cls, v: list[str] | None) -> list[str] | None:
+        return _validate_targets(v) if v is not None else None
+
+    @field_validator("target_macs")
+    @classmethod
+    def validate_target_macs(cls, v: list[str] | None) -> list[str] | None:
+        return _normalize_macs(v) if v is not None else None
+
+    @field_validator("every")
+    @classmethod
+    def validate_every(cls, v: str | None) -> str | None:
+        if v is not None and v not in EVERY_PRESETS:
+            raise ValueError(
+                f"Invalid cadence '{v}'. Must be one of: {sorted(EVERY_PRESETS)}"
+            )
+        return v
+
+    @model_validator(mode="after")
+    def validate_cadence(self) -> "UpdateBackupScheduleRequest":
+        if self.every is not None and self.interval_seconds is not None:
+            raise ValueError("Provide at most one of 'every' or 'interval_seconds'")
+        return self
+
+    def resolved_interval_seconds(self) -> int | None:
+        if self.every is not None:
+            return EVERY_PRESETS[self.every]
+        return self.interval_seconds
 
 
 class RestoreBackupRequest(BaseModel):
