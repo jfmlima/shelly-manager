@@ -208,6 +208,8 @@ class LegacyDeviceGateway:
             or device_info.get("fw"),
             "mac": device_info.get("mac"),
             "app": device_info.get("type"),
+            # The legacy HTTP path is, by definition, a Gen1 device.
+            "gen": 1,
         }
 
         return DeviceStatus.from_raw_response(

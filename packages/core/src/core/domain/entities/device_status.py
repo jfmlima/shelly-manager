@@ -50,6 +50,9 @@ class DeviceStatus(BaseModel):
     )
     mac_address: str | None = Field(None, description="MAC address from device info")
     app_name: str | None = Field(None, description="App name from device info")
+    gen: int | None = Field(
+        None, description="Device generation (1 for legacy, 2/3/4 for RPC)"
+    )
 
     @classmethod
     def from_raw_response(
@@ -95,6 +98,7 @@ class DeviceStatus(BaseModel):
             firmware_version=device_info.get("fw_id"),
             mac_address=device_info.get("mac"),
             app_name=device_info.get("app"),
+            gen=device_info.get("gen"),
         )
 
     def get_switches(self) -> list[SwitchComponent]:
