@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DeviceHeader } from "@/components/device-detail/device-header";
 import { DeviceActions } from "@/components/device-detail/device-actions";
 import { DeviceComponents } from "@/components/device-detail/device-components";
+import { BackupsSection } from "@/components/device-detail/backups-section";
 import { deviceApi, handleApiError } from "@/lib/api";
 
 export function DeviceDetail() {
@@ -121,6 +122,13 @@ export function DeviceDetail() {
       <DeviceComponents
         deviceStatus={deviceStatus || null}
         isLoading={isLoading}
+      />
+
+      {/* Configuration Backups */}
+      <BackupsSection
+        deviceIp={ip}
+        deviceMac={deviceStatus?.summary.mac_address ?? null}
+        deviceName={deviceStatus?.summary.device_name ?? null}
       />
     </div>
   );

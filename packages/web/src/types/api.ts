@@ -590,3 +590,55 @@ export function isEM1DataComponent(
 ): component is EM1DataComponent {
   return component.type === "em1data";
 }
+
+export interface BackupSummary {
+  id: number;
+  device_mac: string;
+  device_ip: string | null;
+  device_name: string | null;
+  device_type: string | null;
+  firmware_version: string | null;
+  generation: string;
+  name: string | null;
+  source: string;
+  sha256: string | null;
+  size_bytes: number;
+  created_at: number | null;
+}
+
+export interface BackupDetail extends BackupSummary {
+  snapshot: Record<string, unknown>;
+}
+
+export interface CreateBackupRequest {
+  device_ip: string;
+  name?: string | null;
+}
+
+export interface RestoreBackupRequest {
+  device_ip: string;
+  component_keys?: string[] | null;
+  allow_mac_mismatch?: boolean;
+  reboot?: boolean;
+}
+
+export interface ComponentRestoreResult {
+  key: string;
+  action: string;
+  success: boolean;
+  skipped: boolean;
+  skipped_reason: string | null;
+  error: string | null;
+}
+
+export interface RestoreResult {
+  success: boolean;
+  device_ip: string;
+  backup_id: number;
+  total: number;
+  succeeded: number;
+  failed: number;
+  skipped: number;
+  message: string | null;
+  components: ComponentRestoreResult[];
+}
