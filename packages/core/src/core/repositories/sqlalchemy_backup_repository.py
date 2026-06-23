@@ -9,7 +9,7 @@ from core.repositories.backup_repository import BackupRepository
 from core.repositories.models import DeviceBackups as BackupModel
 from core.services.encryption_service import EncryptionService
 from core.utils.validation import normalize_mac
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -73,6 +73,60 @@ class SQLAlchemyBackupRepository(BackupRepository):
         if record:
             await self.session.delete(record)
             await self.session.commit()
+
+    async def count_for_device(
+        self, device_mac: str, source: str | None = "scheduled"
+    ) -> int:
+        mac = normalize_mac(device_mac)
+        stmt = (
+            select(func.count())
+            .select_from(BackupModel)
+            .where(BackupModel.device_mac == mac)
+        )
+        if source is not None:
+            stmt = stmt.where(BackupModel.source == source)
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one())
+
+    async def delete_keeping_latest_n(
+        self, device_mac: str, n: int, source: str | None = "scheduled"
+    ) -> int:
+        if n < 1:
+            # Refuse to interpret "keep 0" as "delete everything" — that is almost
+            # certainly a misconfiguration, not an intent to wipe all snapshots.
+            return 0
+        mac = normalize_mac(device_mac)
+        stmt = select(BackupModel.id).where(BackupModel.device_mac == mac)
+        if source is not None:
+            stmt = stmt.where(BackupModel.source == source)
+        stmt = stmt.order_by(BackupModel.created_at.desc(), BackupModel.id.desc())
+        ids = [row[0] for row in (await self.session.execute(stmt)).all()]
+        to_delete = ids[n:]
+        if not to_delete:
+            return 0
+        await self.session.execute(
+            delete(BackupModel).where(BackupModel.id.in_(to_delete))
+        )
+        await self.session.commit()
+        return len(to_delete)
+
+    async def delete_older_than(
+        self, device_mac: str, cutoff_ts: int, source: str | None = "scheduled"
+    ) -> int:
+        mac = normalize_mac(device_mac)
+        conditions = [
+            BackupModel.device_mac == mac,
+            BackupModel.created_at < cutoff_ts,
+        ]
+        if source is not None:
+            conditions.append(BackupModel.source == source)
+
+        count_stmt = select(func.count()).select_from(BackupModel).where(*conditions)
+        count = int((await self.session.execute(count_stmt)).scalar_one())
+        if count:
+            await self.session.execute(delete(BackupModel).where(*conditions))
+            await self.session.commit()
+        return count
 
     def _to_domain(self, record: BackupModel) -> DeviceBackup | None:
         try:
