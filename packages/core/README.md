@@ -32,6 +32,8 @@ packages/core/src/core/
 │   ├── reboot_device.py
 │   ├── execute_component_action.py    # Component action execution
 │   ├── get_component_actions.py       # Component action discovery
+│   ├── backup_device_config.py        # Capture & persist a config snapshot
+│   ├── restore_device_config.py       # Restore a snapshot to a device
 │   └── ...
 ├── gateways/                 # External interfaces (abstract)
 │   ├── device/              # Device communication contracts
@@ -50,6 +52,22 @@ The core package provides authentication services for password-protected Shelly 
 - **EncryptionService** - Fernet symmetric encryption for stored passwords
 
 These services enable the API and CLI to work with password-protected devices using HTTP Digest Auth.
+
+## Backup & Restore Services
+
+The core package provides per-device configuration backup and restore:
+
+- **BackupDeviceConfig** - Captures a full per-component snapshot of one device (config plus
+  script code and schedules) and persists it via `BackupRepository`. The snapshot is encrypted
+  at rest with `EncryptionService` and keyed by device MAC.
+- **RestoreDeviceConfig** - Applies a stored snapshot back to a device, per component key. The
+  target MAC is validated against the backup; network components (`wifi`/`eth`/`mqtt`/`ws`/
+  `cloud`) are excluded by default to avoid lockout; read-only fields are stripped before each
+  `SetConfig`. Restore is supported on Gen2+ devices only.
+
+Backups are persisted through the `BackupRepository` abstraction
+(`repositories/backup_repository.py`), implemented by `SQLAlchemyBackupRepository`, with the
+`DeviceBackup` domain entity (`domain/entities/device_backup.py`) holding the decrypted snapshot.
 
 ## Quick Start
 

@@ -9,6 +9,7 @@ REST API server for Shelly Manager built with Litestar.
 - Request/response validation
 - Health monitoring endpoint
 - CORS support for web integration
+- Device configuration backup & restore (encrypted snapshots)
 - Docker deployment ready
 
 ## Quick Start
@@ -73,6 +74,39 @@ POST /api/devices/bulk/update      # Bulk firmware updates
 GET /api/devices/{ip}/components/actions           # Discover available actions
 POST /api/devices/{ip}/components/{id}/action      # Execute component action
 ```
+
+### Configuration Backup & Restore
+
+Per-device configuration snapshots, stored in the local database and encrypted with
+`SHELLY_SECRET_KEY`. A backup captures every component's config (plus script code and
+schedules) and is keyed by device MAC.
+
+> **Backup/restore vs. bulk config:** restore puts a single device's own captured config back,
+> for recovery. `POST /api/devices/bulk/config/apply` does the opposite, pushing one config out
+> to many devices for templating. They cover different needs, so both are kept.
+
+```bash
+GET /api/backups                   # List backup summaries (newest first)
+  ?device_mac=AABBCCDDEEFF          # Optional: filter by device MAC
+
+POST /api/backups                  # Capture a backup of a device
+  # Body: {"device_ip": "192.168.1.100", "name": "before-upgrade"}
+
+GET /api/backups/{id}              # Get a backup including its full snapshot
+
+POST /api/backups/{id}/restore     # Restore a backup onto a device
+  # Body: {"device_ip": "192.168.1.100",
+  #        "component_keys": ["switch:0", "sys"],   # null = all except network types
+  #        "allow_mac_mismatch": false,             # restore even if target MAC differs
+  #        "reboot": false}                          # reboot after a successful restore
+
+DELETE /api/backups/{id}           # Delete a backup
+```
+
+Restore is per-component and **excludes network components (`wifi`/`eth`/`mqtt`/`ws`/`cloud`)
+by default** to avoid locking the device off-network; pass their keys in `component_keys` to
+include them. Restore is supported on Gen2+ devices only (Gen1 devices back up but cannot be
+restored per-component).
 
 ### Component Actions
 
@@ -265,6 +299,58 @@ curl "http://localhost:8000/api/credentials"
 curl -X DELETE "http://localhost:8000/api/credentials/AABBCCDDEEFF"
 ```
 
+### Backup & Restore Examples
+
+#### Capture a Backup
+
+```bash
+curl -X POST "http://localhost:8000/api/backups" \
+  -H "Content-Type: application/json" \
+  -d '{"device_ip": "192.168.1.100", "name": "before-upgrade"}'
+```
+
+**Response:**
+
+```json
+{
+  "id": 1,
+  "device_mac": "AABBCCDDEEFF",
+  "device_ip": "192.168.1.100",
+  "device_name": "Living Room Light",
+  "generation": "gen2",
+  "name": "before-upgrade",
+  "source": "manual",
+  "size_bytes": 2048,
+  "created_at": 1718800000
+}
+```
+
+#### Restore a Backup
+
+```bash
+curl -X POST "http://localhost:8000/api/backups/1/restore" \
+  -H "Content-Type: application/json" \
+  -d '{"device_ip": "192.168.1.100", "component_keys": ["switch:0", "sys"]}'
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "device_ip": "192.168.1.100",
+  "backup_id": 1,
+  "total": 2,
+  "succeeded": 2,
+  "failed": 0,
+  "skipped": 0,
+  "components": [
+    { "key": "switch:0", "action": "SetConfig", "success": true },
+    { "key": "sys", "action": "SetConfig", "success": true }
+  ]
+}
+```
+
 ### Error Response
 
 ```json
@@ -285,6 +371,10 @@ curl -X DELETE "http://localhost:8000/api/credentials/AABBCCDDEEFF"
 | `PORT`               | `8000`        | API server port            |
 | `DEBUG`              | `false`       | Enable debug mode          |
 | `SHELLY_SECRET_KEY`  | (required)    | Fernet key for credential encryption. Generate with: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+
+`SHELLY_SECRET_KEY` also encrypts configuration **backup snapshots** at rest. Backups are
+stored in the local database (`{data_dir}/data.db`); rotating the key makes existing snapshots
+undecryptable.
 
 ## Docker Deployment
 

@@ -16,6 +16,7 @@ Manage Shelly devices on your local network without connecting them to the Shell
 - Device discovery using mDNS and Network Scanning
 - Firmware update management (stable/beta channels)
 - Device configuration management with bulk export/apply
+- Per-device configuration backup and restore with encrypted snapshots
 - Bulk operations across multiple devices
 - Status monitoring
 - Component action discovery and execution
@@ -237,6 +238,13 @@ POST /api/devices/bulk                                        # Bulk operations 
 POST /api/devices/bulk/config/export                          # Export device configurations
 POST /api/devices/bulk/config/apply                           # Apply configurations to devices
 
+# Configuration backups (per-device snapshots, stored encrypted)
+GET    /api/backups                                           # List stored backups
+POST   /api/backups                                           # Capture a device backup
+GET    /api/backups/{id}                                      # Get a backup (with full snapshot)
+POST   /api/backups/{id}/restore                              # Restore a backup to a device
+DELETE /api/backups/{id}                                      # Delete a backup
+
 # Component actions
 GET  /api/devices/{ip}/components/actions                     # Discover available actions
 POST /api/devices/{ip}/components/{key}/actions/{action}      # Execute component action
@@ -279,6 +287,11 @@ shelly-manager bulk reboot --target 192.168.1.100-110
 shelly-manager bulk update --target 10.0.0.0/24
 shelly-manager bulk config export --target 192.168.1.0/24
 shelly-manager bulk config apply --target 192.168.1.0/24
+
+# Configuration backups (per-device, stored encrypted)
+shelly-manager backup create --target 192.168.1.100
+shelly-manager backup list
+shelly-manager backup restore 1 --target 192.168.1.100
 
 # Export
 shelly-manager export devices --target 192.168.1.0/24
@@ -359,6 +372,8 @@ shelly-manager credentials list
 # Delete credentials
 shelly-manager credentials delete AABBCCDDEEFF
 ```
+
+The same `SHELLY_SECRET_KEY` also encrypts device configuration **backup snapshots** at rest. Backups are stored in the local database (`{data_dir}/data.db`); if the key is rotated, existing encrypted snapshots can no longer be decrypted.
 
 ## Development
 
