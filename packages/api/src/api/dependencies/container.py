@@ -11,6 +11,9 @@ from core.repositories.db import async_session_factory
 from core.repositories.sqlalchemy_backup_repository import (
     SQLAlchemyBackupRepository,
 )
+from core.repositories.sqlalchemy_backup_schedule_repository import (
+    SQLAlchemyBackupScheduleRepository,
+)
 from core.repositories.sqlalchemy_credentials_repository import (
     SQLAlchemyCredentialsRepository,
 )
@@ -81,6 +84,16 @@ class APIContainer(BaseContainer):
         async with async_session_factory() as session:
             try:
                 yield SQLAlchemyBackupRepository(session, self.get_encryption_service())
+            finally:
+                await session.close()
+
+    @asynccontextmanager
+    async def create_backup_schedule_repository(
+        self,
+    ) -> AsyncGenerator[SQLAlchemyBackupScheduleRepository, None]:
+        async with async_session_factory() as session:
+            try:
+                yield SQLAlchemyBackupScheduleRepository(session)
             finally:
                 await session.close()
 
@@ -175,6 +188,14 @@ def get_dependencies(container: APIContainer) -> dict:
         ),
         "restore_use_case": Provide(
             lambda: container.get_restore_device_config_interactor(),
+            sync_to_thread=False,
+        ),
+        "manage_schedules_use_case": Provide(
+            lambda: container.get_manage_backup_schedules_interactor(),
+            sync_to_thread=False,
+        ),
+        "run_due_backups_use_case": Provide(
+            lambda: container.get_run_due_backups_interactor(),
             sync_to_thread=False,
         ),
     }
