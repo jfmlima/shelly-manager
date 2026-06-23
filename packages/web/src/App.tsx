@@ -7,6 +7,7 @@ import { Layout } from "@/components/layout/layout";
 import { Dashboard } from "@/pages/dashboard";
 import { DeviceDetail } from "@/pages/device-detail";
 import { Provisioning } from "@/pages/provisioning";
+import { BackupSchedules } from "@/pages/backup-schedules";
 import { Settings } from "@/pages/settings";
 import { queryClient, persister } from "@/lib/query-client";
 
@@ -38,6 +39,7 @@ function App() {
               <Route index element={<Dashboard />} />
               <Route path="devices/:ip" element={<DeviceDetail />} />
               <Route path="provisioning" element={<Provisioning />} />
+              <Route path="backups" element={<BackupSchedules />} />
               <Route path="settings" element={<Settings />} />
             </Route>
           </Routes>

@@ -631,6 +631,58 @@ export interface ComponentRestoreResult {
   error: string | null;
 }
 
+export interface BackupSchedule {
+  id: number;
+  name: string;
+  target_ips: string[];
+  target_macs: string[];
+  all_credentialed: boolean;
+  interval_seconds: number;
+  enabled: boolean;
+  retention_keep_last: number | null;
+  retention_max_age_days: number | null;
+  last_run_at: number | null;
+  next_run_at: number | null;
+  last_status: string | null;
+  created_at: number | null;
+  updated_at: number | null;
+}
+
+export interface CreateBackupScheduleRequest {
+  name: string;
+  target_ips?: string[];
+  target_macs?: string[];
+  all_credentialed?: boolean;
+  every?: string | null;
+  interval_seconds?: number | null;
+  enabled?: boolean;
+  retention_keep_last?: number | null;
+  retention_max_age_days?: number | null;
+}
+
+export interface UpdateBackupScheduleRequest {
+  name?: string | null;
+  target_ips?: string[] | null;
+  target_macs?: string[] | null;
+  all_credentialed?: boolean | null;
+  every?: string | null;
+  interval_seconds?: number | null;
+  enabled?: boolean | null;
+  retention_keep_last?: number | null;
+  retention_max_age_days?: number | null;
+}
+
+export interface ScheduleRunResult {
+  schedule_id: number;
+  schedule_name: string;
+  status: string;
+  targets: number;
+  ok: number;
+  failed: number;
+  skipped: number;
+  message: string;
+}
+
 export interface RestoreResult {
   success: boolean;
   device_ip: string;
