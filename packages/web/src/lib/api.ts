@@ -14,6 +14,11 @@ import type {
   APDeviceInfo,
   ProvisionResult,
   VerifyResult,
+  BackupSummary,
+  BackupDetail,
+  CreateBackupRequest,
+  RestoreBackupRequest,
+  RestoreResult,
 } from "@/types/api";
 import { loadAppSettings } from "./settings";
 
@@ -339,6 +344,39 @@ export const provisioningApi = {
       { timeout: timeout * 1000 + 10000 },
     );
     return response.data;
+  },
+};
+
+export const backupApi = {
+  listBackups: async (deviceMac?: string): Promise<BackupSummary[]> => {
+    const response = await apiClient.get("/backups", {
+      params: deviceMac ? { device_mac: deviceMac } : undefined,
+    });
+    return response.data;
+  },
+
+  getBackup: async (backupId: number): Promise<BackupDetail> => {
+    const response = await apiClient.get(`/backups/${backupId}`);
+    return response.data;
+  },
+
+  createBackup: async (data: CreateBackupRequest): Promise<BackupDetail> => {
+    const response = await apiClient.post("/backups", data, { timeout: 60000 });
+    return response.data;
+  },
+
+  restoreBackup: async (
+    backupId: number,
+    data: RestoreBackupRequest,
+  ): Promise<RestoreResult> => {
+    const response = await apiClient.post(`/backups/${backupId}/restore`, data, {
+      timeout: 60000,
+    });
+    return response.data;
+  },
+
+  deleteBackup: async (backupId: number): Promise<void> => {
+    await apiClient.delete(`/backups/${backupId}`);
   },
 };
 
