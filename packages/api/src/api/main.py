@@ -9,6 +9,7 @@ from litestar.config.cors import CORSConfig
 from litestar.openapi import OpenAPIConfig
 from litestar.openapi.config import Contact, License, Server, Tag
 
+from .controllers.backups import backups_router
 from .controllers.credentials import credentials_router
 from .controllers.devices import devices_router
 from .controllers.monitoring import (
@@ -49,6 +50,10 @@ def create_app() -> Litestar:
             Tag(
                 name="Provisioning", description="Device provisioning and initial setup"
             ),
+            Tag(
+                name="Backups",
+                description="Device configuration backup and restore",
+            ),
         ],
         servers=[
             Server(url="http://localhost:8000", description="Development server"),
@@ -65,6 +70,7 @@ def create_app() -> Litestar:
             devices_router,
             credentials_router,
             provisioning_router,
+            backups_router,
             health_check,
         ],
     )
