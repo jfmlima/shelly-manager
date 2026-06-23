@@ -19,6 +19,10 @@ import type {
   CreateBackupRequest,
   RestoreBackupRequest,
   RestoreResult,
+  BackupSchedule,
+  CreateBackupScheduleRequest,
+  UpdateBackupScheduleRequest,
+  ScheduleRunResult,
 } from "@/types/api";
 import { loadAppSettings } from "./settings";
 
@@ -377,6 +381,47 @@ export const backupApi = {
 
   deleteBackup: async (backupId: number): Promise<void> => {
     await apiClient.delete(`/backups/${backupId}`);
+  },
+};
+
+export const backupScheduleApi = {
+  listSchedules: async (): Promise<BackupSchedule[]> => {
+    const response = await apiClient.get("/backup-schedules");
+    return response.data;
+  },
+
+  createSchedule: async (
+    data: CreateBackupScheduleRequest,
+  ): Promise<BackupSchedule> => {
+    const response = await apiClient.post("/backup-schedules", data);
+    return response.data;
+  },
+
+  updateSchedule: async (
+    id: number,
+    data: UpdateBackupScheduleRequest,
+  ): Promise<BackupSchedule> => {
+    const response = await apiClient.put(`/backup-schedules/${id}`, data);
+    return response.data;
+  },
+
+  deleteSchedule: async (id: number): Promise<void> => {
+    await apiClient.delete(`/backup-schedules/${id}`);
+  },
+
+  setEnabled: async (id: number, enabled: boolean): Promise<BackupSchedule> => {
+    const action = enabled ? "enable" : "disable";
+    const response = await apiClient.post(`/backup-schedules/${id}/${action}`);
+    return response.data;
+  },
+
+  runSchedule: async (id: number): Promise<ScheduleRunResult> => {
+    const response = await apiClient.post(
+      `/backup-schedules/${id}/run`,
+      undefined,
+      { timeout: 120000 },
+    );
+    return response.data;
   },
 };
 
