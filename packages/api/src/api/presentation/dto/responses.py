@@ -228,3 +228,35 @@ class RestoreResultResponse(BaseModel):
     skipped: int = 0
     message: str | None = None
     components: list[ComponentRestoreResultResponse] = Field(default_factory=list)
+
+
+class BackupScheduleResponse(BaseModel):
+    """Response model for a backup schedule."""
+
+    id: int
+    name: str
+    target_ips: list[str] = Field(default_factory=list)
+    target_macs: list[str] = Field(default_factory=list)
+    all_credentialed: bool = False
+    interval_seconds: int = 0
+    enabled: bool = True
+    retention_keep_last: int | None = None
+    retention_max_age_days: int | None = None
+    last_run_at: int | None = None
+    next_run_at: int | None = None
+    last_status: str | None = None
+    created_at: int | None = None
+    updated_at: int | None = None
+
+
+class ScheduleRunResultResponse(BaseModel):
+    """Response model for a single schedule run (run-now)."""
+
+    schedule_id: int
+    schedule_name: str
+    status: str
+    targets: int = 0
+    ok: int = 0
+    failed: int = 0
+    skipped: int = 0
+    message: str = ""
