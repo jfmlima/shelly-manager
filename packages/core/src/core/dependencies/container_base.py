@@ -12,6 +12,7 @@ from core.gateways.device.ap_device_detector import APDeviceDetector
 from core.gateways.device.legacy_component_mapper import LegacyComponentMapper
 from core.gateways.device.shelly_device_gateway import ShellyDeviceGateway
 from core.gateways.network import LegacyHttpClient, MDNSGateway, ZeroconfMDNSClient
+from core.use_cases.backup_device_config import BackupDeviceConfig
 from core.use_cases.bulk_operations import BulkOperationsUseCase
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
@@ -20,6 +21,7 @@ from core.use_cases.manage_provisioning_profiles import (
     ManageProvisioningProfilesUseCase,
 )
 from core.use_cases.provision_device import ProvisionDeviceUseCase
+from core.use_cases.restore_device_config import RestoreDeviceConfig
 from core.use_cases.scan_devices import ScanDevicesUseCase
 
 
@@ -39,6 +41,8 @@ class BaseContainer:
         )
         self._provision_device_interactor: ProvisionDeviceUseCase | None = None
         self._ap_device_detector: APDeviceDetector | None = None
+        self._backup_device_config_interactor: BackupDeviceConfig | None = None
+        self._restore_device_config_interactor: RestoreDeviceConfig | None = None
 
     def get_rpc_client(self) -> Any:
         raise NotImplementedError
@@ -138,8 +142,28 @@ class BaseContainer:
             )
         return self._provision_device_interactor
 
+    def get_backup_device_config_interactor(self) -> BackupDeviceConfig:
+        if self._backup_device_config_interactor is None:
+            self._backup_device_config_interactor = BackupDeviceConfig(
+                device_gateway=self.get_device_gateway(),
+                bulk_operations=self.get_bulk_operations_interactor(),
+                repository_factory=self.create_backup_repository,
+            )
+        return self._backup_device_config_interactor
+
+    def get_restore_device_config_interactor(self) -> RestoreDeviceConfig:
+        if self._restore_device_config_interactor is None:
+            self._restore_device_config_interactor = RestoreDeviceConfig(
+                device_gateway=self.get_device_gateway(),
+                repository_factory=self.create_backup_repository,
+            )
+        return self._restore_device_config_interactor
+
     def create_provisioning_profile_repository(self) -> Any:
         raise NotImplementedError
 
     def create_credentials_repository(self) -> Any:
+        raise NotImplementedError
+
+    def create_backup_repository(self) -> Any:
         raise NotImplementedError

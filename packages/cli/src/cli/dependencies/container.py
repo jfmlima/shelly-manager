@@ -7,6 +7,9 @@ import httpx
 from core.dependencies.container_base import BaseContainer
 from core.gateways.network.async_shelly_rpc_client import AsyncShellyRPCClient
 from core.repositories.db import async_session_factory
+from core.repositories.sqlalchemy_backup_repository import (
+    SQLAlchemyBackupRepository,
+)
 from core.repositories.sqlalchemy_credentials_repository import (
     SQLAlchemyCredentialsRepository,
 )
@@ -51,6 +54,16 @@ class CLIContainer(BaseContainer):
                 yield SQLAlchemyProvisioningProfileRepository(
                     session, self.get_encryption_service()
                 )
+            finally:
+                await session.close()
+
+    @asynccontextmanager
+    async def create_backup_repository(
+        self,
+    ) -> AsyncGenerator[SQLAlchemyBackupRepository, None]:
+        async with async_session_factory() as session:
+            try:
+                yield SQLAlchemyBackupRepository(session, self.get_encryption_service())
             finally:
                 await session.close()
 

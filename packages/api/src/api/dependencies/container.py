@@ -8,6 +8,9 @@ from contextlib import asynccontextmanager
 from core.dependencies.container_base import BaseContainer
 from core.gateways.network.async_shelly_rpc_client import AsyncShellyRPCClient
 from core.repositories.db import async_session_factory
+from core.repositories.sqlalchemy_backup_repository import (
+    SQLAlchemyBackupRepository,
+)
 from core.repositories.sqlalchemy_credentials_repository import (
     SQLAlchemyCredentialsRepository,
 )
@@ -68,6 +71,16 @@ class APIContainer(BaseContainer):
                 yield SQLAlchemyProvisioningProfileRepository(
                     session, self.get_encryption_service()
                 )
+            finally:
+                await session.close()
+
+    @asynccontextmanager
+    async def create_backup_repository(
+        self,
+    ) -> AsyncGenerator[SQLAlchemyBackupRepository, None]:
+        async with async_session_factory() as session:
+            try:
+                yield SQLAlchemyBackupRepository(session, self.get_encryption_service())
             finally:
                 await session.close()
 
@@ -154,6 +167,14 @@ def get_dependencies(container: APIContainer) -> dict:
         ),
         "provision_device_use_case": Provide(
             lambda: container.get_provision_device_interactor(),
+            sync_to_thread=False,
+        ),
+        "backup_use_case": Provide(
+            lambda: container.get_backup_device_config_interactor(),
+            sync_to_thread=False,
+        ),
+        "restore_use_case": Provide(
+            lambda: container.get_restore_device_config_interactor(),
             sync_to_thread=False,
         ),
     }
