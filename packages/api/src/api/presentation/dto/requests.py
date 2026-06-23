@@ -341,3 +341,47 @@ def _validate_component_types(component_types: list[str]) -> list[str]:
     if invalid_types:
         raise ValueError(f"Invalid component types: {invalid_types}")
     return component_types
+
+
+class CreateBackupRequest(BaseModel):
+    """Request model for capturing a device configuration backup."""
+
+    device_ip: str = Field(..., description="Target device IP address")
+    name: str | None = Field(default=None, description="Optional backup label")
+
+    @field_validator("device_ip")
+    @classmethod
+    def validate_device_ip(cls, v: str) -> str:
+        try:
+            ipaddress.IPv4Address(v)
+        except ipaddress.AddressValueError as e:
+            raise ValueError(f"Invalid IP address: {v}") from e
+        return v
+
+
+class RestoreBackupRequest(BaseModel):
+    """Request model for restoring a backup onto a device."""
+
+    device_ip: str = Field(..., description="Target device IP address")
+    component_keys: list[str] | None = Field(
+        default=None,
+        description=(
+            "Component keys to restore. When omitted, restores all components "
+            "except network types (wifi/eth/mqtt/ws/cloud)."
+        ),
+    )
+    allow_mac_mismatch: bool = Field(
+        default=False, description="Restore even if the target MAC differs"
+    )
+    reboot: bool = Field(
+        default=False, description="Reboot the device after a successful restore"
+    )
+
+    @field_validator("device_ip")
+    @classmethod
+    def validate_device_ip(cls, v: str) -> str:
+        try:
+            ipaddress.IPv4Address(v)
+        except ipaddress.AddressValueError as e:
+            raise ValueError(f"Invalid IP address: {v}") from e
+        return v

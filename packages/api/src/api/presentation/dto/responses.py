@@ -180,3 +180,51 @@ class VerifyResultResponse(BaseModel):
     found: bool
     device_ip: str | None = None
     device_mac: str
+
+
+class BackupSummaryResponse(BaseModel):
+    """Response model for a backup without its snapshot blob."""
+
+    id: int
+    device_mac: str
+    device_ip: str | None = None
+    device_name: str | None = None
+    device_type: str | None = None
+    firmware_version: str | None = None
+    generation: str = "gen2"
+    name: str | None = None
+    source: str = "manual"
+    sha256: str | None = None
+    size_bytes: int = 0
+    created_at: int | None = None
+
+
+class BackupDetailResponse(BackupSummaryResponse):
+    """Response model for a backup including its full snapshot."""
+
+    snapshot: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComponentRestoreResultResponse(BaseModel):
+    """Per-component outcome of a restore."""
+
+    key: str
+    action: str
+    success: bool
+    skipped: bool = False
+    skipped_reason: str | None = None
+    error: str | None = None
+
+
+class RestoreResultResponse(BaseModel):
+    """Aggregated outcome of a restore."""
+
+    success: bool
+    device_ip: str
+    backup_id: int
+    total: int
+    succeeded: int = 0
+    failed: int = 0
+    skipped: int = 0
+    message: str | None = None
+    components: list[ComponentRestoreResultResponse] = Field(default_factory=list)
