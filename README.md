@@ -17,6 +17,7 @@ Manage Shelly devices on your local network without connecting them to the Shell
 - Firmware update management (stable/beta channels)
 - Device configuration management with bulk export/apply
 - Per-device configuration backup and restore with encrypted snapshots
+- Scheduled backups with retention (keep last N, drop older than N days)
 - Bulk operations across multiple devices
 - Status monitoring
 - Component action discovery and execution
@@ -245,6 +246,12 @@ GET    /api/backups/{id}                                      # Get a backup (wi
 POST   /api/backups/{id}/restore                              # Restore a backup to a device
 DELETE /api/backups/{id}                                      # Delete a backup
 
+GET    /api/backup-schedules                                  # List backup schedules
+POST   /api/backup-schedules                                  # Create a schedule
+PUT    /api/backup-schedules/{id}                             # Update a schedule
+DELETE /api/backup-schedules/{id}                             # Delete a schedule
+POST   /api/backup-schedules/{id}/run                         # Run a schedule now
+
 # Component actions
 GET  /api/devices/{ip}/components/actions                     # Discover available actions
 POST /api/devices/{ip}/components/{key}/actions/{action}      # Execute component action
@@ -292,6 +299,11 @@ shelly-manager bulk config apply --target 192.168.1.0/24
 shelly-manager backup create --target 192.168.1.100
 shelly-manager backup list
 shelly-manager backup restore 1 --target 192.168.1.100
+
+# Scheduled backups with retention
+shelly-manager backup schedule create --name nightly --every daily --target 192.168.1.100 --keep-last 7
+shelly-manager backup schedule list
+shelly-manager backup schedule run 1
 
 # Export
 shelly-manager export devices --target 192.168.1.0/24

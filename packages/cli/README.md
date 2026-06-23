@@ -232,6 +232,49 @@ shelly-manager backup delete 1
 > own snapshot. Use `bulk config apply` to push the same settings out to many devices at once.
 > Restore works on Gen2+ devices only.
 
+### Scheduled Backups
+
+Run backups automatically on a schedule and prune old snapshots with a retention policy. The
+schedules are stored in the same local database and executed by the API server's in-process
+scheduler, so the API needs to be running for them to fire. The CLI manages the schedules.
+
+```bash
+# Create a daily schedule for two devices, keeping the 7 newest snapshots per device
+shelly-manager backup schedule create --name nightly \
+  --every daily --target 192.168.1.100 --target 192.168.1.101 --keep-last 7
+
+# Use a custom cadence and target every device with stored credentials
+shelly-manager backup schedule create --name fleet \
+  --interval-seconds 21600 --all-credentialed --max-age-days 30
+
+# List, enable, disable, run now, and delete
+shelly-manager backup schedule list
+shelly-manager backup schedule disable 1
+shelly-manager backup schedule enable 1
+shelly-manager backup schedule run 1
+shelly-manager backup schedule delete 1 --force
+```
+
+**Create options:**
+
+- `--name`: Unique schedule name (required).
+- `--every`: Preset cadence (`hourly`, `daily`, `weekly`). Provide this or `--interval-seconds`,
+  not both.
+- `--interval-seconds`: Custom cadence in seconds (minimum 60).
+- `--target` / `-t`: Target device IP, range, or CIDR (repeatable). Ranges and CIDR are scanned
+  for live Shelly devices at run time, so only discovered devices are backed up.
+- `--mac`: Target device MAC (repeatable). Resolved to an IP through the device's last-seen
+  address; a MAC with no known IP is reported as skipped, not failed.
+- `--all-credentialed`: Back up every device that has stored credentials.
+- `--keep-last`: Keep only the newest N scheduled backups per device.
+- `--max-age-days`: Drop scheduled backups older than N days.
+- `--disabled`: Create the schedule without enabling it.
+
+Retention only ever removes scheduled snapshots, so a manual backup you captured by hand is never
+deleted by a schedule. A missed run (the device or API was down) fires once on catch-up rather
+than backfilling every slot it missed. The first run happens one interval after creation; use
+`backup schedule run` if you want a snapshot right away.
+
 ## Configuration
 
 ### Environment Variables

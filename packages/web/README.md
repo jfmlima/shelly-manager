@@ -9,6 +9,7 @@ A modern, responsive web interface for managing Shelly IoT devices built with Re
 - **📊 Bulk Operations**: Perform actions on multiple devices simultaneously
 - **🔧 Device Management**: Update firmware, reboot devices, and manage configurations
 - **💾 Backup & Restore**: Snapshot a device's configuration and restore selected components from the device page
+- **⏰ Scheduled Backups**: Manage automated backup schedules and retention from a dedicated Backups page
 
 ## 🛠️ Tech Stack
 
