@@ -79,3 +79,32 @@ class DeviceBackups(Base):
             f"<DeviceBackups(id={self.id}, device_mac='{self.device_mac}', "
             f"source='{self.source}')>"
         )
+
+
+class BackupSchedules(Base):
+    __tablename__ = "backup_schedules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    target_ips: Mapped[str] = mapped_column(String, nullable=False, default="[]")
+    target_macs: Mapped[str] = mapped_column(String, nullable=False, default="[]")
+    all_credentialed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    interval_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    retention_keep_last: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    retention_max_age_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_run_at: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    next_run_at: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    last_status: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[int] = mapped_column(
+        Integer, default=lambda: int(datetime.now(UTC).timestamp())
+    )
+    updated_at: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    def __repr__(self) -> str:
+        return (
+            f"<BackupSchedules(id={self.id}, name='{self.name}', "
+            f"enabled={self.enabled})>"
+        )

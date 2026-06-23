@@ -62,6 +62,19 @@ class NetworkSettings(BaseSettings):
     verify_ssl: bool = Field(default=False, description="Verify SSL certificates")
 
 
+class BackupSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="SHELLY_BACKUP_")
+
+    scheduler_enabled: bool = Field(
+        default=True, description="Run the in-process scheduled-backup poller"
+    )
+    poll_interval_seconds: int = Field(
+        default=60,
+        ge=1,
+        description="How often the scheduler checks for due backups, in seconds",
+    )
+
+
 class APISettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="API_")
 
@@ -83,6 +96,7 @@ class AppSettings(BaseSettings):
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     network: NetworkSettings = Field(default_factory=NetworkSettings)
     api: APISettings = Field(default_factory=APISettings)
+    backup: BackupSettings = Field(default_factory=BackupSettings)
 
     config_file: str = Field(
         default="config.json", description="Configuration file path"
@@ -125,6 +139,8 @@ class AppSettings(BaseSettings):
                 self.network = NetworkSettings(**raw["network"])
             if isinstance(raw.get("api"), dict):
                 self.api = APISettings(**raw["api"])
+            if isinstance(raw.get("backup"), dict):
+                self.backup = BackupSettings(**raw["backup"])
 
             for field_name in ["config_file", "data_dir", "cache_ttl"]:
                 if field_name in raw:
