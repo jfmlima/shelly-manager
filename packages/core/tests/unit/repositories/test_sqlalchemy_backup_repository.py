@@ -21,7 +21,7 @@ async def session_factory():
     await engine.dispose()
 
 
-def _backup(mac="AABBCCDDEEFF", name="b1"):
+def _backup(mac="AABBCCDDEEFF", name="b1", source="manual"):
     return DeviceBackup(
         device_mac=mac,
         snapshot={"components": {"switch:0": {"type": "switch", "config": {"x": 1}}}},
@@ -29,6 +29,7 @@ def _backup(mac="AABBCCDDEEFF", name="b1"):
         device_name="Test",
         generation="gen2",
         name=name,
+        source=source,
     )
 
 
@@ -60,7 +61,7 @@ class TestSQLAlchemyBackupRepository:
             row = (await session.execute(select(DeviceBackups))).scalar_one()
             assert "switch:0" not in row.snapshot_ciphertext
 
-    async def test_list_summaries_omits_snapshot_and_filters_by_mac(
+    async def test_it_list_summaries_omits_snapshot_and_filters_by_mac(
         self, session_factory
     ):
         async with session_factory() as session:
@@ -104,3 +105,69 @@ class TestSQLAlchemyBackupRepository:
             await session.commit()
 
             assert await repo.get(created.id) is None
+
+
+class TestRetention:
+    async def test_it_count_for_device_scopes_to_scheduled_by_default(
+        self, session_factory
+    ):
+        async with session_factory() as session:
+            repo = SQLAlchemyBackupRepository(session, EncryptionService())
+            await repo.create(_backup(source="scheduled"))
+            await repo.create(_backup(source="scheduled"))
+            await repo.create(_backup(source="manual"))
+
+            assert await repo.count_for_device("AABBCCDDEEFF") == 2
+            assert await repo.count_for_device("AABBCCDDEEFF", source=None) == 3
+
+    async def test_it_keep_latest_n_never_touches_manual_backups(self, session_factory):
+        async with session_factory() as session:
+            repo = SQLAlchemyBackupRepository(session, EncryptionService())
+            for _ in range(4):
+                await repo.create(_backup(source="scheduled"))
+            manual = await repo.create(_backup(source="manual", name="milestone"))
+
+            deleted = await repo.delete_keeping_latest_n("AABBCCDDEEFF", 2)
+
+            assert deleted == 2
+            assert await repo.count_for_device("AABBCCDDEEFF") == 2
+            # the manually captured snapshot survives retention
+            assert await repo.get(manual.id) is not None
+
+    async def test_it_keep_latest_n_refuses_zero(self, session_factory):
+        async with session_factory() as session:
+            repo = SQLAlchemyBackupRepository(session, EncryptionService())
+            await repo.create(_backup(source="scheduled"))
+
+            deleted = await repo.delete_keeping_latest_n("AABBCCDDEEFF", 0)
+
+            assert deleted == 0
+            assert await repo.count_for_device("AABBCCDDEEFF") == 1
+
+    async def test_it_delete_older_than_uses_created_at_and_source(
+        self, session_factory
+    ):
+        from core.repositories.models import DeviceBackups
+        from sqlalchemy import select
+
+        async with session_factory() as session:
+            repo = SQLAlchemyBackupRepository(session, EncryptionService())
+            old = await repo.create(_backup(source="scheduled", name="old"))
+            await repo.create(_backup(source="scheduled", name="new"))
+            old_manual = await repo.create(_backup(source="manual", name="old-manual"))
+
+            # Backdate the "old" rows well before the cutoff.
+            for backup_id in (old.id, old_manual.id):
+                row = (
+                    await session.execute(
+                        select(DeviceBackups).where(DeviceBackups.id == backup_id)
+                    )
+                ).scalar_one()
+                row.created_at = 100
+                await session.commit()
+
+            deleted = await repo.delete_older_than("AABBCCDDEEFF", cutoff_ts=1000)
+
+            assert deleted == 1  # only the scheduled old one
+            assert await repo.get(old.id) is None
+            assert await repo.get(old_manual.id) is not None
