@@ -10,6 +10,9 @@ from core.repositories.db import async_session_factory
 from core.repositories.sqlalchemy_backup_repository import (
     SQLAlchemyBackupRepository,
 )
+from core.repositories.sqlalchemy_backup_schedule_repository import (
+    SQLAlchemyBackupScheduleRepository,
+)
 from core.repositories.sqlalchemy_credentials_repository import (
     SQLAlchemyCredentialsRepository,
 )
@@ -64,6 +67,16 @@ class CLIContainer(BaseContainer):
         async with async_session_factory() as session:
             try:
                 yield SQLAlchemyBackupRepository(session, self.get_encryption_service())
+            finally:
+                await session.close()
+
+    @asynccontextmanager
+    async def create_backup_schedule_repository(
+        self,
+    ) -> AsyncGenerator[SQLAlchemyBackupScheduleRepository, None]:
+        async with async_session_factory() as session:
+            try:
+                yield SQLAlchemyBackupScheduleRepository(session)
             finally:
                 await session.close()
 

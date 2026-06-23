@@ -17,11 +17,13 @@ from core.use_cases.bulk_operations import BulkOperationsUseCase
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
 from core.use_cases.get_component_actions import GetComponentActionsUseCase
+from core.use_cases.manage_backup_schedules import ManageBackupSchedulesUseCase
 from core.use_cases.manage_provisioning_profiles import (
     ManageProvisioningProfilesUseCase,
 )
 from core.use_cases.provision_device import ProvisionDeviceUseCase
 from core.use_cases.restore_device_config import RestoreDeviceConfig
+from core.use_cases.run_due_backups import RunDueBackupsUseCase
 from core.use_cases.scan_devices import ScanDevicesUseCase
 
 
@@ -43,6 +45,10 @@ class BaseContainer:
         self._ap_device_detector: APDeviceDetector | None = None
         self._backup_device_config_interactor: BackupDeviceConfig | None = None
         self._restore_device_config_interactor: RestoreDeviceConfig | None = None
+        self._manage_backup_schedules_interactor: (
+            ManageBackupSchedulesUseCase | None
+        ) = None
+        self._run_due_backups_interactor: RunDueBackupsUseCase | None = None
 
     def get_rpc_client(self) -> Any:
         raise NotImplementedError
@@ -159,6 +165,24 @@ class BaseContainer:
             )
         return self._restore_device_config_interactor
 
+    def get_manage_backup_schedules_interactor(self) -> ManageBackupSchedulesUseCase:
+        if self._manage_backup_schedules_interactor is None:
+            self._manage_backup_schedules_interactor = ManageBackupSchedulesUseCase(
+                repository_factory=self.create_backup_schedule_repository,
+            )
+        return self._manage_backup_schedules_interactor
+
+    def get_run_due_backups_interactor(self) -> RunDueBackupsUseCase:
+        if self._run_due_backups_interactor is None:
+            self._run_due_backups_interactor = RunDueBackupsUseCase(
+                schedule_repository_factory=self.create_backup_schedule_repository,
+                backup_repository_factory=self.create_backup_repository,
+                credentials_repository_factory=self.create_credentials_repository,
+                backup_device_config=self.get_backup_device_config_interactor(),
+                scan_devices=self.get_scan_interactor(),
+            )
+        return self._run_due_backups_interactor
+
     def create_provisioning_profile_repository(self) -> Any:
         raise NotImplementedError
 
@@ -166,4 +190,7 @@ class BaseContainer:
         raise NotImplementedError
 
     def create_backup_repository(self) -> Any:
+        raise NotImplementedError
+
+    def create_backup_schedule_repository(self) -> Any:
         raise NotImplementedError

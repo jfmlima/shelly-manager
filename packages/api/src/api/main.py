@@ -4,11 +4,13 @@ from contextlib import asynccontextmanager
 
 from core.repositories.db import engine
 from core.repositories.models import Base
+from core.settings import settings as core_settings
 from litestar import Litestar, Router
 from litestar.config.cors import CORSConfig
 from litestar.openapi import OpenAPIConfig
 from litestar.openapi.config import Contact, License, Server, Tag
 
+from .controllers.backup_schedules import backup_schedules_router
 from .controllers.backups import backups_router
 from .controllers.credentials import credentials_router
 from .controllers.devices import devices_router
@@ -18,6 +20,7 @@ from .controllers.monitoring import (
 from .controllers.provisioning import provisioning_router
 from .dependencies.container import APIContainer, get_dependencies
 from .presentation.handlers import EXCEPTION_HANDLERS
+from .scheduler import BackupScheduler
 
 
 def create_app() -> Litestar:
@@ -54,6 +57,10 @@ def create_app() -> Litestar:
                 name="Backups",
                 description="Device configuration backup and restore",
             ),
+            Tag(
+                name="Backup Schedules",
+                description="Automated scheduled backups and retention",
+            ),
         ],
         servers=[
             Server(url="http://localhost:8000", description="Development server"),
@@ -71,6 +78,7 @@ def create_app() -> Litestar:
             credentials_router,
             provisioning_router,
             backups_router,
+            backup_schedules_router,
             health_check,
         ],
     )
@@ -80,9 +88,18 @@ def create_app() -> Litestar:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
+        scheduler = BackupScheduler(
+            _container.get_run_due_backups_interactor(),
+            poll_interval_seconds=core_settings.backup.poll_interval_seconds,
+        )
+        if core_settings.backup.scheduler_enabled:
+            scheduler.start()
+
         try:
             yield
         finally:
+            # Stop the scheduler before tearing down the container it depends on.
+            await scheduler.stop()
             await _container.close()
 
     app = Litestar(
