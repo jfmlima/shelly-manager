@@ -53,3 +53,29 @@ class ProvisioningProfiles(Base):
         return (
             f"<ProvisioningProfiles(name='{self.name}', is_default={self.is_default})>"
         )
+
+
+class DeviceBackups(Base):
+    __tablename__ = "device_backups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    device_mac: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    device_ip: Mapped[str | None] = mapped_column(String, nullable=True)
+    device_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    device_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    firmware_version: Mapped[str | None] = mapped_column(String, nullable=True)
+    generation: Mapped[str] = mapped_column(String, nullable=False, default="gen2")
+    name: Mapped[str | None] = mapped_column(String, nullable=True)
+    source: Mapped[str] = mapped_column(String, nullable=False, default="manual")
+    snapshot_ciphertext: Mapped[str] = mapped_column(String, nullable=False)
+    sha256: Mapped[str | None] = mapped_column(String, nullable=True)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[int] = mapped_column(
+        Integer, default=lambda: int(datetime.now(UTC).timestamp())
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<DeviceBackups(id={self.id}, device_mac='{self.device_mac}', "
+            f"source='{self.source}')>"
+        )
