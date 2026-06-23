@@ -117,6 +117,8 @@ class TestLegacyDeviceGateway:
         assert isinstance(status, DeviceStatus)
         assert status.device_ip == "192.168.1.100"
         assert len(status.components) == 1
+        # Legacy HTTP path is Gen1 by definition.
+        assert status.gen == 1
         mock_mapper.map.assert_called_once_with(
             sample_device_info, sample_status_data, sample_settings_data
         )

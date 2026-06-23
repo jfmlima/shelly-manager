@@ -216,6 +216,7 @@ class TestDeviceStatusCore:
             "fw_id": "20231026-112640/v1.14.1-ga898e3a",
             "mac": "AA:BB:CC:DD:EE:FF",
             "app": "switch",
+            "gen": 2,
         }
 
         device_status = DeviceStatus.from_raw_response(
@@ -227,6 +228,7 @@ class TestDeviceStatusCore:
         assert device_status.firmware_version == "20231026-112640/v1.14.1-ga898e3a"
         assert device_status.mac_address == "AA:BB:CC:DD:EE:FF"
         assert device_status.app_name == "switch"
+        assert device_status.gen == 2
 
     def test_it_uses_device_info_data_in_summary(self):
         device_ip = "192.168.1.100"
