@@ -8,6 +8,7 @@ A modern, responsive web interface for managing Shelly IoT devices built with Re
 - **⚡ Real-time Updates**: Live device status and firmware management
 - **📊 Bulk Operations**: Perform actions on multiple devices simultaneously
 - **🔧 Device Management**: Update firmware, reboot devices, and manage configurations
+- **💾 Backup & Restore**: Snapshot a device's configuration and restore selected components from the device page
 
 ## 🛠️ Tech Stack
 
@@ -156,6 +157,7 @@ The interface is fully responsive and optimized for:
   - Requires `SHELLY_SECRET_KEY` environment variable on API server
   - Passwords never exposed in UI or API responses
   - Credentials Manager UI for adding/removing device passwords
+- **Backup Snapshots**: Device configuration backups are encrypted with the same `SHELLY_SECRET_KEY` and stored server-side
 
 ## 🤝 Contributing
 

@@ -8,6 +8,7 @@ Command-line interface for managing Shelly devices locally. Built with Click.
 - Bulk operations across multiple devices
 - Firmware update management
 - Device configuration control
+- Configuration backup & restore (encrypted snapshots)
 - Export results to JSON or CSV
 - Rich terminal output with tables and progress bars
 - Docker support
@@ -191,6 +192,45 @@ shelly-manager bulk update --target 192.168.1.100 --target 192.168.1.101 --chann
 - `--target`: IP target (IP, range, or CIDR). Can be used multiple times.
 - `--force`: Skip confirmation prompts
 - `--workers`: Concurrent operations (default: 10)
+
+### Configuration Backup & Restore
+
+Capture a per-device configuration snapshot and restore it later. Backups are stored
+server-side in the local database (encrypted with `SHELLY_SECRET_KEY`) and keyed by device
+MAC. They are not written to files.
+
+```bash
+# Capture a backup of a device
+shelly-manager backup create --target 192.168.1.100 --name before-upgrade
+
+# List stored backups (optionally filter by MAC)
+shelly-manager backup list
+shelly-manager backup list --mac AABBCCDDEEFF
+
+# Restore a backup onto a device (by backup id)
+shelly-manager backup restore 1 --target 192.168.1.100
+
+# Restore only selected components
+shelly-manager backup restore 1 --target 192.168.1.100 --component switch:0 --component sys
+
+# Delete a backup
+shelly-manager backup delete 1
+```
+
+**Restore Options:**
+
+- `--target` / `-t`: Target device IP (required).
+- `--component`: Component key to restore (repeatable). Omit to restore all components except
+  network types; pass keys to choose a subset.
+- `--all`: Include network components (`wifi`/`eth`/`mqtt`/`ws`/`cloud`), which are excluded by
+  default to avoid losing connectivity.
+- `--allow-mac-mismatch`: Restore even if the target MAC differs from the backup.
+- `--reboot`: Reboot the device after a successful restore.
+- `--force`: Skip the confirmation prompt.
+
+> **Backup/restore vs. `bulk config`:** use backup/restore to recover a single device from its
+> own snapshot. Use `bulk config apply` to push the same settings out to many devices at once.
+> Restore works on Gen2+ devices only.
 
 ## Configuration
 
