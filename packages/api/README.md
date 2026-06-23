@@ -108,6 +108,39 @@ by default** to avoid locking the device off-network; pass their keys in `compon
 include them. Restore is supported on Gen2+ devices only (Gen1 devices back up but cannot be
 restored per-component).
 
+### Scheduled Backups
+
+Run backups automatically on a schedule with optional retention. Schedules live in the database;
+an in-process scheduler on the API server polls for due schedules and runs them. This relies on
+the API running as a **single worker** (the default), since one scheduler instance must own the
+timer. With multiple workers each one would run the scheduler and duplicate every backup.
+
+```bash
+GET /api/backup-schedules                  # List schedules (newest first)
+
+POST /api/backup-schedules                 # Create a schedule
+  # Body: {"name": "nightly",
+  #        "every": "daily",                # or "interval_seconds": 21600 (exactly one)
+  #        "target_ips": ["192.168.1.100"], # plus optional "target_macs" and
+  #        "all_credentialed": false,       # "all_credentialed" (at least one target)
+  #        "retention_keep_last": 7,        # optional retention
+  #        "retention_max_age_days": 30}
+
+GET /api/backup-schedules/{id}             # Get one schedule
+PUT /api/backup-schedules/{id}             # Partial update
+DELETE /api/backup-schedules/{id}          # Delete
+
+POST /api/backup-schedules/{id}/enable     # Enable
+POST /api/backup-schedules/{id}/disable    # Disable
+POST /api/backup-schedules/{id}/run        # Run now, ignoring the next run time
+```
+
+Targets are the union of `target_ips` (single IPs, or ranges/CIDR that are scanned for live
+devices at run time), `target_macs` (each resolved to an IP through the device's last-seen
+address), and `all_credentialed` (every device with stored credentials). A MAC with no known IP
+is reported as skipped, not failed. Retention only prunes scheduled snapshots, so manual backups
+are never removed by a schedule. A missed run fires once on catch-up rather than backfilling.
+
 ### Component Actions
 
 The Component Actions system provides dynamic action discovery and execution for individual device components.
@@ -371,10 +404,13 @@ curl -X POST "http://localhost:8000/api/backups/1/restore" \
 | `PORT`               | `8000`        | API server port            |
 | `DEBUG`              | `false`       | Enable debug mode          |
 | `SHELLY_SECRET_KEY`  | (required)    | Fernet key for credential encryption. Generate with: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `SHELLY_BACKUP_SCHEDULER_ENABLED` | `true` | Run the in-process scheduled-backup poller |
+| `SHELLY_BACKUP_POLL_INTERVAL_SECONDS` | `60` | How often the scheduler checks for due backups |
 
 `SHELLY_SECRET_KEY` also encrypts configuration **backup snapshots** at rest. Backups are
 stored in the local database (`{data_dir}/data.db`); rotating the key makes existing snapshots
-undecryptable.
+undecryptable. Set `SHELLY_BACKUP_SCHEDULER_ENABLED=false` to turn off automated backups while
+still managing schedules through the API.
 
 ## Docker Deployment
 

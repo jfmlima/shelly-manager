@@ -34,6 +34,8 @@ packages/core/src/core/
 │   ├── get_component_actions.py       # Component action discovery
 │   ├── backup_device_config.py        # Capture & persist a config snapshot
 │   ├── restore_device_config.py       # Restore a snapshot to a device
+│   ├── manage_backup_schedules.py     # CRUD + enable/disable for schedules
+│   ├── run_due_backups.py             # Run due schedules with retention
 │   └── ...
 ├── gateways/                 # External interfaces (abstract)
 │   ├── device/              # Device communication contracts
@@ -68,6 +70,15 @@ The core package provides per-device configuration backup and restore:
 Backups are persisted through the `BackupRepository` abstraction
 (`repositories/backup_repository.py`), implemented by `SQLAlchemyBackupRepository`, with the
 `DeviceBackup` domain entity (`domain/entities/device_backup.py`) holding the decrypted snapshot.
+
+Two more use cases drive scheduled backups:
+
+- **ManageBackupSchedulesUseCase** - CRUD plus enable/disable for `BackupSchedule` entities
+  (`domain/entities/backup_schedule.py`), persisted via `BackupScheduleRepository`.
+- **RunDueBackupsUseCase** - resolves a schedule's targets, captures a backup of each, and applies
+  the retention policy. It takes an injectable clock so the runner is deterministic under test, and
+  opens its own repository sessions because it runs outside any HTTP request. Retention is scoped to
+  scheduled snapshots, so a manual backup is never pruned by a schedule.
 
 ## Quick Start
 
