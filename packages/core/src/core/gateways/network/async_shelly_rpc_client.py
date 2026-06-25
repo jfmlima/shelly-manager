@@ -10,6 +10,7 @@ from httpx._types import AuthTypes
 from core.domain.entities.exceptions import (
     DeviceAuthenticationError,
     DeviceCommunicationError,
+    DeviceUnreachableError,
 )
 from core.services.auth_state_cache import AuthStateCache
 from core.services.authentication_service import AuthenticationService
@@ -26,20 +27,43 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
     def __init__(
         self,
         session: httpx.AsyncClient | None = None,
-        timeout: int = 3,
+        timeout: float = 3.0,
+        connect_timeout: float = 2.0,
+        max_connections: int | None = None,
         verify: bool | None = None,
         authentication_service: AuthenticationService | None = None,
         auth_state_cache: AuthStateCache | None = None,
     ):
         self.timeout = timeout
-        self._session = session or httpx.AsyncClient(
-            timeout=timeout, verify=True if verify is None else verify
-        )
+        self._connect_timeout = connect_timeout
+        if session is not None:
+            self._session = session
+        else:
+            # Default pool comfortably exceeds the 200 max_workers ceiling so a
+            # high-concurrency scan isn't throttled by httpx's default of 100.
+            pool = max_connections or 256
+            self._session = httpx.AsyncClient(
+                timeout=self._build_timeout(timeout),
+                limits=httpx.Limits(
+                    max_connections=pool,
+                    max_keepalive_connections=max(1, pool // 2),
+                ),
+                verify=True if verify is None else verify,
+            )
         self.authentication_service = authentication_service
         self.auth_state_cache = auth_state_cache
         self._closed = False
         self._ip_to_mac: dict[str, str] = {}
         self._digest_auth_cache: dict[str, ShellyDigestAuth] = {}
+
+    def _build_timeout(self, timeout: float) -> httpx.Timeout:
+        """Build an httpx timeout with a short, capped connect phase.
+
+        A subnet scan is dominated by dead IPs, which block on the TCP
+        connect. Capping ``connect`` lets those fail fast while present
+        devices still get the full ``timeout`` read window.
+        """
+        return httpx.Timeout(timeout, connect=min(timeout, self._connect_timeout))
 
     async def make_rpc_request(
         self,
@@ -200,7 +224,7 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
                 json=payload,
                 headers=headers,
                 auth=auth_param,
-                timeout=timeout,
+                timeout=self._build_timeout(timeout),
             )
             elapsed = time.time() - start_time
             return response, elapsed
@@ -208,6 +232,12 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
             elapsed = time.time() - start_time
             # Extract IP from URL for error context
             ip = url.replace("http://", "").replace("/rpc", "")
+            # Connect-level failures mean nothing is listening at this address.
+            # Flag them so callers can skip the (expensive) legacy fallback probe.
+            # PoolTimeout is deliberately excluded: it signals local pool
+            # exhaustion, not an unreachable host, so it must not skip fallback.
+            if isinstance(e, httpx.ConnectError | httpx.ConnectTimeout):
+                raise DeviceUnreachableError(ip, str(e)) from e
             raise DeviceCommunicationError(ip, str(e)) from e
 
     def _invalidate_auth_cache(self, ip: str) -> None:
@@ -295,7 +325,7 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
             json=payload,
             headers=headers,
             auth=digest_auth,
-            timeout=timeout,
+            timeout=self._build_timeout(timeout),
         )
 
         if response.status_code == 401:
@@ -323,7 +353,9 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
             url = f"http://{ip}/rpc"
             payload = {"id": str(uuid.uuid4()), "method": "Shelly.GetDeviceInfo"}
             logger.debug("Probing MAC address for %s", ip)
-            response = await self._session.post(url, json=payload, timeout=timeout)
+            response = await self._session.post(
+                url, json=payload, timeout=self._build_timeout(timeout)
+            )
 
             if response.status_code == 200:
                 data = response.json()

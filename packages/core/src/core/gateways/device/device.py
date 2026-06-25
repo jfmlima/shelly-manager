@@ -14,7 +14,9 @@ class DeviceGateway(ABC):
     timeout: float = 10.0
 
     @abstractmethod
-    async def discover_device(self, ip: str) -> DiscoveredDevice | None:
+    async def discover_device(
+        self, ip: str, timeout: float | None = None
+    ) -> DiscoveredDevice | None:
         pass
 
     @abstractmethod

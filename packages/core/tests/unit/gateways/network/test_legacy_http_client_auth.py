@@ -1,7 +1,6 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-import requests
 from core.domain.entities.exceptions import DeviceAuthenticationError
 from core.gateways.network.legacy_http_client import LegacyHttpClient
 
@@ -10,7 +9,10 @@ class TestLegacyHttpClientAuth:
 
     @pytest.fixture
     def mock_session(self):
-        return MagicMock(spec=requests.Session)
+        session = MagicMock()
+        session.get = AsyncMock()
+        session.aclose = AsyncMock()
+        return session
 
     @pytest.fixture
     def client(self, mock_session):

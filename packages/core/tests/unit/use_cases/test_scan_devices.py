@@ -120,6 +120,23 @@ class TestScanDevicesUseCase:
 
         assert mock_device_gateway.discover_device.call_count == 100
 
+    async def test_it_forwards_request_timeout_to_gateway(
+        self, use_case, mock_device_gateway
+    ):
+        request = ScanRequest(
+            targets=["192.168.1.5"],
+            use_mdns=False,
+            timeout=1.5,
+            max_workers=10,
+        )
+        mock_device_gateway.discover_device = AsyncMock(return_value=None)
+
+        await use_case.execute(request)
+
+        mock_device_gateway.discover_device.assert_awaited_once_with(
+            "192.168.1.5", timeout=1.5
+        )
+
     @pytest.fixture
     def mock_mdns_client(self):
         return AsyncMock(spec=MDNSGateway)

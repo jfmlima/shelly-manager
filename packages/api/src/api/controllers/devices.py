@@ -66,7 +66,6 @@ async def scan_devices(
 
     scan_request = ScanRequest(
         targets=targets or [],
-        use_predefined=use_predefined,
         use_mdns=use_mdns,
         timeout=timeout,
         max_workers=max_workers,

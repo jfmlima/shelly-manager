@@ -12,6 +12,7 @@ from ...domain.entities.discovered_device import DiscoveredDevice
 from ...domain.entities.exceptions import (
     DeviceAuthenticationError,
     DeviceCommunicationError,
+    DeviceUnreachableError,
 )
 from ...domain.enums.enums import Status
 from ...domain.value_objects.action_result import ActionResult
@@ -43,19 +44,24 @@ class ShellyDeviceGateway(DeviceGateway):
         if self._legacy_gateway:
             self._legacy_gateway.invalidate_credential_cache(mac)
 
-    async def discover_device(self, ip: str) -> DiscoveredDevice | None:
+    async def discover_device(
+        self, ip: str, timeout: float | None = None
+    ) -> DiscoveredDevice | None:
         """
         Discover basic device information (original get_device_status logic).
 
         Args:
             ip: Device IP address
+            timeout: Per-request timeout in seconds; falls back to the gateway
+                default when not provided.
 
         Returns:
             DiscoveredDevice with basic info and update status, or None if unreachable
         """
+        effective_timeout = timeout if timeout is not None else self.timeout
         try:
             device_info, response_time = await self._rpc_client.make_rpc_request(
-                ip, RpcMethods.GET_DEVICE_INFO, timeout=self.timeout
+                ip, RpcMethods.GET_DEVICE_INFO, timeout=effective_timeout
             )
             device_data = device_info.get("result", device_info)
 
@@ -89,7 +95,7 @@ class ShellyDeviceGateway(DeviceGateway):
 
             try:
                 update_info, _ = await self._rpc_client.make_rpc_request(
-                    ip, RpcMethods.CHECK_FOR_UPDATE, timeout=self.timeout
+                    ip, RpcMethods.CHECK_FOR_UPDATE, timeout=effective_timeout
                 )
                 update_data = update_info.get("result", update_info)
 
@@ -107,6 +113,18 @@ class ShellyDeviceGateway(DeviceGateway):
 
             return device
 
+        except DeviceUnreachableError as e:
+            # No TCP connection established: nothing is listening here. A Gen1
+            # device would still accept the connection, so there's no point
+            # paying for a second (legacy) probe on a dead address.
+            logger.debug("Host %s unreachable, skipping legacy probe: %s", ip, e)
+            return DiscoveredDevice(
+                ip=ip,
+                status=Status.UNREACHABLE,
+                error_message=str(e),
+                last_seen=datetime.now(),
+            )
+
         except Exception as e:
             logger.debug(
                 "RPC discovery failed for %s, attempting legacy HTTP fallback: %s",
@@ -114,7 +132,9 @@ class ShellyDeviceGateway(DeviceGateway):
                 e,
             )
             if self._legacy_gateway:
-                legacy_device = await self._legacy_gateway.discover_device(ip)
+                legacy_device = await self._legacy_gateway.discover_device(
+                    ip, timeout=effective_timeout
+                )
                 if legacy_device:
                     return legacy_device
 
@@ -136,17 +156,40 @@ class ShellyDeviceGateway(DeviceGateway):
             DeviceStatus with all component data, or None if unreachable
         """
         try:
+            # The device is already known to exist here, so these independent
+            # reads are issued concurrently rather than one round-trip at a time.
+            device_info_res, components_res, status_res, available_methods = (
+                await asyncio.gather(
+                    self._rpc_client.make_rpc_request(
+                        ip, RpcMethods.GET_DEVICE_INFO, timeout=self.timeout
+                    ),
+                    self._rpc_client.make_rpc_request(
+                        ip,
+                        RpcMethods.GET_COMPONENTS,
+                        params={"offset": 0},
+                        timeout=self.timeout,
+                    ),
+                    self._rpc_client.make_rpc_request(
+                        ip, RpcMethods.GET_STATUS, timeout=self.timeout
+                    ),
+                    self.get_available_methods(ip),
+                    return_exceptions=True,
+                )
+            )
+
+            # Authentication failures from components/status must surface to the
+            # caller (preserving the original sequential behaviour).
+            for res in (components_res, status_res):
+                if isinstance(res, DeviceAuthenticationError):
+                    raise res
+
             rpc_success = False
             device_info_data = None
-            try:
-                device_info_response, _ = await self._rpc_client.make_rpc_request(
-                    ip, RpcMethods.GET_DEVICE_INFO, timeout=self.timeout
-                )
-                device_info_data = device_info_response.get(
-                    "result", device_info_response
-                )
+            if isinstance(device_info_res, BaseException):
+                logger.error(f"Error getting device info: {device_info_res}")
+            else:
+                device_info_data = device_info_res[0].get("result", device_info_res[0])
                 rpc_success = True
-
                 if (
                     device_info_data
                     and device_info_data.get("auth_en", False)
@@ -156,37 +199,23 @@ class ShellyDeviceGateway(DeviceGateway):
                     self._rpc_client.auth_state_cache.mark_auth_required(
                         normalize_mac(ip)
                     )
-            except Exception as e:
-                logger.error(f"Error getting device info: {e}", exc_info=True)
 
-            components_data = {}
-            try:
-                components_response, _ = await self._rpc_client.make_rpc_request(
-                    ip,
-                    RpcMethods.GET_COMPONENTS,
-                    params={"offset": 0},
-                    timeout=self.timeout,
-                )
-                components_data = components_response.get("result", components_response)
+            components_data: Any = {}
+            if isinstance(components_res, BaseException):
+                logger.error(f"Error getting components: {components_res}")
+            else:
+                components_data = components_res[0].get("result", components_res[0])
                 rpc_success = True
-            except DeviceAuthenticationError:
-                raise
-            except Exception as e:
-                logger.error(f"Error getting components: {e}", exc_info=True)
 
             status_response = None
-            try:
-                status_response, _ = await self._rpc_client.make_rpc_request(
-                    ip, RpcMethods.GET_STATUS, timeout=self.timeout
-                )
-                status_response = status_response.get("result", status_response)
+            if isinstance(status_res, BaseException):
+                logger.error(f"Error getting device status: {status_res}")
+            else:
+                status_response = status_res[0].get("result", status_res[0])
                 rpc_success = True
-            except DeviceAuthenticationError:
-                raise
-            except Exception as e:
-                logger.error(f"Error getting device status: {e}", exc_info=True)
 
-            available_methods = await self.get_available_methods(ip)
+            if isinstance(available_methods, BaseException):
+                available_methods = []
 
             if not rpc_success:
                 raise RuntimeError("RPC status retrieval failed; use legacy path")

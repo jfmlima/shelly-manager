@@ -34,6 +34,15 @@ class DeviceCommunicationError(ShellyManagerError):
         super().__init__(msg, {"ip": ip, "error": error})
 
 
+class DeviceUnreachableError(DeviceCommunicationError):
+    """Raised when a host does not accept a TCP connection.
+
+    Signals that nothing is listening at the address (connect refused/timed
+    out), as opposed to a device that responded but failed at the HTTP/RPC
+    layer. Used to skip the legacy fallback probe for dead IPs during scans.
+    """
+
+
 class ConfigurationError(ShellyManagerError):
 
     def __init__(self, operation: str, message: str | None = None):

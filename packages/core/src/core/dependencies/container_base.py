@@ -30,6 +30,7 @@ from core.use_cases.scan_devices import ScanDevicesUseCase
 class BaseContainer:
     def __init__(self) -> None:
         self._device_gateway: ShellyDeviceGateway | None = None
+        self._legacy_http_client: LegacyHttpClient | None = None
         self._mdns_client: MDNSGateway | None = None
         self._scan_interactor: ScanDevicesUseCase | None = None
         self._execute_component_action_interactor: (
@@ -55,7 +56,12 @@ class BaseContainer:
 
     def get_device_gateway(self) -> ShellyDeviceGateway:
         if self._device_gateway is None:
-            legacy_http_client = LegacyHttpClient()
+            from core.settings import settings as core_settings
+
+            legacy_http_client = LegacyHttpClient(
+                connect_timeout=core_settings.network.connect_timeout,
+            )
+            self._legacy_http_client = legacy_http_client
             legacy_component_mapper = LegacyComponentMapper()
             legacy_gateway = LegacyDeviceGateway(
                 http_client=legacy_http_client,
@@ -69,6 +75,36 @@ class BaseContainer:
                 legacy_gateway=legacy_gateway,
             )
         return self._device_gateway
+
+    async def _aclose_legacy_http_client(self) -> None:
+        """Close the legacy HTTP client's connection pool, if one was created."""
+        if self._legacy_http_client is not None:
+            try:
+                await self._legacy_http_client.close()
+            except Exception:
+                pass
+
+    def _reset_device_caches(self) -> None:
+        """Drop cached gateways/interactors that hold now-closed clients.
+
+        Called after close() so that a reused container rebuilds live
+        resources on next access instead of handing back closed ones.
+        """
+        self._device_gateway = None
+        self._legacy_http_client = None
+        self._mdns_client = None
+        self._scan_interactor = None
+        self._execute_component_action_interactor = None
+        self._component_actions_interactor = None
+        self._status_interactor = None
+        self._bulk_operations_interactor = None
+        self._manage_profiles_interactor = None
+        self._provision_device_interactor = None
+        self._ap_device_detector = None
+        self._backup_device_config_interactor = None
+        self._restore_device_config_interactor = None
+        self._manage_backup_schedules_interactor = None
+        self._run_due_backups_interactor = None
 
     def _get_authentication_service_optional(self) -> AuthenticationService | None:
         """Return AuthenticationService if available, None otherwise."""
