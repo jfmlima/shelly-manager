@@ -169,10 +169,9 @@ class BackupDeviceConfig:
             BackupNotFoundError: If the backup does not exist.
         """
         async with self._repository_factory() as repository:
-            summaries = await repository.list_summaries()
-            if not any(summary.id == backup_id for summary in summaries):
-                raise BackupNotFoundError(backup_id)
-            await repository.delete(backup_id)
+            deleted = await repository.delete(backup_id)
+        if not deleted:
+            raise BackupNotFoundError(backup_id)
         logger.info("Deleted backup id=%s", backup_id)
 
 

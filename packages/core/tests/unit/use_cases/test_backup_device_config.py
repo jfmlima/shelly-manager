@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from core.domain.entities.device_backup import DeviceBackup, DeviceBackupSummary
+from core.domain.entities.device_backup import DeviceBackupSummary
 from core.domain.entities.exceptions import DeviceNotFoundError
 from core.use_cases.backup_device_config import (
     BackupDeviceConfig,
@@ -277,16 +277,13 @@ class TestBackupDeviceConfig:
     async def test_it_raises_when_deleting_missing_backup(
         self, use_case, mock_repository
     ):
-        mock_repository.list_summaries = AsyncMock(return_value=[])
+        mock_repository.delete = AsyncMock(return_value=False)
 
         with pytest.raises(BackupNotFoundError):
             await use_case.delete_backup(99)
 
     async def test_it_deletes_existing_backup(self, use_case, mock_repository):
-        mock_repository.list_summaries = AsyncMock(
-            return_value=[DeviceBackup(device_mac="AABBCCDDEEFF", id=5)]
-        )
-        mock_repository.delete = AsyncMock()
+        mock_repository.delete = AsyncMock(return_value=True)
 
         await use_case.delete_backup(5)
 

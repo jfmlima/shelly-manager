@@ -82,13 +82,15 @@ class SQLAlchemyBackupRepository(BackupRepository):
         result = await self.session.execute(stmt)
         return int(result.scalar_one())
 
-    async def delete(self, backup_id: int) -> None:
+    async def delete(self, backup_id: int) -> bool:
         stmt = select(BackupModel).where(BackupModel.id == backup_id)
         result = await self.session.execute(stmt)
         record = result.scalar_one_or_none()
-        if record:
-            await self.session.delete(record)
-            await self.session.commit()
+        if record is None:
+            return False
+        await self.session.delete(record)
+        await self.session.commit()
+        return True
 
     async def count_for_device(
         self, device_mac: str, source: str | None = "scheduled"

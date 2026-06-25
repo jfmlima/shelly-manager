@@ -107,9 +107,14 @@ class TestSQLAlchemyBackupRepository:
             repo = SQLAlchemyBackupRepository(session, EncryptionService())
             created = await repo.create(_backup())
 
-            await repo.delete(created.id)
-
+            assert await repo.delete(created.id) is True
             assert await repo.get(created.id) is None
+
+    async def test_it_returns_false_when_deleting_missing_backup(self, session_factory):
+        async with session_factory() as session:
+            repo = SQLAlchemyBackupRepository(session, EncryptionService())
+
+            assert await repo.delete(9999) is False
 
     async def test_it_rejects_a_tampered_backup_on_read(self, session_factory):
         from core.repositories.models import DeviceBackups

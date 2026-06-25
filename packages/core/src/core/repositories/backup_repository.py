@@ -41,8 +41,13 @@ class BackupRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete(self, backup_id: int) -> None:
-        """Delete a backup by ID."""
+    async def delete(self, backup_id: int) -> bool:
+        """Delete a backup by ID. Returns ``True`` if a row was deleted.
+
+        Returning whether anything was removed lets callers check existence
+        with the same keyed lookup that performs the delete, instead of
+        scanning the full list first.
+        """
         pass
 
     @abstractmethod
