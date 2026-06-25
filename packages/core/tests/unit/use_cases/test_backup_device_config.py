@@ -249,6 +249,23 @@ class TestBackupDeviceConfig:
         assert len(result) == 1
         mock_repository.list_summaries.assert_awaited_once_with("AA:BB:CC:DD:EE:FF")
 
+    async def test_it_lists_a_page_with_total(self, use_case, mock_repository):
+        mock_repository.list_summaries = AsyncMock(
+            return_value=[DeviceBackupSummary(device_mac="AABBCCDDEEFF", id=3)]
+        )
+        mock_repository.count_summaries = AsyncMock(return_value=7)
+
+        page = await use_case.list_backups_page("AA:BB:CC:DD:EE:FF", limit=1, offset=2)
+
+        assert [s.id for s in page.items] == [3]
+        assert page.total == 7
+        assert page.limit == 1
+        assert page.offset == 2
+        mock_repository.list_summaries.assert_awaited_once_with(
+            "AA:BB:CC:DD:EE:FF", 1, 2
+        )
+        mock_repository.count_summaries.assert_awaited_once_with("AA:BB:CC:DD:EE:FF")
+
     async def test_it_raises_when_backup_missing_on_get(
         self, use_case, mock_repository
     ):

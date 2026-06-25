@@ -56,3 +56,18 @@ class DeviceBackupSummary:
 
     def __post_init__(self) -> None:
         self.device_mac = normalize_mac(self.device_mac)
+
+
+@dataclass
+class BackupPage:
+    """A single page of backup summaries plus the total matching count.
+
+    ``total`` is the full number of backups matching the query (ignoring the
+    page window), so a client can render "showing N of total" and decide
+    whether more pages exist.
+    """
+
+    items: list[DeviceBackupSummary] = field(default_factory=list)
+    total: int = 0
+    limit: int = 50
+    offset: int = 0

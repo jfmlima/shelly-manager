@@ -70,8 +70,10 @@ class DeviceBackups(Base):
     snapshot_ciphertext: Mapped[str] = mapped_column(String, nullable=False)
     sha256: Mapped[str | None] = mapped_column(String, nullable=True)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Indexed because every list view orders by created_at (newest first);
+    # see the API lifespan for the matching CREATE INDEX on pre-existing DBs.
     created_at: Mapped[int] = mapped_column(
-        Integer, default=lambda: int(datetime.now(UTC).timestamp())
+        Integer, index=True, default=lambda: int(datetime.now(UTC).timestamp())
     )
 
     def __repr__(self) -> str:

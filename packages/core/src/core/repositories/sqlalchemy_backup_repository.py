@@ -57,14 +57,30 @@ class SQLAlchemyBackupRepository(BackupRepository):
         return self._to_domain(record)
 
     async def list_summaries(
-        self, device_mac: str | None = None
+        self,
+        device_mac: str | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[DeviceBackupSummary]:
-        stmt = select(BackupModel).order_by(BackupModel.created_at.desc())
+        # Tie-break on id so rows sharing a created_at second keep a stable
+        # order across pages; without it pagination could repeat or drop rows.
+        stmt = select(BackupModel).order_by(
+            BackupModel.created_at.desc(), BackupModel.id.desc()
+        )
         if device_mac is not None:
             stmt = stmt.where(BackupModel.device_mac == normalize_mac(device_mac))
+        if limit is not None:
+            stmt = stmt.limit(limit).offset(offset)
         result = await self.session.execute(stmt)
         records = result.scalars().all()
         return [self._to_summary(record) for record in records]
+
+    async def count_summaries(self, device_mac: str | None = None) -> int:
+        stmt = select(func.count()).select_from(BackupModel)
+        if device_mac is not None:
+            stmt = stmt.where(BackupModel.device_mac == normalize_mac(device_mac))
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one())
 
     async def delete(self, backup_id: int) -> None:
         stmt = select(BackupModel).where(BackupModel.id == backup_id)
