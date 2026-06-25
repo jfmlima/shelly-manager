@@ -1,7 +1,11 @@
 """Tests for the backups API controller."""
 
 from api.controllers.backups import BackupsController
-from core.domain.entities.device_backup import DeviceBackup, DeviceBackupSummary
+from core.domain.entities.device_backup import (
+    BackupPage,
+    DeviceBackup,
+    DeviceBackupSummary,
+)
 from core.domain.entities.exceptions import DeviceNotFoundError
 from core.domain.value_objects.restore_result import (
     ComponentRestoreResult,
@@ -28,13 +32,18 @@ def _restore_provider(use_case):
 
 
 class TestBackupsController:
-    def test_list_backups_returns_summaries(self):
+    def test_list_backups_returns_paginated_summaries(self):
         class MockBackup(BackupDeviceConfig):
             def __init__(self):
                 pass
 
-            async def list_backups(self, device_mac=None):
-                return [DeviceBackupSummary(device_mac="AABBCCDDEEFF", id=1)]
+            async def list_backups_page(self, device_mac=None, limit=50, offset=0):
+                return BackupPage(
+                    items=[DeviceBackupSummary(device_mac="AABBCCDDEEFF", id=1)],
+                    total=1,
+                    limit=limit,
+                    offset=offset,
+                )
 
         with create_test_client(
             route_handlers=[BackupsController],
@@ -43,8 +52,31 @@ class TestBackupsController:
             response = client.get("/")
             assert response.status_code == 200
             data = response.json()
-            assert len(data) == 1
-            assert data[0]["device_mac"] == "AABBCCDDEEFF"
+            assert data["total"] == 1
+            assert len(data["items"]) == 1
+            assert data["items"][0]["device_mac"] == "AABBCCDDEEFF"
+
+    def test_list_backups_clamps_limit_and_offset(self):
+        captured = {}
+
+        class MockBackup(BackupDeviceConfig):
+            def __init__(self):
+                pass
+
+            async def list_backups_page(self, device_mac=None, limit=50, offset=0):
+                captured["limit"] = limit
+                captured["offset"] = offset
+                return BackupPage(items=[], total=0, limit=limit, offset=offset)
+
+        with create_test_client(
+            route_handlers=[BackupsController],
+            dependencies=_backup_provider(MockBackup()),
+        ) as client:
+            response = client.get("/", params={"limit": 9999, "offset": -5})
+            assert response.status_code == 200
+            # Over-large limit floored to the page-size ceiling, offset to zero.
+            assert captured["limit"] == 200
+            assert captured["offset"] == 0
 
     def test_create_backup_returns_detail(self):
         class MockBackup(BackupDeviceConfig):

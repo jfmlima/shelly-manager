@@ -19,9 +19,13 @@ from api.presentation.dto.responses import (
     BackupDetailResponse,
     BackupSummaryResponse,
     ComponentRestoreResultResponse,
+    PaginatedBackupsResponse,
     RestoreResultResponse,
 )
 from api.presentation.exceptions import DeviceNotFoundHTTPException
+
+DEFAULT_PAGE_SIZE = 50
+MAX_PAGE_SIZE = 200
 
 
 class BackupsController(Controller):
@@ -33,10 +37,22 @@ class BackupsController(Controller):
         self,
         backup_use_case: BackupDeviceConfig,
         device_mac: str | None = None,
-    ) -> list[BackupSummaryResponse]:
-        """List stored backups, newest first, optionally filtered by device MAC."""
-        summaries = await backup_use_case.list_backups(device_mac)
-        return [_to_summary(s) for s in summaries]
+        limit: int = DEFAULT_PAGE_SIZE,
+        offset: int = 0,
+    ) -> PaginatedBackupsResponse:
+        """List stored backups, newest first, optionally filtered by device MAC.
+
+        Paginated: ``limit`` is clamped to 1..200 and ``offset`` floored at 0.
+        """
+        limit = max(1, min(limit, MAX_PAGE_SIZE))
+        offset = max(0, offset)
+        page = await backup_use_case.list_backups_page(device_mac, limit, offset)
+        return PaginatedBackupsResponse(
+            items=[_to_summary(s) for s in page.items],
+            total=page.total,
+            limit=page.limit,
+            offset=page.offset,
+        )
 
     @post()
     async def create_backup(
