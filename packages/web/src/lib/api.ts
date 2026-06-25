@@ -14,7 +14,7 @@ import type {
   APDeviceInfo,
   ProvisionResult,
   VerifyResult,
-  BackupSummary,
+  PaginatedBackups,
   BackupDetail,
   CreateBackupRequest,
   RestoreBackupRequest,
@@ -352,9 +352,17 @@ export const provisioningApi = {
 };
 
 export const backupApi = {
-  listBackups: async (deviceMac?: string): Promise<BackupSummary[]> => {
+  listBackups: async (params?: {
+    deviceMac?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<PaginatedBackups> => {
     const response = await apiClient.get("/backups", {
-      params: deviceMac ? { device_mac: deviceMac } : undefined,
+      params: {
+        ...(params?.deviceMac ? { device_mac: params.deviceMac } : {}),
+        ...(params?.limit !== undefined ? { limit: params.limit } : {}),
+        ...(params?.offset !== undefined ? { offset: params.offset } : {}),
+      },
     });
     return response.data;
   },

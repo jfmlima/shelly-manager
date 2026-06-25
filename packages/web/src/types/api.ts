@@ -610,6 +610,13 @@ export interface BackupDetail extends BackupSummary {
   snapshot: Record<string, unknown>;
 }
 
+export interface PaginatedBackups {
+  items: BackupSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface CreateBackupRequest {
   device_ip: string;
   name?: string | null;
