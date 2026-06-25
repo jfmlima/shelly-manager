@@ -9,7 +9,7 @@ from core.use_cases.manage_backup_schedules import (
 from core.use_cases.run_due_backups import RunDueBackupsUseCase
 from litestar import Controller, Router, delete, get, post, put
 from litestar.exceptions import HTTPException, NotFoundException
-from litestar.status_codes import HTTP_409_CONFLICT
+from litestar.status_codes import HTTP_400_BAD_REQUEST, HTTP_409_CONFLICT
 
 from api.presentation.dto.requests import (
     CreateBackupScheduleRequest,
@@ -123,6 +123,14 @@ class BackupSchedulesController(Controller):
             ),
             next_run_at=existing.next_run_at,
         )
+        if not (updated.target_ips or updated.target_macs or updated.all_credentialed):
+            raise HTTPException(
+                status_code=HTTP_400_BAD_REQUEST,
+                detail=(
+                    "A schedule needs at least one target "
+                    "(target_ips, target_macs, or all_credentialed)"
+                ),
+            )
         try:
             result = await manage_schedules_use_case.update_schedule(updated)
         except ScheduleAlreadyExistsError as err:

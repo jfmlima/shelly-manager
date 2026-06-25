@@ -142,6 +142,32 @@ class TestBackupSchedulesController:
             response = client.get("/99")
             assert response.status_code == 404
 
+    def test_it_rejects_update_that_clears_all_targets(self):
+        existing = _schedule(
+            target_ips=["192.168.1.10"], target_macs=[], all_credentialed=False
+        )
+
+        class Mock(ManageBackupSchedulesUseCase):
+            def __init__(self):
+                pass
+
+            async def get_schedule(self, schedule_id):
+                return existing
+
+        with create_test_client(
+            route_handlers=[BackupSchedulesController],
+            dependencies=_manage_provider(Mock()),
+        ) as client:
+            response = client.put(
+                "/1",
+                json={
+                    "target_ips": [],
+                    "target_macs": [],
+                    "all_credentialed": False,
+                },
+            )
+            assert response.status_code == 400
+
     def test_it_disables_a_schedule(self):
         class Mock(ManageBackupSchedulesUseCase):
             def __init__(self):

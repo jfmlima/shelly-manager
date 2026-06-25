@@ -89,6 +89,23 @@ class TestScheduleCommands:
         )
         assert result.exit_code != 0
 
+    def test_it_create_rejects_invalid_target(self, runner):
+        result = runner.invoke(
+            backup_commands,
+            [
+                "schedule",
+                "create",
+                "--name",
+                "x",
+                "--every",
+                "daily",
+                "-t",
+                "not-an-ip",
+            ],
+            obj=self._obj(),
+        )
+        assert result.exit_code != 0
+
     def test_it_list_renders_without_error(self, runner):
         manage = MagicMock()
         manage.list_schedules = AsyncMock(
