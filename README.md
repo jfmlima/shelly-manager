@@ -101,6 +101,10 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - SHELLY_SECRET_KEY=your-generated-key
+      # Scheduled backups run in-process on the API; keep it to one replica.
+      # Defaults shown; set SHELLY_BACKUP_SCHEDULER_ENABLED=false to disable.
+      - SHELLY_BACKUP_SCHEDULER_ENABLED=true
+      - SHELLY_BACKUP_POLL_INTERVAL_SECONDS=60
 
   shelly-manager-web:
     image: ghcr.io/jfmlima/shelly-manager-web:latest
@@ -123,6 +127,10 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - SHELLY_SECRET_KEY=your-generated-key
+      # Scheduled backups run in-process on the API; keep it to one replica.
+      # Defaults shown; set SHELLY_BACKUP_SCHEDULER_ENABLED=false to disable.
+      - SHELLY_BACKUP_SCHEDULER_ENABLED=true
+      - SHELLY_BACKUP_POLL_INTERVAL_SECONDS=60
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.shelly-manager-api.rule=Host(`shelly-manager-api.your.domain`)"
@@ -201,6 +209,8 @@ docker run -p 8000:8000 \
 Shelly Manager is zero-configuration by default. All scan and management parameters are provided at runtime via the Web UI, CLI flags, API parameters or ENV variables. This ensures flexibility and removes the need for managing static configuration files.
 
 For persistent storage of discovered devices in the Web UI, the application leverages browser localStorage. For API-based integrations, the client is responsible for maintaining device lists.
+
+**Scheduled backups** run on the API server itself. When `SHELLY_BACKUP_SCHEDULER_ENABLED` is `true` (the default), an in-process poller captures backups for any due schedules every `SHELLY_BACKUP_POLL_INTERVAL_SECONDS` (default 60). Because the timer lives in-process, run the API as a single worker (the default); see the [API README](packages/api/README.md) for the full setting reference.
 
 ## Architecture
 
