@@ -1,6 +1,17 @@
+import { ChevronDown, Plus } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -8,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useScannedDevices } from "@/hooks/useScannedDevices";
 import type { Cadence, ScheduleFormState } from "./schedule-form-utils";
 
 interface ScheduleFormProps {
@@ -15,11 +27,30 @@ interface ScheduleFormProps {
   onChange: (next: ScheduleFormState) => void;
 }
 
+function addTargetIp(current: string, ip: string): string {
+  const parts = current
+    .split(/[\s,]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.includes(ip)) return current;
+  parts.push(ip);
+  return parts.join(", ");
+}
+
 export function ScheduleForm({ value, onChange }: ScheduleFormProps) {
   const set = <K extends keyof ScheduleFormState>(
     key: K,
     fieldValue: ScheduleFormState[K],
   ) => onChange({ ...value, [key]: fieldValue });
+
+  const { data: scannedDevices = [] } = useScannedDevices();
+  const pickable = scannedDevices.filter((device) => device.ip);
+  const selected = new Set(
+    value.targetIps
+      .split(/[\s,]+/)
+      .map((part) => part.trim())
+      .filter(Boolean),
+  );
 
   return (
     <div className="space-y-4 py-2">
@@ -66,7 +97,43 @@ export function ScheduleForm({ value, onChange }: ScheduleFormProps) {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="schedule-ips">Target IPs</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="schedule-ips">Target IPs</Label>
+          {pickable.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline" size="sm" className="h-7">
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Scanned device
+                  <ChevronDown className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="max-h-64 overflow-y-auto"
+              >
+                <DropdownMenuLabel>Add a scanned device</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {pickable.map((device) => (
+                  <DropdownMenuItem
+                    key={device.ip}
+                    disabled={selected.has(device.ip)}
+                    onSelect={() =>
+                      set("targetIps", addTargetIp(value.targetIps, device.ip))
+                    }
+                  >
+                    <span className="font-medium">
+                      {device.device_name || device.ip}
+                    </span>
+                    <span className="ml-2 text-muted-foreground">
+                      {device.ip}
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
         <Input
           id="schedule-ips"
           value={value.targetIps}
@@ -76,6 +143,8 @@ export function ScheduleForm({ value, onChange }: ScheduleFormProps) {
         <p className="text-xs text-muted-foreground">
           Comma or space separated. IPs, ranges, or CIDR. Ranges and CIDR are
           scanned for live devices at run time.
+          {pickable.length === 0 &&
+            " Scan devices on the dashboard to pick them from a list here."}
         </p>
       </div>
 
