@@ -30,6 +30,7 @@ def bulk() -> None:
 
 
 @bulk.command()
+@click.argument("targets", nargs=-1)
 @device_targeting_options
 @click.option("--force", is_flag=True, help="Skip confirmation prompts")
 @click.option(
@@ -42,6 +43,7 @@ def bulk() -> None:
 def reboot(
     ctx: click.Context,
     targets: tuple[str, ...],
+    targets_opt: tuple[str, ...],
     force: bool,
     workers: int,
 ) -> None:
@@ -58,7 +60,7 @@ def reboot(
     bulk_use_case = BulkOperationsUseCase(container, console)
 
     request = BulkRebootRequest(
-        targets=list(targets),
+        targets=list(targets) + list(targets_opt),
         force=force,
         workers=workers,
     )
@@ -68,6 +70,7 @@ def reboot(
 
 
 @bulk.command()
+@click.argument("targets", nargs=-1)
 @device_targeting_options
 @click.option(
     "--channel",
@@ -86,6 +89,7 @@ def reboot(
 def update(
     ctx: click.Context,
     targets: tuple[str, ...],
+    targets_opt: tuple[str, ...],
     channel: str,
     force: bool,
     workers: int,
@@ -103,7 +107,7 @@ def update(
     bulk_use_case = BulkOperationsUseCase(container, console)
 
     request = BulkOperationRequest(
-        targets=list(targets),
+        targets=list(targets) + list(targets_opt),
         force=force,
         workers=workers,
     )
@@ -123,6 +127,7 @@ def config() -> None:
 
 
 @config.command()
+@click.argument("targets", nargs=-1)
 @device_targeting_options
 @click.option(
     "--components",
@@ -147,6 +152,7 @@ def config() -> None:
 def export(
     ctx: click.Context,
     targets: tuple[str, ...],
+    targets_opt: tuple[str, ...],
     components: str,
     output: str,
     force: bool,
@@ -174,7 +180,7 @@ def export(
     bulk_use_case = BulkOperationsUseCase(container, console)
 
     request = BulkConfigExportRequest(
-        targets=list(targets),
+        targets=list(targets) + list(targets_opt),
         component_types=component_types,
         output_file=output,
         force=force,
@@ -198,6 +204,7 @@ def export(
 
 
 @config.command()
+@click.argument("targets", nargs=-1)
 @device_targeting_options
 @click.option(
     "--component",
@@ -224,6 +231,7 @@ def export(
 def apply(
     ctx: click.Context,
     targets: tuple[str, ...],
+    targets_opt: tuple[str, ...],
     component: str,
     config_file: str | None,
     config: str | None,
@@ -242,6 +250,7 @@ def apply(
     """
     console = ctx.obj.console
     container = ctx.obj.container
+    all_targets = list(targets) + list(targets_opt)
 
     if not config_file and not config:
         console.print("[red]Error: Either --config-file or --config must be provided.")
@@ -272,7 +281,7 @@ def apply(
             raise click.Abort() from e
 
     if not force:
-        device_count = len(targets) if targets else "discovered"
+        device_count = len(all_targets) if all_targets else "discovered"
         console.print(
             f"[yellow]⚠️  You are about to apply configuration to [bold]{component}[/bold] components on [bold]{device_count}[/bold] devices."
         )
@@ -286,7 +295,7 @@ def apply(
     bulk_use_case = BulkOperationsUseCase(container, console)
 
     request = BulkConfigApplyRequest(
-        targets=list(targets),
+        targets=all_targets,
         component_type=component,
         config_file=config_file,
         config_data=config_data,
