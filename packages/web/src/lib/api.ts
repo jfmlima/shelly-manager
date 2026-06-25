@@ -369,9 +369,13 @@ export const backupApi = {
     backupId: number,
     data: RestoreBackupRequest,
   ): Promise<RestoreResult> => {
-    const response = await apiClient.post(`/backups/${backupId}/restore`, data, {
-      timeout: 60000,
-    });
+    const response = await apiClient.post(
+      `/backups/${backupId}/restore`,
+      data,
+      {
+        timeout: 60000,
+      },
+    );
     return response.data;
   },
 

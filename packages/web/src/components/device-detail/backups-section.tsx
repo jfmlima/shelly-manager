@@ -56,7 +56,9 @@ export function BackupsSection({
 }: BackupsSectionProps) {
   const { data: backups, isLoading } = useBackups(deviceMac);
   const createBackup = useCreateBackup(deviceMac);
-  const [restoreTarget, setRestoreTarget] = useState<BackupSummary | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<BackupSummary | null>(
+    null,
+  );
 
   const formatDate = (ts: number | null) =>
     ts ? new Date(ts * 1000).toLocaleString() : "-";
@@ -71,9 +73,7 @@ export function BackupsSection({
           </CardDescription>
         </div>
         <Button
-          onClick={() =>
-            createBackup.mutate({ deviceIp, name: undefined })
-          }
+          onClick={() => createBackup.mutate({ deviceIp, name: undefined })}
           disabled={createBackup.isPending}
         >
           <Save className="h-4 w-4 mr-2" />
