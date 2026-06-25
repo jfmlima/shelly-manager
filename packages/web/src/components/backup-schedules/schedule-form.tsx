@@ -103,7 +103,12 @@ export function ScheduleForm({ value, onChange }: ScheduleFormProps) {
           {pickable.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button type="button" variant="outline" size="sm" className="h-7">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7"
+                >
                   <Plus className="h-3.5 w-3.5 mr-1" />
                   Scanned devices
                   <ChevronDown className="h-3.5 w-3.5 ml-1" />

@@ -191,7 +191,9 @@ export function BackupSchedulesSection() {
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell>{formatInterval(schedule.interval_seconds)}</TableCell>
+                  <TableCell>
+                    {formatInterval(schedule.interval_seconds)}
+                  </TableCell>
                   <TableCell>{formatTargets(schedule)}</TableCell>
                   <TableCell>
                     {schedule.last_status ? (
