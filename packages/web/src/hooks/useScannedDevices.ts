@@ -18,5 +18,6 @@ export function useScannedDevices() {
     },
     staleTime: Infinity,
     gcTime: Infinity,
+    enabled: true,
   });
 }
