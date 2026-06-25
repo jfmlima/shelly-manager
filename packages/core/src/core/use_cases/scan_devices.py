@@ -100,7 +100,7 @@ class ScanDevicesUseCase:
         self, ip: str, timeout: float = 3.0
     ) -> DiscoveredDevice | None:
         try:
-            device = await self._device_gateway.discover_device(ip)
+            device = await self._device_gateway.discover_device(ip, timeout=timeout)
 
             if device:
                 self._validate_discovered_device(device)

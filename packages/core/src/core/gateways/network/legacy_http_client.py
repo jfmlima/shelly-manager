@@ -1,7 +1,6 @@
-import asyncio
 from typing import Any, cast
 
-import requests
+import httpx
 
 from core.domain.entities.exceptions import DeviceAuthenticationError
 
@@ -10,45 +9,42 @@ class LegacyHttpClient:
     """HTTP client for legacy Gen1 Shelly devices using simple HTTP GET requests."""
 
     def __init__(
-        self, session: requests.Session | None = None, timeout: float = 10.0
+        self,
+        session: httpx.AsyncClient | None = None,
+        timeout: float = 10.0,
+        connect_timeout: float = 2.0,
+        max_connections: int | None = None,
     ) -> None:
         self.timeout = timeout
-        self._session = session or requests.Session()
+        self._connect_timeout = connect_timeout
+        if session is not None:
+            self._session = session
+        else:
+            pool = max_connections or 256
+            self._session = httpx.AsyncClient(
+                timeout=self._build_timeout(timeout),
+                limits=httpx.Limits(
+                    max_connections=pool,
+                    max_keepalive_connections=max(1, pool // 2),
+                ),
+            )
+
+    def _build_timeout(self, timeout: float | None) -> httpx.Timeout:
+        """Build an httpx timeout with a short, capped connect phase."""
+        effective = self.timeout if timeout is None else timeout
+        return httpx.Timeout(effective, connect=min(effective, self._connect_timeout))
 
     async def fetch_json(
-        self, ip: str, endpoint: str, auth: tuple[str, str] | None = None
-    ) -> dict[str, Any]:
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            None, self._sync_fetch_json, ip, endpoint, auth
-        )
-
-    async def fetch_json_optional(
-        self, ip: str, endpoint: str, auth: tuple[str, str] | None = None
-    ) -> dict[str, Any]:
-        try:
-            return await self.fetch_json(ip, endpoint, auth=auth)
-        except Exception:
-            return {}
-
-    async def get_with_params(
         self,
         ip: str,
         endpoint: str,
-        params: dict[str, Any],
         auth: tuple[str, str] | None = None,
-    ) -> dict[str, Any]:
-        loop = asyncio.get_event_loop()
-
-        return await loop.run_in_executor(
-            None, self._sync_get_with_params, ip, endpoint, params, auth
-        )
-
-    def _sync_fetch_json(
-        self, ip: str, endpoint: str, auth: tuple[str, str] | None = None
+        timeout: float | None = None,
     ) -> dict[str, Any]:
         url = f"http://{ip}/{endpoint.lstrip('/')}"
-        response = self._session.get(url, timeout=self.timeout, auth=auth)
+        response = await self._session.get(
+            url, timeout=self._build_timeout(timeout), auth=auth
+        )
         if response.status_code == 401:
             raise DeviceAuthenticationError(ip)
         response.raise_for_status()
@@ -59,16 +55,29 @@ class LegacyHttpClient:
 
         return cast(dict[str, Any], data)
 
-    def _sync_get_with_params(
+    async def fetch_json_optional(
+        self,
+        ip: str,
+        endpoint: str,
+        auth: tuple[str, str] | None = None,
+        timeout: float | None = None,
+    ) -> dict[str, Any]:
+        try:
+            return await self.fetch_json(ip, endpoint, auth=auth, timeout=timeout)
+        except Exception:
+            return {}
+
+    async def get_with_params(
         self,
         ip: str,
         endpoint: str,
         params: dict[str, Any],
         auth: tuple[str, str] | None = None,
+        timeout: float | None = None,
     ) -> dict[str, Any]:
         url = f"http://{ip}/{endpoint.lstrip('/')}"
-        response = self._session.get(
-            url, params=params, timeout=self.timeout, auth=auth
+        response = await self._session.get(
+            url, params=params, timeout=self._build_timeout(timeout), auth=auth
         )
         if response.status_code == 401:
             raise DeviceAuthenticationError(ip)
@@ -86,5 +95,4 @@ class LegacyHttpClient:
             return {"response": response.text}
 
     async def close(self) -> None:
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, self._session.close)
+        await self._session.aclose()

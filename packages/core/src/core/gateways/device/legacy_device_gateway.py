@@ -4,6 +4,7 @@ Legacy device gateway for Gen1 Shelly devices.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from datetime import datetime
@@ -42,13 +43,15 @@ class LegacyDeviceGateway:
         self._ip_to_mac: dict[str, str] = {}
         self._basic_auth_cache: dict[str, tuple[str, str]] = {}
 
-    async def _ensure_mac(self, ip: str) -> str | None:
+    async def _ensure_mac(self, ip: str, timeout: float | None = None) -> str | None:
         """Get MAC address for an IP, fetching from /shelly if not cached."""
         normalized_ip = normalize_mac(ip)
         if normalized_ip in self._ip_to_mac:
             return self._ip_to_mac[normalized_ip]
         try:
-            shelly_data = await self._http_client.fetch_json(ip, "shelly")
+            shelly_data = await self._http_client.fetch_json(
+                ip, "shelly", timeout=timeout
+            )
             mac = shelly_data.get("mac")
             if mac:
                 normalized_mac = normalize_mac(mac)
@@ -58,12 +61,14 @@ class LegacyDeviceGateway:
             pass
         return None
 
-    async def _resolve_auth(self, ip: str) -> tuple[str, str] | None:
+    async def _resolve_auth(
+        self, ip: str, timeout: float | None = None
+    ) -> tuple[str, str] | None:
         """Resolve Basic Auth credentials for a device by IP."""
         if not self._authentication_service:
             return None
 
-        mac = await self._ensure_mac(ip)
+        mac = await self._ensure_mac(ip, timeout)
         if not mac:
             return None
 
@@ -82,18 +87,24 @@ class LegacyDeviceGateway:
         normalized_mac = normalize_mac(mac)
         self._basic_auth_cache.pop(normalized_mac, None)
 
-    async def discover_device(self, ip: str) -> DiscoveredDevice | None:
+    async def discover_device(
+        self, ip: str, timeout: float | None = None
+    ) -> DiscoveredDevice | None:
         """Discover a legacy Gen1 Shelly device.
 
         Args:
             ip: Device IP address
+            timeout: Per-request timeout in seconds; falls back to the HTTP
+                client default when not provided.
 
         Returns:
             DiscoveredDevice or None if discovery fails
         """
         try:
             start_time = time.perf_counter()
-            device_info = await self._http_client.fetch_json(ip, "shelly")
+            device_info = await self._http_client.fetch_json(
+                ip, "shelly", timeout=timeout
+            )
             response_time = time.perf_counter() - start_time
 
             # Detect auth requirement from /shelly response
@@ -105,13 +116,16 @@ class LegacyDeviceGateway:
                 normalized_mac = normalize_mac(mac)
                 self._ip_to_mac[normalize_mac(ip)] = normalized_mac
                 self._auth_state_cache.mark_auth_required(normalized_mac)
-                auth = await self._resolve_auth(ip)
+                auth = await self._resolve_auth(ip, timeout)
 
-            status_data = await self._http_client.fetch_json_optional(
-                ip, "status", auth=auth
-            )
-            settings_data = await self._http_client.fetch_json_optional(
-                ip, "settings", auth=auth
+            # /status and /settings are independent; fetch them concurrently.
+            status_data, settings_data = await asyncio.gather(
+                self._http_client.fetch_json_optional(
+                    ip, "status", auth=auth, timeout=timeout
+                ),
+                self._http_client.fetch_json_optional(
+                    ip, "settings", auth=auth, timeout=timeout
+                ),
             )
 
             device_name = self._derive_device_name(device_info, settings_data)
@@ -154,17 +168,23 @@ class LegacyDeviceGateway:
             )
             return None
 
-    async def get_device_status(self, ip: str) -> DeviceStatus | None:
+    async def get_device_status(
+        self, ip: str, timeout: float | None = None
+    ) -> DeviceStatus | None:
         """Get device status for a legacy Gen1 device.
 
         Args:
             ip: Device IP address
+            timeout: Per-request timeout in seconds; falls back to the HTTP
+                client default when not provided.
 
         Returns:
             DeviceStatus or None if retrieval fails
         """
         try:
-            device_info = await self._http_client.fetch_json(ip, "shelly")
+            device_info = await self._http_client.fetch_json(
+                ip, "shelly", timeout=timeout
+            )
 
             auth: tuple[str, str] | None = None
             if device_info.get("auth", False):
@@ -172,11 +192,13 @@ class LegacyDeviceGateway:
                 if mac:
                     normalized_mac = normalize_mac(mac)
                     self._ip_to_mac[normalize_mac(ip)] = normalized_mac
-                auth = await self._resolve_auth(ip)
+                auth = await self._resolve_auth(ip, timeout)
 
-            status_data = await self._http_client.fetch_json(ip, "status", auth=auth)
+            status_data = await self._http_client.fetch_json(
+                ip, "status", auth=auth, timeout=timeout
+            )
             settings_data = await self._http_client.fetch_json_optional(
-                ip, "settings", auth=auth
+                ip, "settings", auth=auth, timeout=timeout
             )
         except DeviceAuthenticationError:
             raise

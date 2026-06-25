@@ -3,7 +3,6 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-import httpx
 from core.dependencies.container_base import BaseContainer
 from core.gateways.network.async_shelly_rpc_client import AsyncShellyRPCClient
 from core.repositories.db import async_session_factory
@@ -21,6 +20,7 @@ from core.repositories.sqlalchemy_provisioning_profile_repository import (
 )
 from core.services.authentication_service import AuthenticationService
 from core.services.encryption_service import EncryptionService
+from core.settings import settings as core_settings
 from core.use_cases.scan_devices import ScanDevicesUseCase
 
 
@@ -89,13 +89,33 @@ class CLIContainer(BaseContainer):
 
     def get_rpc_client(self) -> AsyncShellyRPCClient:
         if self._rpc_client is None:
-            # Shared session for connection pooling
-            http_session = httpx.AsyncClient(timeout=3.0)
             self._rpc_client = AsyncShellyRPCClient(
-                session=http_session,
+                timeout=core_settings.network.timeout,
+                connect_timeout=core_settings.network.connect_timeout,
+                verify=core_settings.network.verify_ssl,
                 authentication_service=self.get_authentication_service(),
+                auth_state_cache=self.get_auth_state_cache(),
             )
         return self._rpc_client
+
+    async def close(self) -> None:
+        """Gracefully close async resources (HTTP connection pools)."""
+        if self._rpc_client is not None:
+            try:
+                await self._rpc_client.close()
+            except Exception:
+                pass
+
+        if self._mdns_client is not None:
+            try:
+                await self._mdns_client.close()
+            except Exception:
+                pass
+
+        await self._aclose_legacy_http_client()
+
+        self._rpc_client = None
+        self._reset_device_caches()
 
     # Backwards compatibility helpers (optional convenience wrappers)
     def get_device_scan_interactor(self) -> ScanDevicesUseCase:

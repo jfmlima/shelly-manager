@@ -3,6 +3,7 @@ Common Click utilities, decorators, and options.
 """
 
 import asyncio
+import inspect
 import ipaddress
 from collections.abc import Callable
 from functools import wraps
@@ -45,12 +46,40 @@ def device_targeting_options(func: Callable) -> Callable:
     return wrapper
 
 
+async def _close_container(container: Any) -> None:
+    """Close a CLI container's async resources, skipping mock containers.
+
+    The container's HTTP clients (httpx pools) are created inside the running
+    event loop, so they must be closed from within it. Guarded on a real async
+    ``close`` so unit tests using mock containers are unaffected.
+    """
+    close = getattr(container, "close", None)
+    if inspect.iscoroutinefunction(close):
+        try:
+            await close()
+        except Exception:
+            pass
+
+
+def _container_from_args(args: Any) -> Any:
+    if not args:
+        return None
+    return getattr(getattr(args[0], "obj", None), "container", None)
+
+
+async def _run_then_close(func: Callable, args: Any, kwargs: Any) -> Any:
+    try:
+        return await func(*args, **kwargs)
+    finally:
+        await _close_container(_container_from_args(args))
+
+
 def async_command(func: Callable) -> Callable:
     """Decorator to run async functions in Click commands."""
 
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        return asyncio.run(func(*args, **kwargs))
+        return asyncio.run(_run_then_close(func, args, kwargs))
 
     return wrapper
 

@@ -6,6 +6,7 @@ import pytest
 from core.domain.entities.exceptions import (
     DeviceAuthenticationError,
     DeviceCommunicationError,
+    DeviceUnreachableError,
 )
 from core.gateways.network.async_shelly_rpc_client import AsyncShellyRPCClient
 
@@ -208,7 +209,16 @@ class TestAsyncShellyRPCClient:
     async def test_it_handles_pool_timeout(self, client, mock_session):
         mock_session.post.side_effect = httpx.PoolTimeout("Pool timeout")
 
-        with pytest.raises(DeviceCommunicationError, match="Pool timeout"):
+        # Pool exhaustion is a local condition, not an unreachable host: it must
+        # NOT be classified as DeviceUnreachableError (which would skip fallback).
+        with pytest.raises(DeviceCommunicationError, match="Pool timeout") as exc_info:
+            await client.make_rpc_request("192.168.1.100", "Shelly.GetDeviceInfo")
+        assert not isinstance(exc_info.value, DeviceUnreachableError)
+
+    async def test_it_flags_connect_errors_as_unreachable(self, client, mock_session):
+        mock_session.post.side_effect = httpx.ConnectTimeout("Connect timeout")
+
+        with pytest.raises(DeviceUnreachableError):
             await client.make_rpc_request("192.168.1.100", "Shelly.GetDeviceInfo")
 
     async def test_it_creates_timeout_correctly(self, client, mock_session):
@@ -221,7 +231,10 @@ class TestAsyncShellyRPCClient:
 
         call_args = mock_session.post.call_args
         timeout_arg = call_args[1]["timeout"]
-        assert timeout_arg == 10
+        # Per-request read timeout is honored; connect is capped for fast dead-IP reject.
+        assert isinstance(timeout_arg, httpx.Timeout)
+        assert timeout_arg.read == 10
+        assert timeout_arg.connect == 2.0
 
     async def test_it_uses_default_timeout_when_none_provided(
         self, client, mock_session
@@ -235,4 +248,6 @@ class TestAsyncShellyRPCClient:
 
         call_args = mock_session.post.call_args
         timeout_arg = call_args[1]["timeout"]
-        assert timeout_arg == 3.0
+        assert isinstance(timeout_arg, httpx.Timeout)
+        assert timeout_arg.read == 3.0
+        assert timeout_arg.connect == 2.0

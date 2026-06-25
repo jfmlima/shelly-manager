@@ -48,7 +48,13 @@ class NetworkSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="NETWORK_")
 
     timeout: float = Field(
-        default=3.0, ge=0.1, le=30.0, description="Default timeout in seconds"
+        default=3.0, ge=0.1, le=30.0, description="Default (read) timeout in seconds"
+    )
+    connect_timeout: float = Field(
+        default=2.0,
+        ge=0.1,
+        le=30.0,
+        description="TCP connect timeout in seconds; fast-fails unreachable hosts",
     )
     max_workers: int = Field(
         default=50, ge=1, le=200, description="Maximum concurrent workers"

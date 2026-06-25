@@ -4,7 +4,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from core.domain.entities.device_status import DeviceStatus
 from core.domain.entities.discovered_device import DiscoveredDevice
-from core.domain.entities.exceptions import DeviceAuthenticationError
+from core.domain.entities.exceptions import (
+    DeviceAuthenticationError,
+    DeviceUnreachableError,
+)
 from core.domain.enums.enums import Status
 from core.gateways.device.legacy_device_gateway import LegacyDeviceGateway
 from core.gateways.device.shelly_device_gateway import ShellyDeviceGateway
@@ -122,7 +125,38 @@ class TestShellyDeviceGateway:
         result = await gateway.discover_device("192.168.1.200")
 
         assert result is legacy_device
-        mock_legacy_gateway.discover_device.assert_awaited_once_with("192.168.1.200")
+        mock_legacy_gateway.discover_device.assert_awaited_once_with(
+            "192.168.1.200", timeout=10.0
+        )
+
+    async def test_it_skips_legacy_fallback_when_host_unreachable(
+        self, gateway, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=DeviceUnreachableError("192.168.1.250", "connect timeout")
+        )
+
+        result = await gateway.discover_device("192.168.1.250")
+
+        assert result is not None
+        assert result.status == Status.UNREACHABLE
+        mock_legacy_gateway.discover_device.assert_not_called()
+
+    async def test_it_forwards_timeout_to_rpc_and_legacy(
+        self, gateway, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(side_effect=Exception("RPC fail"))
+        mock_legacy_gateway.discover_device.return_value = None
+
+        await gateway.discover_device("192.168.1.42", timeout=2.5)
+
+        assert mock_rpc_client.make_rpc_request.call_args_list[0] == (
+            ("192.168.1.42", "Shelly.GetDeviceInfo"),
+            {"timeout": 2.5},
+        )
+        mock_legacy_gateway.discover_device.assert_awaited_once_with(
+            "192.168.1.42", timeout=2.5
+        )
 
     async def test_it_gets_device_status_with_updates(self, gateway, mock_rpc_client):
         components_data = {
