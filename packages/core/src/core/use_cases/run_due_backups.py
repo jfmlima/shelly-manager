@@ -129,7 +129,9 @@ class RunDueBackupsUseCase:
         status = self._classify(ok, failed, skipped)
         message = f"{ok} ok, {failed} failed, {skipped} skipped"
         if schedule.id is not None:
-            next_run = schedule.compute_next_run(now)
+            # Anchor the next run after the actual completion time so a long
+            # backup does not remain immediately due and rerun back-to-back.
+            next_run = schedule.compute_next_run(self._clock())
             async with self._schedule_repository_factory() as repository:
                 await repository.set_run_result(
                     schedule.id,

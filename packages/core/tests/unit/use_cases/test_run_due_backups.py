@@ -458,6 +458,36 @@ class TestRunSchedule:
         backup_device_config.create_backup.assert_awaited_once()
         assert result.ok == 1
 
+    async def test_it_advances_next_run_past_completion_time_for_long_run(self):
+        current = NOW
+        schedule = _schedule(interval_seconds=60, next_run_at=NOW)
+        schedule_repo = AsyncMock(
+            get=AsyncMock(return_value=schedule),
+            set_run_result=AsyncMock(),
+        )
+
+        async def create(ip, source="scheduled"):
+            nonlocal current
+            current = NOW + 5 * 60
+            return _backup_for(ip)
+
+        backup_device_config = AsyncMock(create_backup=AsyncMock(side_effect=create))
+        use_case = RunDueBackupsUseCase(
+            schedule_repository_factory=_factory(schedule_repo),
+            backup_repository_factory=_factory(AsyncMock()),
+            credentials_repository_factory=_factory(
+                AsyncMock(list_all=AsyncMock(return_value=[]))
+            ),
+            backup_device_config=backup_device_config,
+            clock=lambda: current,
+        )
+
+        await use_case.run_schedule(1)
+
+        kwargs = schedule_repo.set_run_result.call_args.kwargs
+        assert kwargs["last_run_at"] == NOW
+        assert kwargs["next_run_at"] > current
+
     async def test_it_run_schedule_missing_raises(self):
         schedule_repo = AsyncMock(get=AsyncMock(return_value=None))
         use_case = _make_use_case(schedule_repo=schedule_repo)
