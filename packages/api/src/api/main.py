@@ -9,6 +9,7 @@ from litestar import Litestar, Router
 from litestar.config.cors import CORSConfig
 from litestar.openapi import OpenAPIConfig
 from litestar.openapi.config import Contact, License, Server, Tag
+from sqlalchemy import text
 
 from .controllers.backup_schedules import backup_schedules_router
 from .controllers.backups import backups_router
@@ -87,6 +88,15 @@ def create_app() -> Litestar:
     async def lifespan(app: Litestar) -> AsyncGenerator[None, None]:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            # create_all adds new indexes only to tables it creates fresh, not
+            # to a device_backups table that predates this index. Add it
+            # explicitly so existing deployments get the paginated-list speedup.
+            await conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_device_backups_created_at "
+                    "ON device_backups (created_at)"
+                )
+            )
 
         scheduler = BackupScheduler(
             _container.get_run_due_backups_interactor(),

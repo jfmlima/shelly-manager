@@ -205,6 +205,15 @@ class BackupDetailResponse(BackupSummaryResponse):
     snapshot: dict[str, Any] = Field(default_factory=dict)
 
 
+class PaginatedBackupsResponse(BaseModel):
+    """A page of backup summaries with the total count for pagination."""
+
+    items: list[BackupSummaryResponse] = Field(default_factory=list)
+    total: int = 0
+    limit: int = 50
+    offset: int = 0
+
+
 class ComponentRestoreResultResponse(BaseModel):
     """Per-component outcome of a restore."""
 
