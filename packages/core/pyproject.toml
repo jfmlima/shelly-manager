@@ -10,7 +10,7 @@ authors = [{name = "Jorge Lima", email = "jorgefilipemlima@gmail.com"}]
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "pydantic==2.11.7",
+    "pydantic==2.12.5",
     "pydantic-settings==2.10.1",
     "structlog==25.4.0",
     "httpx==0.28.1",
