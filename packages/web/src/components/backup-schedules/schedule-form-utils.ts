@@ -1,7 +1,4 @@
-import type {
-  CreateBackupScheduleRequest,
-  BackupSchedule,
-} from "@/types/api";
+import type { CreateBackupScheduleRequest, BackupSchedule } from "@/types/api";
 
 export type Cadence = "hourly" | "daily" | "weekly" | "custom";
 

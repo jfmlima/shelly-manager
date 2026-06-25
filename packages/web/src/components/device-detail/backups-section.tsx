@@ -65,7 +65,9 @@ export function BackupsSection({
     offset,
   });
   const createBackup = useCreateBackup();
-  const [restoreTarget, setRestoreTarget] = useState<BackupSummary | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<BackupSummary | null>(
+    null,
+  );
 
   const items = backups?.items ?? [];
   const total = backups?.total ?? 0;
@@ -101,9 +103,7 @@ export function BackupsSection({
           </CardDescription>
         </div>
         <Button
-          onClick={() =>
-            createBackup.mutate({ deviceIp, name: undefined })
-          }
+          onClick={() => createBackup.mutate({ deviceIp, name: undefined })}
           disabled={createBackup.isPending}
         >
           <Save className="h-4 w-4 mr-2" />
