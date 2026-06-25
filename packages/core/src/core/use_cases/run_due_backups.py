@@ -1,5 +1,6 @@
 """Use case for running due scheduled backups with retention."""
 
+import asyncio
 import logging
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
@@ -69,17 +70,19 @@ class RunDueBackupsUseCase:
         self._backup_device_config = backup_device_config
         self._scan_devices = scan_devices
         self._clock = clock
+        self._run_lock = asyncio.Lock()
 
     async def run_due(self) -> list[ScheduleRunResult]:
         """Run every schedule whose next_run_at has passed, sequentially."""
-        now = self._clock()
-        async with self._schedule_repository_factory() as repository:
-            due = await repository.list_due(now)
-        results: list[ScheduleRunResult] = []
-        # Sequential on purpose: backing up many devices at once would hammer the LAN.
-        for schedule in due:
-            results.append(await self._run_one(schedule, now))
-        return results
+        async with self._run_lock:
+            now = self._clock()
+            async with self._schedule_repository_factory() as repository:
+                due = await repository.list_due(now)
+            results: list[ScheduleRunResult] = []
+            # Sequential on purpose: backing up many devices at once would hammer the LAN.
+            for schedule in due:
+                results.append(await self._run_one(schedule, now))
+            return results
 
     async def run_schedule(self, schedule_id: int) -> ScheduleRunResult:
         """Run one schedule now, ignoring its next_run_at.
@@ -87,11 +90,12 @@ class RunDueBackupsUseCase:
         Raises:
             ScheduleNotFoundError: If the schedule does not exist.
         """
-        async with self._schedule_repository_factory() as repository:
-            schedule = await repository.get(schedule_id)
-        if schedule is None:
-            raise ScheduleNotFoundError(schedule_id)
-        return await self._run_one(schedule, self._clock())
+        async with self._run_lock:
+            async with self._schedule_repository_factory() as repository:
+                schedule = await repository.get(schedule_id)
+            if schedule is None:
+                raise ScheduleNotFoundError(schedule_id)
+            return await self._run_one(schedule, self._clock())
 
     async def _run_one(self, schedule: BackupSchedule, now: int) -> ScheduleRunResult:
         target_ips, skipped_macs = await self._resolve_targets(schedule)
