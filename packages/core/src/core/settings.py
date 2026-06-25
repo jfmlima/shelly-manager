@@ -158,6 +158,7 @@ class AppSettings(BaseSettings):
                 "logging": self.logging.model_dump(),
                 "network": self.network.model_dump(),
                 "api": self.api.model_dump(),
+                "backup": self.backup.model_dump(),
                 "config_file": self.config_file,
                 "data_dir": self.data_dir,
                 "cache_ttl": self.cache_ttl,

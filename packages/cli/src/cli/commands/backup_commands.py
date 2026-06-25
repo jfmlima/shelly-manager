@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 import click
 from core.domain.entities.backup_schedule import BackupSchedule
+from core.utils.target_parser import validate_target
 from core.utils.validation import normalize_mac
 from rich.table import Table
 
@@ -282,6 +283,12 @@ async def create_schedule(
             )
         )
         raise click.Abort()
+    for target in targets:
+        try:
+            validate_target(target)
+        except ValueError as e:
+            console.print(Messages.error(f"Invalid target '{target}': {e}"))
+            raise click.Abort() from None
 
     interval = EVERY_PRESETS[every] if every is not None else interval_seconds
     schedule = BackupSchedule(
