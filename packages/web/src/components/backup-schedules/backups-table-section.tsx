@@ -41,6 +41,7 @@ export function BackupsTableSection() {
   } = useQuery({
     queryKey: ["backups", "all"],
     queryFn: () => backupApi.listBackups(),
+    enabled: true,
   });
 
   const deleteMutation = useMutation({
