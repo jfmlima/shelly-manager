@@ -104,7 +104,7 @@ export function ScheduleForm({ value, onChange }: ScheduleFormProps) {
               <DropdownMenuTrigger asChild>
                 <Button type="button" variant="outline" size="sm" className="h-7">
                   <Plus className="h-3.5 w-3.5 mr-1" />
-                  Scanned device
+                  Scanned devices
                   <ChevronDown className="h-3.5 w-3.5 ml-1" />
                 </Button>
               </DropdownMenuTrigger>
@@ -112,15 +112,17 @@ export function ScheduleForm({ value, onChange }: ScheduleFormProps) {
                 align="end"
                 className="max-h-64 overflow-y-auto"
               >
-                <DropdownMenuLabel>Add a scanned device</DropdownMenuLabel>
+                <DropdownMenuLabel>Add scanned devices</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {pickable.map((device) => (
                   <DropdownMenuItem
                     key={device.ip}
                     disabled={selected.has(device.ip)}
-                    onSelect={() =>
-                      set("targetIps", addTargetIp(value.targetIps, device.ip))
-                    }
+                    onSelect={(event) => {
+                      // Keep the menu open so several devices can be added at once.
+                      event.preventDefault();
+                      set("targetIps", addTargetIp(value.targetIps, device.ip));
+                    }}
                   >
                     <span className="font-medium">
                       {device.device_name || device.ip}
