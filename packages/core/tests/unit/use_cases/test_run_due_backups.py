@@ -1,5 +1,6 @@
 """Tests for the scheduled-backup runner."""
 
+import asyncio
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -149,6 +150,43 @@ class TestRunDue:
         assert results[0].ok == 1
         assert results[0].failed == 1
         assert results[0].status == "partial"
+
+    async def test_it_serializes_tick_and_manual_run_in_one_worker(self):
+        schedule = _schedule()
+        schedule_repo = AsyncMock(
+            list_due=AsyncMock(return_value=[schedule]),
+            get=AsyncMock(return_value=schedule),
+            set_run_result=AsyncMock(),
+        )
+        started = asyncio.Event()
+        release = asyncio.Event()
+        calls: list[str] = []
+
+        async def create(ip, source="scheduled"):
+            calls.append(ip)
+            started.set()
+            await release.wait()
+            return _backup_for(ip)
+
+        backup_device_config = AsyncMock(create_backup=AsyncMock(side_effect=create))
+        use_case = _make_use_case(
+            schedule_repo=schedule_repo, backup_device_config=backup_device_config
+        )
+
+        due_task = asyncio.create_task(use_case.run_due())
+        await started.wait()
+
+        manual_task = asyncio.create_task(use_case.run_schedule(1))
+        await asyncio.sleep(0)
+
+        schedule_repo.get.assert_not_awaited()
+
+        release.set()
+        await due_task
+        await manual_task
+
+        schedule_repo.get.assert_awaited_once_with(1)
+        assert calls == ["192.168.1.10", "192.168.1.10"]
 
 
 class TestTargetResolution:
