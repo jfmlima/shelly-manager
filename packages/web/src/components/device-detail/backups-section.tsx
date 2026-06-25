@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Save, RotateCcw, Trash2, AlertTriangle } from "lucide-react";
 
@@ -38,6 +38,7 @@ import {
 import type { BackupSummary } from "@/types/api";
 
 const NETWORK_TYPES = new Set(["wifi", "eth", "mqtt", "ws", "cloud"]);
+const PAGE_SIZE = 50;
 
 interface BackupsSectionProps {
   deviceIp: string;
@@ -54,12 +55,41 @@ export function BackupsSection({
   deviceMac,
   deviceName,
 }: BackupsSectionProps) {
-  const { data: backups, isLoading } = useBackups(deviceMac);
-  const createBackup = useCreateBackup(deviceMac);
+  const [offset, setOffset] = useState(0);
+  const {
+    data: backups,
+    isLoading,
+    isSuccess,
+  } = useBackups(deviceMac, {
+    limit: PAGE_SIZE,
+    offset,
+  });
+  const createBackup = useCreateBackup();
   const [restoreTarget, setRestoreTarget] = useState<BackupSummary | null>(null);
+
+  const items = backups?.items ?? [];
+  const total = backups?.total ?? 0;
+
+  // A device switch should start from the first page, not inherit the old one.
+  useEffect(() => {
+    setOffset(0);
+  }, [deviceMac]);
+
+  // Step back only on a *successful* empty page — not on a transient error,
+  // which also yields items=[] and would otherwise rewind pagination state.
+  useEffect(() => {
+    if (isSuccess && items.length === 0 && offset >= PAGE_SIZE) {
+      setOffset((current) => Math.max(0, current - PAGE_SIZE));
+    }
+  }, [isSuccess, items.length, offset]);
 
   const formatDate = (ts: number | null) =>
     ts ? new Date(ts * 1000).toLocaleString() : "-";
+
+  const rangeStart = total === 0 ? 0 : offset + 1;
+  const rangeEnd = offset + items.length;
+  const canPrev = offset > 0;
+  const canNext = offset + PAGE_SIZE < total;
 
   return (
     <Card>
@@ -87,31 +117,59 @@ export function BackupsSection({
           </p>
         ) : isLoading ? (
           <p className="text-sm text-muted-foreground">Loading backups...</p>
-        ) : !backups || backups.length === 0 ? (
+        ) : total === 0 ? (
           <p className="text-sm text-muted-foreground">No backups yet.</p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Firmware</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {backups.map((backup) => (
-                <BackupRow
-                  key={backup.id}
-                  backup={backup}
-                  deviceMac={deviceMac}
-                  formatDate={formatDate}
-                  onRestore={() => setRestoreTarget(backup)}
-                />
-              ))}
-            </TableBody>
-          </Table>
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Firmware</TableHead>
+                  <TableHead>Source</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((backup) => (
+                  <BackupRow
+                    key={backup.id}
+                    backup={backup}
+                    formatDate={formatDate}
+                    onRestore={() => setRestoreTarget(backup)}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+            {total > PAGE_SIZE && (
+              <div className="flex items-center justify-between pt-4">
+                <p className="text-sm text-muted-foreground">
+                  Showing {rangeStart}–{rangeEnd} of {total}
+                </p>
+                <div className="space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setOffset((current) => Math.max(0, current - PAGE_SIZE))
+                    }
+                    disabled={!canPrev}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setOffset((current) => current + PAGE_SIZE)}
+                    disabled={!canNext}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
 
@@ -129,16 +187,14 @@ export function BackupsSection({
 
 function BackupRow({
   backup,
-  deviceMac,
   formatDate,
   onRestore,
 }: {
   backup: BackupSummary;
-  deviceMac: string | null;
   formatDate: (ts: number | null) => string;
   onRestore: () => void;
 }) {
-  const deleteBackup = useDeleteBackup(deviceMac);
+  const deleteBackup = useDeleteBackup();
   return (
     <TableRow>
       <TableCell>#{backup.id}</TableCell>
@@ -178,6 +234,10 @@ function RestoreDialog({
   const { data: detail, isLoading } = useQuery({
     queryKey: ["backup", backup.id],
     queryFn: () => backupApi.getBackup(backup.id),
+    // The app sets a global `enabled: false` default, so every query must opt
+    // in explicitly; without this the snapshot never loads and the restore
+    // dialog shows no components (Restore stays disabled).
+    enabled: true,
   });
 
   const componentTypes = useMemo(() => {
