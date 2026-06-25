@@ -1,3 +1,4 @@
+import type { Dispatch, SetStateAction } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,7 @@ import type { Cadence, ScheduleFormState } from "./schedule-form-utils";
 
 interface ScheduleFormProps {
   value: ScheduleFormState;
-  onChange: (next: ScheduleFormState) => void;
+  onChange: Dispatch<SetStateAction<ScheduleFormState>>;
 }
 
 function addTargetIp(current: string, ip: string): string {
@@ -41,7 +42,7 @@ export function ScheduleForm({ value, onChange }: ScheduleFormProps) {
   const set = <K extends keyof ScheduleFormState>(
     key: K,
     fieldValue: ScheduleFormState[K],
-  ) => onChange({ ...value, [key]: fieldValue });
+  ) => onChange((current) => ({ ...current, [key]: fieldValue }));
 
   const { data: scannedDevices = [] } = useScannedDevices();
   const pickable = scannedDevices.filter((device) => device.ip);
@@ -121,7 +122,10 @@ export function ScheduleForm({ value, onChange }: ScheduleFormProps) {
                     onSelect={(event) => {
                       // Keep the menu open so several devices can be added at once.
                       event.preventDefault();
-                      set("targetIps", addTargetIp(value.targetIps, device.ip));
+                      onChange((current) => ({
+                        ...current,
+                        targetIps: addTargetIp(current.targetIps, device.ip),
+                      }));
                     }}
                   >
                     <span className="font-medium">
