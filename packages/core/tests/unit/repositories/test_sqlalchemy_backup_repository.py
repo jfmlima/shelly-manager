@@ -78,6 +78,30 @@ class TestSQLAlchemyBackupRepository:
             # summary type carries no snapshot attribute
             assert not hasattr(filtered[0], "snapshot")
 
+    async def test_it_paginates_summaries_newest_first(self, session_factory):
+        async with session_factory() as session:
+            repo = SQLAlchemyBackupRepository(session, EncryptionService())
+            created = [await repo.create(_backup(name=f"b{i}")) for i in range(5)]
+            newest_first = [c.id for c in reversed(created)]
+
+            page0 = await repo.list_summaries(limit=2, offset=0)
+            page1 = await repo.list_summaries(limit=2, offset=2)
+            page2 = await repo.list_summaries(limit=2, offset=4)
+
+            assert [s.id for s in page0] == newest_first[0:2]
+            assert [s.id for s in page1] == newest_first[2:4]
+            assert [s.id for s in page2] == newest_first[4:5]
+
+    async def test_it_counts_summaries_all_and_by_mac(self, session_factory):
+        async with session_factory() as session:
+            repo = SQLAlchemyBackupRepository(session, EncryptionService())
+            await repo.create(_backup(mac="AABBCCDDEEFF"))
+            await repo.create(_backup(mac="AABBCCDDEEFF"))
+            await repo.create(_backup(mac="112233445566"))
+
+            assert await repo.count_summaries() == 3
+            assert await repo.count_summaries("AA:BB:CC:DD:EE:FF") == 2
+
     async def test_it_deletes_a_backup(self, session_factory):
         async with session_factory() as session:
             repo = SQLAlchemyBackupRepository(session, EncryptionService())

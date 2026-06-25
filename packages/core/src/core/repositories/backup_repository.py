@@ -18,11 +18,25 @@ class BackupRepository(ABC):
 
     @abstractmethod
     async def list_summaries(
-        self, device_mac: str | None = None
+        self,
+        device_mac: str | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[DeviceBackupSummary]:
         """List backup summaries (no snapshot), newest first.
 
-        Optionally filtered by device MAC.
+        Optionally filtered by device MAC. When ``limit`` is ``None`` every
+        match is returned; otherwise the result is windowed by ``limit``/
+        ``offset`` for pagination.
+        """
+        pass
+
+    @abstractmethod
+    async def count_summaries(self, device_mac: str | None = None) -> int:
+        """Count stored backups, optionally filtered by device MAC.
+
+        Counts every source (manual and scheduled) — this is the total a
+        paginated list view paginates over, not a retention scope.
         """
         pass
 

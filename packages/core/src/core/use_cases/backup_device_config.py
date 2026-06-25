@@ -5,7 +5,11 @@ from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from typing import Any
 
-from core.domain.entities.device_backup import DeviceBackup, DeviceBackupSummary
+from core.domain.entities.device_backup import (
+    BackupPage,
+    DeviceBackup,
+    DeviceBackupSummary,
+)
 from core.domain.entities.exceptions import DeviceNotFoundError
 from core.gateways.device import DeviceGateway
 from core.repositories.backup_repository import BackupRepository
@@ -126,9 +130,25 @@ class BackupDeviceConfig:
     async def list_backups(
         self, device_mac: str | None = None
     ) -> list[DeviceBackupSummary]:
-        """List backup summaries, newest first, optionally filtered by MAC."""
+        """List every backup summary, newest first, optionally filtered by MAC.
+
+        Unbounded — used by callers that want the full set (the CLI listing).
+        UI/API list views should use :meth:`list_backups_page` instead.
+        """
         async with self._repository_factory() as repository:
             return await repository.list_summaries(device_mac)
+
+    async def list_backups_page(
+        self,
+        device_mac: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> BackupPage:
+        """Return one page of backup summaries plus the total matching count."""
+        async with self._repository_factory() as repository:
+            items = await repository.list_summaries(device_mac, limit, offset)
+            total = await repository.count_summaries(device_mac)
+        return BackupPage(items=items, total=total, limit=limit, offset=offset)
 
     async def get_backup(self, backup_id: int) -> DeviceBackup:
         """Get a full backup including its snapshot.
