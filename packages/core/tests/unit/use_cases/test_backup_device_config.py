@@ -42,6 +42,34 @@ def _export(ip="192.168.1.100"):
     }
 
 
+def _gen1_export(ip="192.168.1.100"):
+    return {
+        "devices": {
+            ip: {
+                "device_info": {"mac_address": "AABBCCDDEEFF"},
+                "components": {
+                    "switch:0": {
+                        "type": "switch",
+                        "success": True,
+                        "config": {
+                            "name": "Relay",
+                            "auto_off": True,
+                            "auto_off_delay": 30.0,
+                        },
+                        "error": None,
+                    },
+                    "legacy_settings": {
+                        "type": "legacy_settings",
+                        "success": True,
+                        "config": {"relays": [{"auto_off": 30}]},
+                        "error": None,
+                    },
+                },
+            }
+        }
+    }
+
+
 class TestBackupDeviceConfig:
     @pytest.fixture
     def mock_repository(self):
@@ -92,6 +120,21 @@ class TestBackupDeviceConfig:
         backup = await use_case.create_backup("192.168.1.100")
 
         assert backup.generation == "gen1"
+
+    async def test_it_creates_gen1_backup_capturing_legacy_settings(
+        self, use_case, mock_device_gateway, mock_bulk_operations, mock_repository
+    ):
+        mock_device_gateway.get_device_status = AsyncMock(return_value=_status(gen=1))
+        mock_bulk_operations.export_bulk_config = AsyncMock(return_value=_gen1_export())
+        mock_repository.create = AsyncMock(side_effect=lambda backup: backup)
+
+        backup = await use_case.create_backup("192.168.1.100")
+
+        assert backup.generation == "gen1"
+        components = backup.snapshot["components"]
+        assert "legacy_settings" in components
+        assert components["legacy_settings"]["config"] == {"relays": [{"auto_off": 30}]}
+        mock_repository.create.assert_awaited_once()
 
     async def test_it_raises_when_generation_unknown(
         self, use_case, mock_device_gateway

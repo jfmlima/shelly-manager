@@ -242,6 +242,20 @@ class LegacyDeviceGateway:
             status_data=None,
         )
 
+    async def fetch_settings(
+        self, ip: str, timeout: float | None = None
+    ) -> dict[str, Any] | None:
+        """Fetch the raw Gen1 ``/settings`` payload for backup capture.
+
+        Returns ``None`` on any failure, including an empty payload, so the
+        export stays non-fatal when a device drops mid-capture.
+        """
+        auth = await self._resolve_auth(ip, timeout)
+        settings = await self._http_client.fetch_json_optional(
+            ip, "settings", auth=auth, timeout=timeout
+        )
+        return settings or None
+
     async def execute_action(
         self,
         ip: str,

@@ -44,6 +44,11 @@ class ShellyDeviceGateway(DeviceGateway):
         if self._legacy_gateway:
             self._legacy_gateway.invalidate_credential_cache(mac)
 
+    async def get_legacy_settings(self, ip: str) -> dict[str, Any] | None:
+        if self._legacy_gateway:
+            return await self._legacy_gateway.fetch_settings(ip)
+        return None
+
     async def discover_device(
         self, ip: str, timeout: float | None = None
     ) -> DiscoveredDevice | None:

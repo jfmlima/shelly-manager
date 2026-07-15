@@ -653,6 +653,102 @@ class TestBulkOperationsUseCase:
         assert device_data["components"]["schedules"]["config"]["jobs"] is not None
         assert len(device_data["components"]["schedules"]["config"]["jobs"]) == 1
 
+    @pytest.fixture
+    def gen1_device_status(self):
+        return DeviceStatus(
+            device_ip="192.168.1.100",
+            device_name="Gen1 Relay",
+            device_type="SHSW-1",
+            firmware_version="20230913-112003/v1.14.0",
+            mac_address="AABBCCDDEEFF",
+            app_name="switch",
+            gen=1,
+            components=[
+                SwitchComponent(
+                    key="switch:0",
+                    component_type="switch",
+                    status={"output": False},
+                    config={
+                        "name": "Relay",
+                        "auto_off": True,
+                        "auto_off_delay": 30.0,
+                    },
+                    attrs={},
+                ),
+                SystemComponent(
+                    key="sys",
+                    component_type="sys",
+                    status={},
+                    config={"device": {"name": "Gen1 Relay"}},
+                    attrs={},
+                ),
+            ],
+        )
+
+    async def test_it_exports_gen1_config_from_mapped_components_without_rpc(
+        self, use_case, mock_device_gateway, gen1_device_status
+    ):
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=gen1_device_status
+        )
+        mock_device_gateway.execute_component_action = AsyncMock()
+        raw_settings = {"relays": [{"auto_off": 30}], "name": "Gen1 Relay"}
+        mock_device_gateway.get_legacy_settings = AsyncMock(return_value=raw_settings)
+
+        result = await use_case.export_bulk_config(
+            ["192.168.1.100"], ["switch", "sys", "schedules"]
+        )
+
+        mock_device_gateway.execute_component_action.assert_not_called()
+
+        components = result["devices"]["192.168.1.100"]["components"]
+        assert components["switch:0"]["success"] is True
+        assert components["switch:0"]["error"] is None
+        assert components["switch:0"]["config"] == {
+            "name": "Relay",
+            "auto_off": True,
+            "auto_off_delay": 30.0,
+        }
+        assert components["sys"]["success"] is True
+
+        assert components["legacy_settings"]["type"] == "legacy_settings"
+        assert components["legacy_settings"]["success"] is True
+        assert components["legacy_settings"]["config"] == raw_settings
+        mock_device_gateway.get_legacy_settings.assert_awaited_once_with(
+            "192.168.1.100"
+        )
+
+    async def test_it_omits_legacy_settings_when_raw_fetch_fails(
+        self, use_case, mock_device_gateway, gen1_device_status
+    ):
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=gen1_device_status
+        )
+        mock_device_gateway.execute_component_action = AsyncMock()
+        mock_device_gateway.get_legacy_settings = AsyncMock(return_value=None)
+
+        result = await use_case.export_bulk_config(["192.168.1.100"], ["switch"])
+
+        components = result["devices"]["192.168.1.100"]["components"]
+        assert "legacy_settings" not in components
+        assert components["switch:0"]["success"] is True
+        mock_device_gateway.execute_component_action.assert_not_called()
+
+    async def test_it_filters_gen1_components_by_requested_type(
+        self, use_case, mock_device_gateway, gen1_device_status
+    ):
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=gen1_device_status
+        )
+        mock_device_gateway.execute_component_action = AsyncMock()
+        mock_device_gateway.get_legacy_settings = AsyncMock(return_value=None)
+
+        result = await use_case.export_bulk_config(["192.168.1.100"], ["switch"])
+
+        components = result["devices"]["192.168.1.100"]["components"]
+        assert "switch:0" in components
+        assert "sys" not in components
+
     async def test_it_applies_bulk_config_successfully(
         self, use_case, mock_device_gateway
     ):
