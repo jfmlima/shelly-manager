@@ -65,7 +65,9 @@ The core package provides per-device configuration backup and restore:
 - **RestoreDeviceConfig** - Applies a stored snapshot back to a device, per component key. The
   target MAC is validated against the backup; network components (`wifi`/`eth`/`mqtt`/`ws`/
   `cloud`) are excluded by default to avoid lockout; read-only fields are stripped before each
-  `SetConfig`. Restore is supported on Gen2+ devices only.
+  `SetConfig`. Gen1 devices restore through their legacy HTTP settings endpoints instead
+  (`Legacy.SetConfig`), replaying the raw `/settings` captured in the snapshot — see
+  [Gen1 restore](#gen1-restore). A backup and a target of different generations are refused.
 
 Backups are persisted through the `BackupRepository` abstraction
 (`repositories/backup_repository.py`), implemented by `SQLAlchemyBackupRepository`, with the
@@ -79,6 +81,29 @@ Two more use cases drive scheduled backups:
   the retention policy. It takes an injectable clock so the runner is deterministic under test, and
   opens its own repository sessions because it runs outside any HTTP request. Retention is scoped to
   scheduled snapshots, so a manual backup is never pruned by a schedule.
+
+### Gen1 restore
+
+Gen1 devices have no per-component `SetConfig` RPC, so their backups carry the raw `/settings`
+payload alongside the Gen2-shaped component configs. Restore replays that payload over the legacy
+HTTP settings endpoints (`/settings/relay/{i}`, `/settings/roller/{i}`, `/settings`,
+`/settings/sta`, `/settings/cloud`). Only parameters documented as settable in the
+[Gen1 API](https://shelly-api-docs.shelly.cloud/gen1/) are sent — read-only echoes (`ison`,
+`has_timer`, `power`) and unknown per-model fields are dropped rather than replayed.
+
+Known limitations:
+
+- **Secrets are not restored.** `GET /settings` never echoes the WiFi password (`key`) or
+  `mqtt_pass`, so they are absent from every snapshot. Restoring `wifi` re-applies the SSID and
+  static-IP config but not the password; restoring `mqtt` re-applies the broker and username but
+  leaves the password unset. If the device is on a password-protected network, verify it is still
+  connected after a `wifi` restore — network components are excluded by default for this reason.
+- **Device auth is not restored** (`/settings/login`), matching the Gen2 path, which likewise
+  leaves `Shelly.SetAuth` alone.
+- **Gen1 `actions` (webhooks) are not restored.** `/settings/actions` uses its own indexed-array
+  format and is not yet captured.
+- **Inputs have no endpoint of their own.** Gen1 input config lives on the owning relay, so an
+  `input:{i}` key is reported as skipped; its settings restore with `switch:{i}`.
 
 ## Quick Start
 
