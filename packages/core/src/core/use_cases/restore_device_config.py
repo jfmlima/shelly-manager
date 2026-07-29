@@ -7,6 +7,7 @@ from typing import Any
 
 from core.domain.entities.device_backup import DeviceBackup
 from core.domain.entities.exceptions import DeviceNotFoundError
+from core.domain.value_objects.generation import Generation
 from core.domain.value_objects.restore_result import (
     ComponentRestoreResult,
     RestoreResult,
@@ -124,11 +125,18 @@ class RestoreDeviceConfig:
 
         # A target whose generation is unknown (gen is None, e.g. GetDeviceInfo
         # failed) is already gated by the MAC check above, so it never reaches here.
-        is_gen1 = backup.generation == "gen1" and status.gen == 1
-        if (backup.generation == "gen1" or status.gen == 1) and not is_gen1:
+        backup_generation = Generation.from_label(backup.generation)
+        device_generation = Generation.from_device_gen(status.gen)
+        is_gen1 = (
+            backup_generation is Generation.GEN1
+            and device_generation is Generation.GEN1
+        )
+        if (
+            backup_generation is Generation.GEN1 or device_generation is Generation.GEN1
+        ) and not is_gen1:
             return self._generation_mismatch(backup, device_ip, component_keys)
 
-        strategy = self._build_strategy(is_gen1)
+        strategy = self._build_strategy(Generation.GEN1 if is_gen1 else Generation.GEN2)
         outcome = await strategy.prepare(device_ip, backup, status)
         if outcome.abort_reason is not None:
             return self._all_skipped(
@@ -216,10 +224,10 @@ class RestoreDeviceConfig:
             components=results,
         )
 
-    def _build_strategy(self, is_gen1: bool) -> ComponentRestoreStrategy:
+    def _build_strategy(self, generation: Generation) -> ComponentRestoreStrategy:
         # Strategies are stateful per run (Gen1 holds the loaded settings), so
         # each restore constructs its own.
-        if is_gen1:
+        if generation is Generation.GEN1:
             return Gen1RestoreStrategy(
                 self._device_gateway,
                 mode_change_timeout=self._mode_change_timeout,

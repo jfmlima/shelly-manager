@@ -9,6 +9,7 @@ from core.domain.entities.exceptions import (
     DeviceCommunicationError,
     DeviceNotFoundError,
 )
+from core.domain.value_objects.generation import Generation
 from core.domain.value_objects.provision_request import APDeviceInfo
 
 logger = logging.getLogger(__name__)
@@ -74,10 +75,7 @@ class APDeviceDetector:
         Gen2+ devices have a 'gen' field (2 or 3).
         Gen1 devices have a 'type' field but no 'gen' field.
         """
-        generation = data.get("gen")
-
-        if generation is None:
-            # This is a Gen1 device
+        if Generation.from_shelly_payload(data) is Generation.GEN1:
             device_type = data.get("type", "")
             if not device_type:
                 raise DeviceNotFoundError(
@@ -89,7 +87,7 @@ class APDeviceDetector:
                 "Only Gen2/Gen3 devices are supported for provisioning.",
             )
 
-        # Gen2/Gen3 device
+        generation = data["gen"]
         device_id = data.get("id", "")
         mac = data.get("mac", "")
         model = data.get("model", "")

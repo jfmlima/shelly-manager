@@ -11,6 +11,7 @@ from core.domain.entities.device_backup import (
     DeviceBackupSummary,
 )
 from core.domain.entities.exceptions import DeviceNotFoundError
+from core.domain.value_objects.generation import Generation
 from core.gateways.device import DeviceGateway
 from core.repositories.backup_repository import BackupRepository
 from core.use_cases.bulk_operations import BulkOperationsUseCase
@@ -94,11 +95,8 @@ class BackupDeviceConfig:
 
         # Generation comes from the device's explicit `gen` field (Gen2+ RPC) or
         # the legacy gateway's gen=1 stamp, never inferred from a missing field.
-        if status.gen == 1:
-            generation = "gen1"
-        elif status.gen is not None and status.gen >= 2:
-            generation = "gen2"
-        else:
+        generation = Generation.from_device_gen(status.gen)
+        if generation is None:
             raise BackupError(
                 f"Could not determine device generation for {device_ip}; "
                 "backup aborted"
@@ -111,7 +109,7 @@ class BackupDeviceConfig:
             device_name=status.device_name,
             device_type=status.device_type,
             firmware_version=status.firmware_version,
-            generation=generation,
+            generation=generation.value,
             name=name,
             source=source,
         )

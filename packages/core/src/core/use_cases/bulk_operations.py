@@ -5,6 +5,7 @@ from typing import Any
 from ..domain.entities.device_status import DeviceStatus
 from ..domain.entities.exceptions import BulkOperationError
 from ..domain.value_objects.action_result import ActionResult
+from ..domain.value_objects.generation import Generation
 from ..gateways.device import DeviceGateway
 
 logger = logging.getLogger(__name__)
@@ -148,7 +149,7 @@ class BulkOperationsUseCase:
 
             # Gen1 has no /rpc: GetConfig and Schedule.List 404, so capture from
             # the configs already mapped onto the DeviceStatus instead.
-            if device_status.gen == 1:
+            if Generation.from_device_gen(device_status.gen) is Generation.GEN1:
                 await self._export_gen1_config(
                     device_ip, device_status, component_types, device_data
                 )

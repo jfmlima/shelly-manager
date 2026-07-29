@@ -9,6 +9,7 @@ from .bulk_reboot_request import BulkRebootRequest
 from .bulk_status_request import BulkStatusRequest
 from .check_device_status_request import CheckDeviceStatusRequest
 from .component_action_request import ComponentActionRequest
+from .generation import Generation
 from .get_component_actions_request import GetComponentActionsRequest
 from .scan_request import ScanRequest
 
@@ -20,6 +21,7 @@ __all__ = [
     "BaseBulkDeviceRequest",
     "CheckDeviceStatusRequest",
     "ComponentActionRequest",
+    "Generation",
     "GetComponentActionsRequest",
     "BulkDeviceRequest",
     "BulkRebootRequest",
