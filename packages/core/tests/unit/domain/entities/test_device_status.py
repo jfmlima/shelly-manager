@@ -559,7 +559,7 @@ class TestDeviceStatusMerging:
 class TestDeviceStatusEMComponents:
     """Test EM component support and total_power calculation."""
 
-    def test_total_power_with_em_only(self):
+    def test_it_totals_power_with_em_only(self):
         """Pro 3EM device with no switches -- total_power should come from EM."""
         em_comp = EMComponent(
             key="em:0",
@@ -576,7 +576,7 @@ class TestDeviceStatusEMComponents:
         assert summary["total_power"] == 312.278
         assert summary["switch_count"] == 0
 
-    def test_total_power_with_em1_only(self):
+    def test_it_totals_power_with_em1_only(self):
         """Pro EM device with multiple EM1 channels and no switches."""
         em1_a = EM1Component(key="em1:0", component_type="em1", act_power=951.2)
         em1_b = EM1Component(key="em1:1", component_type="em1", act_power=200.5)
@@ -589,7 +589,7 @@ class TestDeviceStatusEMComponents:
         assert summary["total_power"] == pytest.approx(1151.7)
         assert summary["switch_count"] == 0
 
-    def test_total_power_with_switches_and_em(self):
+    def test_it_totals_power_with_switches_and_em(self):
         """Mixed device with both switches and EM components."""
         switch_comp = SwitchComponent(
             key="switch:0", component_type="switch", output=True, power=100.0
@@ -604,7 +604,7 @@ class TestDeviceStatusEMComponents:
         assert summary["total_power"] == pytest.approx(412.278)
         assert summary["switch_count"] == 1
 
-    def test_total_power_with_switches_only(self):
+    def test_it_totals_power_with_switches_only(self):
         """Backward compatibility: switch-only devices still work."""
         switch_a = SwitchComponent(
             key="switch:0", component_type="switch", output=True, power=50.0
@@ -621,14 +621,14 @@ class TestDeviceStatusEMComponents:
         assert summary["total_power"] == 50.0
         assert summary["switch_count"] == 2
 
-    def test_total_power_with_no_power_components(self):
+    def test_it_totals_power_with_no_power_components(self):
         """Pure sensor device with no power-producing components."""
         device_status = DeviceStatus(device_ip="192.168.1.100", components=[])
 
         summary = device_status.get_device_summary()
         assert summary["total_power"] == 0
 
-    def test_total_power_with_null_em_power(self):
+    def test_it_totals_power_with_null_em_power(self):
         """EM component with None total_act_power should not break sum."""
         em_comp = EMComponent(key="em:0", component_type="em", total_act_power=None)
         switch_comp = SwitchComponent(
@@ -642,7 +642,7 @@ class TestDeviceStatusEMComponents:
         summary = device_status.get_device_summary()
         assert summary["total_power"] == 100.0
 
-    def test_total_power_with_null_em1_power(self):
+    def test_it_totals_power_with_null_em1_power(self):
         """EM1 component with None act_power should not break sum."""
         em1_comp = EM1Component(key="em1:0", component_type="em1", act_power=None)
 
@@ -651,7 +651,7 @@ class TestDeviceStatusEMComponents:
         summary = device_status.get_device_summary()
         assert summary["total_power"] == 0
 
-    def test_get_em_components(self):
+    def test_it_gets_em_components(self):
         em_comp = EMComponent(key="em:0", component_type="em", total_act_power=312.0)
         switch_comp = SwitchComponent(
             key="switch:0", component_type="switch", output=True, power=50.0
@@ -665,7 +665,7 @@ class TestDeviceStatusEMComponents:
         assert len(em_components) == 1
         assert em_components[0].total_act_power == 312.0
 
-    def test_get_em1_components(self):
+    def test_it_gets_em1_components(self):
         em1_a = EM1Component(key="em1:0", component_type="em1", act_power=951.2)
         em1_b = EM1Component(key="em1:1", component_type="em1", act_power=200.5)
 
@@ -676,7 +676,7 @@ class TestDeviceStatusEMComponents:
         em1_components = device_status.get_em1_components()
         assert len(em1_components) == 2
 
-    def test_get_em_data_components(self):
+    def test_it_gets_em_data_components(self):
         emdata_comp = EMDataComponent(
             key="emdata:0", component_type="emdata", total_act=344297.48
         )
@@ -689,7 +689,7 @@ class TestDeviceStatusEMComponents:
         assert len(em_data) == 1
         assert em_data[0].total_act == 344297.48
 
-    def test_get_em1_data_components(self):
+    def test_it_gets_em1_data_components(self):
         em1data_comp = EM1DataComponent(
             key="em1data:0", component_type="em1data", total_act_energy=12345.67
         )
@@ -702,7 +702,7 @@ class TestDeviceStatusEMComponents:
         assert len(em1_data) == 1
         assert em1_data[0].total_act_energy == 12345.67
 
-    def test_em_components_created_from_raw_response(self):
+    def test_it_creates_em_components_from_a_raw_response(self):
         """Test that EM components are properly created from raw API response."""
         device_ip = "192.168.1.100"
         response_data = {

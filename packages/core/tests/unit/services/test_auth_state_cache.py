@@ -106,7 +106,7 @@ class TestAuthStateCache:
             # Entry should be gone
             assert "AABBCCDDEEFF" not in cache._auth_required
 
-    def test_is_known_removes_expired_entry(self):
+    def test_it_removes_an_expired_entry_when_asked_if_it_is_known(self):
         with patch("core.services.auth_state_cache.time") as mock_time:
             mock_time.return_value = 1000000
             cache = AuthStateCache(ttl_seconds=1)
@@ -133,7 +133,7 @@ class TestAuthStateCache:
             _, timestamp = cache._auth_required["AABBCCDDEEFF"]
             assert timestamp == initial_time + 1800
 
-    def test_cleanup_expired_removes_old_entries(self):
+    def test_it_removes_expired_entries_on_cleanup(self):
         with patch("core.services.auth_state_cache.time") as mock_time:
             mock_time.return_value = 1000000
             cache = AuthStateCache(ttl_seconds=1)
@@ -145,11 +145,11 @@ class TestAuthStateCache:
             mock_time.return_value = 1000000 + 2  # After TTL for first device
             removed = cache.cleanup_expired()
 
-            assert removed == 1
+            assert removed == 2
             assert "OLD_DEVICE" not in cache._auth_required
-            assert "NEW_DEVICE" not in cache._auth_required  # Also expired by now
+            assert "NEW_DEVICE" not in cache._auth_required
 
-    def test_cleanup_expired_returns_zero_when_no_expired(self, cache):
+    def test_it_removes_nothing_when_no_entry_has_expired(self, cache):
         cache.mark_auth_required("DEVICE1")
         cache.mark_auth_required("DEVICE2")
 
@@ -166,5 +166,5 @@ class TestAuthStateCache:
 
 
 class TestDefaultTTL:
-    def test_default_ttl_is_one_hour(self):
+    def test_it_defaults_to_a_one_hour_ttl(self):
         assert DEFAULT_TTL_SECONDS == 3600

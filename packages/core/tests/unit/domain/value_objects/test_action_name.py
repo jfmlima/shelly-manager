@@ -184,7 +184,7 @@ class TestResolveHonoursAnExplicitNamespace:
     ):
         assert ActionName.of(action).resolve(component_key, self.METHODS) == expected
 
-    def test_a_bare_method_still_searches_the_components_namespaces(self):
+    def test_it_searches_the_components_namespaces_for_a_bare_method(self):
         assert ActionName.of("FactoryReset").resolve("sys", self.METHODS) == (
             "Shelly.FactoryReset"
         )
@@ -197,7 +197,7 @@ class TestResolveHonoursAnExplicitNamespace:
     def test_it_refuses_an_unowned_qualified_action_without_a_method_list(self):
         assert ActionName.of("Shelly.FactoryReset").resolve("wifi", []) is None
 
-    def test_a_bare_method_still_works_without_a_method_list(self):
+    def test_it_resolves_a_bare_method_without_a_method_list(self):
         assert ActionName.of("SetConfig").resolve("wifi", []) == "Wifi.SetConfig"
 
 
@@ -212,12 +212,12 @@ class TestMethodNamesContainingDots:
         assert action.namespace == "BLE"
         assert action.method == "CloudRelay.List"
 
-    def test_a_listed_name_pasted_back_still_resolves(self):
+    def test_it_resolves_a_listed_name_pasted_back(self):
         action = ActionName.of("BLE.CloudRelay.List")
 
         assert action.resolve("ble", self.METHODS) == "BLE.CloudRelay.List"
 
-    def test_dropping_the_leading_namespace_reads_as_another_one_and_is_refused(self):
+    def test_it_refuses_a_name_whose_leading_namespace_was_dropped(self):
         action = ActionName.of("CloudRelay.List")
 
         assert action.namespace == "CloudRelay"
