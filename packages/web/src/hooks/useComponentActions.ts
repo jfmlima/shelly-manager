@@ -4,6 +4,16 @@ import { toast } from "sonner";
 import { deviceApi } from "@/lib/api";
 import type { ComponentActionResult } from "@/types/api";
 
+export const LEGACY_PREFIX = "Legacy.";
+
+export function isLegacyAction(action: string): boolean {
+  return action.startsWith(LEGACY_PREFIX);
+}
+
+export function actionMethod(action: string): string {
+  return action.includes(".") ? action.split(".").pop() || action : action;
+}
+
 const GET_ACTIONS = [
   "GetStatus",
   "GetConfig",
@@ -73,19 +83,13 @@ export function useExecuteComponentAction(
       componentKey,
       action,
       parameters,
-    }: ExecuteComponentActionParams): Promise<ComponentActionResult> => {
-      let cleanAction = action;
-      if (!action.startsWith("Legacy.") && action.includes(".")) {
-        cleanAction = action.split(".").pop() || action;
-      }
-
-      return deviceApi.executeComponentAction(
+    }: ExecuteComponentActionParams): Promise<ComponentActionResult> =>
+      deviceApi.executeComponentAction(
         deviceIp,
         componentKey,
-        cleanAction,
+        action,
         parameters,
-      );
-    },
+      ),
     onSuccess: (result, variables) => {
       if (
         !GET_ACTIONS.some((getAction) => variables.action.includes(getAction))
@@ -156,13 +160,13 @@ export function getActionDisplayName(
   action: string,
   componentKey?: string,
 ): string {
-  if (action.startsWith("Legacy.")) {
-    const legacyName = action.replace("Legacy.", "");
+  if (isLegacyAction(action)) {
+    const legacyName = action.slice(LEGACY_PREFIX.length);
     return `Legacy ${formatActionName(legacyName)}`;
   }
 
   const parts = action.split(".");
-  const cleanAction = parts[parts.length - 1];
+  const cleanAction = actionMethod(action);
   const actionPrefix = parts.length > 1 ? parts[0] : "";
 
   const actionMap: Record<string, string> = {
@@ -228,9 +232,7 @@ export function getActionDisplayName(
 }
 
 export function getActionIcon(action: string): string {
-  const cleanAction = action.includes(".")
-    ? action.split(".").pop() || action
-    : action;
+  const cleanAction = actionMethod(action);
 
   const iconMap: Record<string, string> = {
     // System actions
@@ -267,18 +269,22 @@ export function getActionIcon(action: string): string {
 }
 
 export function isDestructiveAction(action: string): boolean {
-  const cleanAction = action.includes(".")
-    ? action.split(".").pop() || action
-    : action;
+  const cleanAction = actionMethod(action);
 
-  const destructiveActions = ["Reboot", "FactoryReset", "ClearNetwork"];
+  const destructiveActions = [
+    "Reboot",
+    "FactoryReset",
+    "ClearNetwork",
+    "ZigbeeClear",
+    "ResetWiFiConfig",
+    "DeleteAll",
+    "DeleteAllData",
+  ];
   return destructiveActions.includes(cleanAction);
 }
 
 export function isComingSoonAction(action: string): boolean {
-  const cleanAction = action.includes(".")
-    ? action.split(".").pop() || action
-    : action;
+  const cleanAction = actionMethod(action);
 
   // Only disable specific actions that are not yet implemented
   // SetConfig is now enabled and fully implemented
@@ -315,59 +321,4 @@ export function hasResponseData(response: ComponentActionResult): boolean {
     typeof response.data === "object" &&
     Object.keys(response.data).length > 0
   );
-}
-
-function isMethodAvailable(
-  availableMethods: string[],
-  componentTypeFromAction: string,
-): boolean {
-  return availableMethods.some((method) => {
-    const cleanMethod = method.toLowerCase();
-
-    return (
-      cleanMethod.startsWith(componentTypeFromAction + ".") ||
-      cleanMethod === componentTypeFromAction
-    );
-  });
-}
-
-export function getComponentKeyForAction(
-  action: string,
-  component: {
-    key: string;
-    type: string;
-    id: number | null;
-    available_actions: string[];
-  },
-): string {
-  if (action.startsWith("Legacy.")) {
-    return component.key;
-  }
-
-  // Extract component type from action (e.g., "Switch.Toggle" -> "switch")
-  const actionParts = action.split(".");
-  if (actionParts.length < 2) {
-    // If no dot, fallback to component.key
-    return component.key;
-  }
-
-  const componentTypeFromAction = actionParts[0].toLowerCase();
-  const availableMethods = component?.available_actions;
-
-  // For components that need ID (switch, input, cover, etc.)
-  let componentKey = componentTypeFromAction;
-  if (component.id !== null && component.id !== undefined) {
-    componentKey = `${componentTypeFromAction}:${component.id}`;
-  }
-
-  // If we have available methods, verify the key exists
-  if (availableMethods) {
-    const methodExists = isMethodAvailable(availableMethods, componentKey);
-    if (methodExists) {
-      return componentKey;
-    }
-  }
-
-  // Fallback to original component.key
-  return component.key;
 }

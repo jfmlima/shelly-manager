@@ -26,7 +26,8 @@ class DeviceGateway(ABC):
 
     @abstractmethod
     async def get_available_methods(self, ip: str) -> list[str]:
-        """Get available RPC methods for action validation."""
+        """Get available RPC methods for action validation; empty when there is
+        no list to check against."""
         pass
 
     async def get_legacy_settings(self, ip: str) -> dict[str, Any] | None:

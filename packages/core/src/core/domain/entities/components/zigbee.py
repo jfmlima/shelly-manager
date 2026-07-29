@@ -23,10 +23,3 @@ class ZigbeeComponent(Component):
             network_state=status.get("network_state", "unknown"),
             enabled=config.get("enable", False),
         )
-
-    def get_available_actions(self, all_methods: list[str]) -> list[str]:
-        return [
-            m
-            for m in all_methods
-            if m.startswith("Zigbee.") or m.startswith("Shelly.Zigbee")
-        ]

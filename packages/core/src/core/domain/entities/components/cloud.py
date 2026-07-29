@@ -22,6 +22,3 @@ class CloudComponent(Component):
             enabled=config.get("enable", False),
             server=config.get("server"),
         )
-
-    def get_available_actions(self, all_methods: list[str]) -> list[str]:
-        return [m for m in all_methods if m.startswith("Cloud.")]

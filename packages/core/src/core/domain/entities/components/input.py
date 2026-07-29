@@ -26,6 +26,3 @@ class InputComponent(Component):
             enabled=config.get("enable", False) or False,
             inverted=config.get("invert", False) or False,
         )
-
-    def get_available_actions(self, all_methods: list[str]) -> list[str]:
-        return [m for m in all_methods if m.startswith("Input.")]

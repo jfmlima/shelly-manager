@@ -17,6 +17,3 @@ class WebSocketComponent(Component):
             **base.model_dump(),
             connected=status.get("connected", False),
         )
-
-    def get_available_actions(self, all_methods: list[str]) -> list[str]:
-        return []

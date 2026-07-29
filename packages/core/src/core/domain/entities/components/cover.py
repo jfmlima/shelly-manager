@@ -64,6 +64,3 @@ class CoverComponent(Component):
             maxtime_close=config.get("maxtime_close", 60.0),
             power_limit=config.get("power_limit", 0.0),
         )
-
-    def get_available_actions(self, all_methods: list[str]) -> list[str]:
-        return [m for m in all_methods if m.startswith("Cover.")]

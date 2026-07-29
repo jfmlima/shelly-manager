@@ -60,6 +60,3 @@ class SwitchComponent(Component):
             power_limit=config.get("power_limit", 0.0),
             current_limit=config.get("current_limit", 0.0),
         )
-
-    def get_available_actions(self, all_methods: list[str]) -> list[str]:
-        return [m for m in all_methods if m.startswith("Switch.")]
