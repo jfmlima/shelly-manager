@@ -1,17 +1,37 @@
-"""Shared container base providing common gateway and interactor factories (no cast)."""
+"""Shared container providing gateway, repository and interactor factories."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from core.services.authentication_service import AuthenticationService
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from core.gateways.device import LegacyDeviceGateway
 from core.gateways.device.ap_device_detector import APDeviceDetector
 from core.gateways.device.legacy_component_mapper import LegacyComponentMapper
 from core.gateways.device.shelly_device_gateway import ShellyDeviceGateway
-from core.gateways.network import LegacyHttpClient, MDNSGateway, ZeroconfMDNSClient
+from core.gateways.network import (
+    AsyncShellyRPCClient,
+    LegacyHttpClient,
+    MDNSGateway,
+    ZeroconfMDNSClient,
+)
+from core.repositories.db import async_session_factory
+from core.repositories.sqlalchemy_backup_repository import (
+    SQLAlchemyBackupRepository,
+)
+from core.repositories.sqlalchemy_backup_schedule_repository import (
+    SQLAlchemyBackupScheduleRepository,
+)
+from core.repositories.sqlalchemy_credentials_repository import (
+    SQLAlchemyCredentialsRepository,
+)
+from core.repositories.sqlalchemy_provisioning_profile_repository import (
+    SQLAlchemyProvisioningProfileRepository,
+)
+from core.services.auth_state_cache import AuthStateCache
+from core.services.authentication_service import AuthenticationService
+from core.services.encryption_service import EncryptionService
+from core.settings import settings as core_settings
 from core.use_cases.backup_device_config import BackupDeviceConfig
 from core.use_cases.bulk_operations import BulkOperationsUseCase
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
@@ -50,14 +70,27 @@ class BaseContainer:
             ManageBackupSchedulesUseCase | None
         ) = None
         self._run_due_backups_interactor: RunDueBackupsUseCase | None = None
+        # Every slot above is a device-scoped cache cleared by
+        # _reset_device_caches(); slots below survive close().
+        self._device_cache_slots: tuple[str, ...] = tuple(vars(self))
+        self._rpc_client: AsyncShellyRPCClient | None = None
+        self._auth_service: AuthenticationService | None = None
+        self._encryption_service: EncryptionService | None = None
+        self._auth_state_cache: AuthStateCache | None = None
 
-    def get_rpc_client(self) -> Any:
-        raise NotImplementedError
+    def get_rpc_client(self) -> AsyncShellyRPCClient:
+        if self._rpc_client is None:
+            self._rpc_client = AsyncShellyRPCClient(
+                timeout=core_settings.network.timeout,
+                connect_timeout=core_settings.network.connect_timeout,
+                verify=core_settings.network.verify_ssl,
+                authentication_service=self.get_authentication_service(),
+                auth_state_cache=self.get_auth_state_cache(),
+            )
+        return self._rpc_client
 
     def get_device_gateway(self) -> ShellyDeviceGateway:
         if self._device_gateway is None:
-            from core.settings import settings as core_settings
-
             legacy_http_client = LegacyHttpClient(
                 connect_timeout=core_settings.network.connect_timeout,
             )
@@ -66,7 +99,7 @@ class BaseContainer:
             legacy_gateway = LegacyDeviceGateway(
                 http_client=legacy_http_client,
                 component_mapper=legacy_component_mapper,
-                authentication_service=self._get_authentication_service_optional(),
+                authentication_service=self.get_authentication_service(),
                 auth_state_cache=self.get_auth_state_cache(),
             )
 
@@ -77,7 +110,6 @@ class BaseContainer:
         return self._device_gateway
 
     async def _aclose_legacy_http_client(self) -> None:
-        """Close the legacy HTTP client's connection pool, if one was created."""
         if self._legacy_http_client is not None:
             try:
                 await self._legacy_http_client.close()
@@ -85,43 +117,28 @@ class BaseContainer:
                 pass
 
     def _reset_device_caches(self) -> None:
-        """Drop cached gateways/interactors that hold now-closed clients.
+        for slot in self._device_cache_slots:
+            setattr(self, slot, None)
 
-        Called after close() so that a reused container rebuilds live
-        resources on next access instead of handing back closed ones.
-        """
-        self._device_gateway = None
-        self._legacy_http_client = None
-        self._mdns_client = None
-        self._scan_interactor = None
-        self._execute_component_action_interactor = None
-        self._component_actions_interactor = None
-        self._status_interactor = None
-        self._bulk_operations_interactor = None
-        self._manage_profiles_interactor = None
-        self._provision_device_interactor = None
-        self._ap_device_detector = None
-        self._backup_device_config_interactor = None
-        self._restore_device_config_interactor = None
-        self._manage_backup_schedules_interactor = None
-        self._run_due_backups_interactor = None
+    def get_encryption_service(self) -> EncryptionService:
+        if self._encryption_service is None:
+            self._encryption_service = EncryptionService()
+        return self._encryption_service
 
-    def _get_authentication_service_optional(self) -> AuthenticationService | None:
-        """Return AuthenticationService if available, None otherwise."""
-        if hasattr(self, "get_authentication_service"):
-            service: AuthenticationService = self.get_authentication_service()
-            return service
-        return None
+    def get_authentication_service(self) -> AuthenticationService:
+        if self._auth_service is None:
+            self._auth_service = AuthenticationService(
+                repository_factory=self.create_credentials_repository
+            )
+        return self._auth_service
 
     def get_mdns_client(self) -> MDNSGateway:
         if self._mdns_client is None:
             self._mdns_client = ZeroconfMDNSClient()
         return self._mdns_client
 
-    def get_auth_state_cache(self) -> Any:
-        from core.services.auth_state_cache import AuthStateCache
-
-        if not hasattr(self, "_auth_state_cache"):
+    def get_auth_state_cache(self) -> AuthStateCache:
+        if self._auth_state_cache is None:
             self._auth_state_cache = AuthStateCache()
         return self._auth_state_cache
 
@@ -219,14 +236,64 @@ class BaseContainer:
             )
         return self._run_due_backups_interactor
 
-    def create_provisioning_profile_repository(self) -> Any:
-        raise NotImplementedError
+    @asynccontextmanager
+    async def create_credentials_repository(
+        self,
+    ) -> AsyncGenerator[SQLAlchemyCredentialsRepository, None]:
+        async with async_session_factory() as session:
+            try:
+                yield SQLAlchemyCredentialsRepository(
+                    session, self.get_encryption_service()
+                )
+            finally:
+                await session.close()
 
-    def create_credentials_repository(self) -> Any:
-        raise NotImplementedError
+    @asynccontextmanager
+    async def create_provisioning_profile_repository(
+        self,
+    ) -> AsyncGenerator[SQLAlchemyProvisioningProfileRepository, None]:
+        async with async_session_factory() as session:
+            try:
+                yield SQLAlchemyProvisioningProfileRepository(
+                    session, self.get_encryption_service()
+                )
+            finally:
+                await session.close()
 
-    def create_backup_repository(self) -> Any:
-        raise NotImplementedError
+    @asynccontextmanager
+    async def create_backup_repository(
+        self,
+    ) -> AsyncGenerator[SQLAlchemyBackupRepository, None]:
+        async with async_session_factory() as session:
+            try:
+                yield SQLAlchemyBackupRepository(session, self.get_encryption_service())
+            finally:
+                await session.close()
 
-    def create_backup_schedule_repository(self) -> Any:
-        raise NotImplementedError
+    @asynccontextmanager
+    async def create_backup_schedule_repository(
+        self,
+    ) -> AsyncGenerator[SQLAlchemyBackupScheduleRepository, None]:
+        async with async_session_factory() as session:
+            try:
+                yield SQLAlchemyBackupScheduleRepository(session)
+            finally:
+                await session.close()
+
+    async def close(self) -> None:
+        if self._rpc_client is not None:
+            try:
+                await self._rpc_client.close()
+            except Exception:
+                pass
+
+        if self._mdns_client is not None:
+            try:
+                await self._mdns_client.close()
+            except Exception:
+                pass
+
+        await self._aclose_legacy_http_client()
+
+        self._rpc_client = None
+        self._reset_device_caches()
