@@ -12,10 +12,6 @@ from core.domain.entities.device_backup import DeviceBackup
 from core.domain.entities.device_status import DeviceStatus
 from core.domain.value_objects.restore_result import ComponentRestoreResult
 
-# The raw Gen1 /settings entry captured alongside the mapped components. It is the
-# data source a Gen1 restore replays, never a restore target itself.
-LEGACY_SETTINGS_KEY = "legacy_settings"
-
 
 @dataclass
 class PrepareOutcome:

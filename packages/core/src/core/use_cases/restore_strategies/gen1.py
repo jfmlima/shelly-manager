@@ -7,7 +7,7 @@ per-component configs are Gen2-shaped and not writable as-is.
 import asyncio
 from typing import Any
 
-from core.domain.entities.device_backup import DeviceBackup
+from core.domain.entities.device_backup import LEGACY_SETTINGS_KEY, DeviceBackup
 from core.domain.entities.device_status import DeviceStatus
 from core.domain.services.gen1_settings_translation import (
     restorable_params,
@@ -15,7 +15,7 @@ from core.domain.services.gen1_settings_translation import (
 )
 from core.domain.value_objects.restore_result import ComponentRestoreResult
 from core.gateways.device import DeviceGateway
-from core.use_cases.restore_strategies import LEGACY_SETTINGS_KEY, PrepareOutcome
+from core.use_cases.restore_strategies import PrepareOutcome
 
 
 class Gen1RestoreStrategy:

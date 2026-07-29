@@ -7,6 +7,9 @@ from ..domain.entities.exceptions import BulkOperationError
 from ..domain.value_objects.action_result import ActionResult
 from ..domain.value_objects.generation import Generation
 from ..gateways.device import DeviceGateway
+from .capture_strategies import ComponentCaptureStrategy
+from .capture_strategies.gen1 import Gen1CaptureStrategy
+from .capture_strategies.gen2 import Gen2CaptureStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +21,8 @@ class BulkOperationsUseCase:
         device_gateway: DeviceGateway,
     ):
         self._device_gateway = device_gateway
+        self._gen1_capture = Gen1CaptureStrategy(device_gateway)
+        self._gen2_capture = Gen2CaptureStrategy(device_gateway)
 
     async def execute_bulk_update(
         self, device_ips: list[str], channel: str = "stable"
@@ -136,6 +141,7 @@ class BulkOperationsUseCase:
             if not device_status:
                 continue
 
+            strategy = self._capture_strategy(device_status)
             device_data: dict[str, Any] = {
                 "device_info": {
                     "device_name": device_status.device_name,
@@ -144,120 +150,19 @@ class BulkOperationsUseCase:
                     "mac_address": device_status.mac_address,
                     "app_name": device_status.app_name,
                 },
-                "components": {},
+                "components": await strategy.capture_components(
+                    device_ip, device_status, component_types
+                ),
             }
-
-            # Gen1 has no /rpc: GetConfig and Schedule.List 404, so capture from
-            # the configs already mapped onto the DeviceStatus instead.
-            if Generation.from_device_gen(device_status.gen) is Generation.GEN1:
-                await self._export_gen1_config(
-                    device_ip, device_status, component_types, device_data
-                )
-                result["devices"][device_ip] = device_data
-                continue
-
-            for component in device_status.components:
-                if component.component_type in component_types:
-
-                    config_result = await self._device_gateway.execute_component_action(
-                        device_ip, component.key, "GetConfig", {}
-                    )
-
-                    component_export = {
-                        "type": component.component_type,
-                        "success": config_result.success,
-                        "config": config_result.data if config_result.success else None,
-                        "error": (
-                            config_result.error if not config_result.success else None
-                        ),
-                    }
-
-                    if component.component_type == "script" and config_result.success:
-                        code_data = await self._fetch_script_code(
-                            device_ip, component.key
-                        )
-                        if code_data is not None:
-                            component_export["code"] = code_data
-
-                    device_data["components"][component.key] = component_export
-
-            if "schedules" in component_types:
-                schedules = await self._fetch_schedules(device_ip)
-                device_data["components"].update(schedules)
 
             result["devices"][device_ip] = device_data
 
         return result
 
-    async def _export_gen1_config(
-        self,
-        device_ip: str,
-        device_status: DeviceStatus,
-        component_types: list[str],
-        device_data: dict[str, Any],
-    ) -> None:
-        """Capture Gen1 component configs plus the raw ``/settings``.
-
-        The ``legacy_settings`` entry is the source of truth a Gen1 restore
-        replays; it is omitted when the raw fetch fails, and the mapped configs
-        alone still make the backup valid.
-        """
-        for component in device_status.components:
-            if component.component_type in component_types:
-                device_data["components"][component.key] = {
-                    "type": component.component_type,
-                    "success": True,
-                    "config": component.config,
-                    "error": None,
-                }
-
-        legacy_settings = await self._device_gateway.get_legacy_settings(device_ip)
-        if legacy_settings is not None:
-            device_data["components"]["legacy_settings"] = {
-                "type": "legacy_settings",
-                "success": True,
-                "config": legacy_settings,
-                "error": None,
-            }
-
-    async def _fetch_script_code(
-        self, device_ip: str, component_key: str
-    ) -> dict[str, Any] | None:
-        try:
-            script_id = int(component_key.split(":")[1])
-            code_result = await self._device_gateway.execute_component_action(
-                device_ip, component_key, "GetCode", {"id": script_id}
-            )
-            if code_result.success and code_result.data:
-                return code_result.data
-        except (ValueError, IndexError, AttributeError):
-            pass
-
-        return None
-
-    async def _fetch_schedules(self, device_ip: str) -> dict[str, Any]:
-        schedule_export = {}
-
-        list_result = await self._device_gateway.execute_component_action(
-            device_ip, "schedule", "List", {}
-        )
-        schedule_data = list_result.data
-        if list_result.success and schedule_data:
-            schedule_export["schedules"] = {
-                "type": "schedule",
-                "success": True,
-                "config": schedule_data,
-                "error": None,
-            }
-        elif not list_result.success:
-            schedule_export["schedules"] = {
-                "type": "schedule",
-                "success": False,
-                "config": None,
-                "error": list_result.error,
-            }
-
-        return schedule_export
+    def _capture_strategy(self, status: DeviceStatus) -> ComponentCaptureStrategy:
+        if Generation.from_device_gen(status.gen) is Generation.GEN1:
+            return self._gen1_capture
+        return self._gen2_capture
 
     async def apply_bulk_config(
         self,

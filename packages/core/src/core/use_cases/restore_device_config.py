@@ -5,7 +5,7 @@ from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from typing import Any
 
-from core.domain.entities.device_backup import DeviceBackup
+from core.domain.entities.device_backup import LEGACY_SETTINGS_KEY, DeviceBackup
 from core.domain.entities.exceptions import DeviceNotFoundError
 from core.domain.value_objects.generation import Generation
 from core.domain.value_objects.restore_result import (
@@ -15,10 +15,7 @@ from core.domain.value_objects.restore_result import (
 from core.gateways.device import DeviceGateway
 from core.repositories.backup_repository import BackupRepository
 from core.use_cases.backup_device_config import BackupNotFoundError
-from core.use_cases.restore_strategies import (
-    LEGACY_SETTINGS_KEY,
-    ComponentRestoreStrategy,
-)
+from core.use_cases.restore_strategies import ComponentRestoreStrategy
 from core.use_cases.restore_strategies.gen1 import Gen1RestoreStrategy
 from core.use_cases.restore_strategies.gen2 import Gen2RestoreStrategy
 from core.utils.validation import normalize_mac
