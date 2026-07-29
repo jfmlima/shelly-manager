@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
@@ -896,3 +897,47 @@ class TestBulkOperationsUseCase:
             "SetConfig",
             {"config": config},
         )
+
+    async def test_it_exports_devices_concurrently(self, use_case, mock_device_gateway):
+        # The first device's status fetch only completes once the second has
+        # run, so a sequential export deadlocks and times out here.
+        first_started = asyncio.Event()
+        second_done = asyncio.Event()
+
+        async def get_status(device_ip):
+            if device_ip == "192.168.1.100":
+                first_started.set()
+                await asyncio.wait_for(second_done.wait(), timeout=1)
+            else:
+                await first_started.wait()
+                second_done.set()
+            return DeviceStatus(device_ip=device_ip, components=[])
+
+        mock_device_gateway.get_device_status = AsyncMock(side_effect=get_status)
+
+        result = await use_case.export_bulk_config(
+            ["192.168.1.100", "192.168.1.101"], []
+        )
+
+        assert list(result["devices"]) == ["192.168.1.100", "192.168.1.101"]
+
+    async def test_it_lets_every_capture_finish_before_a_failure_surfaces(
+        self, use_case, mock_device_gateway
+    ):
+        # A device that raises must not leave its siblings running against real
+        # hardware with nobody awaiting them.
+        finished = []
+
+        async def get_status(device_ip):
+            if device_ip == "192.168.1.100":
+                raise RuntimeError("boom")
+            await asyncio.sleep(0.05)
+            finished.append(device_ip)
+            return None
+
+        mock_device_gateway.get_device_status = AsyncMock(side_effect=get_status)
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await use_case.export_bulk_config(["192.168.1.100", "192.168.1.101"], [])
+
+        assert finished == ["192.168.1.101"]

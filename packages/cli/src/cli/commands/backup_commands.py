@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 import click
 from core.domain.entities.backup_schedule import BackupSchedule
+from core.domain.entities.config_snapshot import DeviceSnapshot
 from core.utils.target_parser import validate_target
 from core.utils.validation import normalize_mac
 from rich.table import Table
@@ -134,7 +135,7 @@ async def restore_backup(
         except Exception as e:
             console.print(Messages.error(f"Restore failed: {e}"))
             raise click.Abort() from None
-        component_keys = list(backup.snapshot.get("components", {}).keys())
+        component_keys = list(DeviceSnapshot.from_dict(backup.snapshot).components)
 
     if not force:
         console.print(

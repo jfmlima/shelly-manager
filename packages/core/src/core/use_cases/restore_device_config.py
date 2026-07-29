@@ -3,9 +3,12 @@
 import logging
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
-from typing import Any
 
-from core.domain.entities.device_backup import LEGACY_SETTINGS_KEY, DeviceBackup
+from core.domain.entities.config_snapshot import (
+    LEGACY_SETTINGS_KEY,
+    ComponentSnapshot,
+    DeviceSnapshot,
+)
 from core.domain.entities.exceptions import DeviceNotFoundError
 from core.domain.value_objects.generation import Generation
 from core.domain.value_objects.restore_result import (
@@ -98,10 +101,11 @@ class RestoreDeviceConfig:
         if status is None:
             raise DeviceNotFoundError(device_ip)
 
+        snapshot = DeviceSnapshot.from_dict(backup.snapshot)
+
         # Identity check is anchored to the MAC inside the (decrypted) snapshot,
         # not the mutable plaintext column. Cross-check the column for corruption.
-        snapshot_info = backup.snapshot.get("device_info", {})
-        snapshot_mac = snapshot_info.get("mac_address")
+        snapshot_mac = snapshot.device_info.mac_address
         expected_mac = (
             normalize_mac(snapshot_mac) if snapshot_mac else backup.device_mac
         )
@@ -118,7 +122,7 @@ class RestoreDeviceConfig:
             if actual != expected_mac:
                 raise DeviceMismatchError(expected_mac, status.mac_address)
 
-        components: dict[str, Any] = backup.snapshot.get("components", {})
+        components = snapshot.components
 
         # A target whose generation is unknown (gen is None, e.g. GetDeviceInfo
         # failed) is already gated by the MAC check above, so it never reaches here.
@@ -131,13 +135,15 @@ class RestoreDeviceConfig:
         if (
             backup_generation is Generation.GEN1 or device_generation is Generation.GEN1
         ) and not is_gen1:
-            return self._generation_mismatch(backup, device_ip, component_keys)
+            return self._generation_mismatch(
+                backup_id, snapshot, device_ip, component_keys
+            )
 
         strategy = self._build_strategy(Generation.GEN1 if is_gen1 else Generation.GEN2)
-        outcome = await strategy.prepare(device_ip, backup, status)
+        outcome = await strategy.prepare(device_ip, snapshot, status)
         if outcome.abort_reason is not None:
             return self._all_skipped(
-                backup, device_ip, component_keys, outcome.abort_reason
+                backup_id, snapshot, device_ip, component_keys, outcome.abort_reason
             )
         failure = next(
             (r for r in outcome.preliminary if not r.success and not r.skipped), None
@@ -189,7 +195,7 @@ class RestoreDeviceConfig:
         for key in selected:
             results.append(
                 await strategy.restore_component(
-                    device_ip, key, components[key], present_keys
+                    device_ip, components[key], present_keys
                 )
             )
 
@@ -233,7 +239,9 @@ class RestoreDeviceConfig:
         return Gen2RestoreStrategy(self._device_gateway)
 
     def _select(
-        self, components: dict[str, Any], component_keys: list[str] | None
+        self,
+        components: dict[str, ComponentSnapshot],
+        component_keys: list[str] | None,
     ) -> list[str]:
         """Resolve the ordered list of component keys to restore.
 
@@ -249,24 +257,26 @@ class RestoreDeviceConfig:
             keys = [
                 key
                 for key, entry in candidates.items()
-                if entry.get("type") not in NETWORK_TYPES
+                if entry.component_type not in NETWORK_TYPES
             ]
         else:
             keys = [key for key in component_keys if key in candidates]
 
         def is_network(key: str) -> bool:
-            return candidates[key].get("type") in NETWORK_TYPES
+            return candidates[key].component_type in NETWORK_TYPES
 
         return sorted(keys, key=is_network)
 
     def _generation_mismatch(
         self,
-        backup: DeviceBackup,
+        backup_id: int,
+        snapshot: DeviceSnapshot,
         device_ip: str,
         component_keys: list[str] | None = None,
     ) -> RestoreResult:
         return self._all_skipped(
-            backup,
+            backup_id,
+            snapshot,
             device_ip,
             component_keys,
             "backup generation does not match the target device",
@@ -275,13 +285,14 @@ class RestoreDeviceConfig:
 
     def _all_skipped(
         self,
-        backup: DeviceBackup,
+        backup_id: int,
+        snapshot: DeviceSnapshot,
         device_ip: str,
         component_keys: list[str] | None,
         reason: str,
         message: str | None = None,
     ) -> RestoreResult:
-        components: dict[str, Any] = backup.snapshot.get("components", {})
+        components = snapshot.components
         # Honour an explicit request subset, and still surface unknown keys
         # rather than reporting every captured component as skipped. The default
         # selection mirrors the restore path, so network components a default
@@ -304,7 +315,7 @@ class RestoreDeviceConfig:
         return RestoreResult(
             success=False,
             device_ip=device_ip,
-            backup_id=backup.id or 0,
+            backup_id=backup_id,
             total=len(results),
             succeeded=0,
             failed=0,

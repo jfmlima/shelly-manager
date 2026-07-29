@@ -3,14 +3,15 @@
 from copy import deepcopy
 from typing import Any
 
-from core.domain.entities.device_backup import DeviceBackup
+from core.domain.entities.config_snapshot import (
+    SCHEDULES_KEY,
+    ComponentSnapshot,
+    DeviceSnapshot,
+)
 from core.domain.entities.device_status import DeviceStatus
 from core.domain.value_objects.restore_result import ComponentRestoreResult
 from core.gateways.device import DeviceGateway
 from core.use_cases.restore_strategies import PrepareOutcome
-
-# The "schedules" pseudo-component produced by export_bulk_config.
-SCHEDULES_KEY = "schedules"
 
 # Read-only keys that GetConfig echoes but SetConfig rejects, by component type.
 # Each entry is a (parent, child) path popped from the config dict. Top-level
@@ -28,25 +29,25 @@ class Gen2RestoreStrategy:
         self._device_gateway = device_gateway
 
     async def prepare(
-        self, device_ip: str, backup: DeviceBackup, status: DeviceStatus
+        self, device_ip: str, snapshot: DeviceSnapshot, status: DeviceStatus
     ) -> PrepareOutcome:
         return PrepareOutcome(status=status)
 
     async def restore_component(
         self,
         device_ip: str,
-        key: str,
-        entry: dict[str, Any],
+        entry: ComponentSnapshot,
         present_keys: set[str],
     ) -> ComponentRestoreResult:
-        ctype = entry.get("type")
+        key = entry.key
+        ctype = entry.component_type
 
         if key == SCHEDULES_KEY:
-            return await self._restore_schedules(device_ip, key, entry)
+            return await self._restore_schedules(device_ip, entry)
         if ctype == "script":
-            return await self._restore_script(device_ip, key, entry, present_keys)
+            return await self._restore_script(device_ip, entry, present_keys)
 
-        if not entry.get("success") or entry.get("config") is None:
+        if not entry.success or entry.config is None:
             return ComponentRestoreResult(
                 key=key,
                 action="SetConfig",
@@ -63,7 +64,7 @@ class Gen2RestoreStrategy:
                 skipped_reason="component not present on target device",
             )
 
-        config = self._strip_readonly(ctype, deepcopy(entry["config"]))
+        config = self._strip_readonly(ctype, deepcopy(entry.config))
         result = await self._device_gateway.execute_component_action(
             device_ip, key, "SetConfig", {"config": config}
         )
@@ -93,14 +94,12 @@ class Gen2RestoreStrategy:
     async def _restore_script(
         self,
         device_ip: str,
-        key: str,
-        entry: dict[str, Any],
+        entry: ComponentSnapshot,
         present_keys: set[str],
     ) -> ComponentRestoreResult:
-        code_block = entry.get("code") or {}
-        code = code_block.get("data") if isinstance(code_block, dict) else None
-        # Presence + type, not truthiness: an empty script body ("") is valid.
-        if not isinstance(code, str):
+        key = entry.key
+        code = entry.script_code
+        if code is None:
             return ComponentRestoreResult(
                 key=key,
                 action="PutCode",
@@ -138,12 +137,13 @@ class Gen2RestoreStrategy:
         )
 
     async def _restore_schedules(
-        self, device_ip: str, key: str, entry: dict[str, Any]
+        self, device_ip: str, entry: ComponentSnapshot
     ) -> ComponentRestoreResult:
+        key = entry.key
         # Gate on whether the schedules component was *captured*, not on job
         # count: a device with zero schedules is captured as {"jobs": []}, and
         # restoring it must still clear the target's schedules.
-        if not entry.get("success") or entry.get("config") is None:
+        if not entry.success or entry.config is None:
             return ComponentRestoreResult(
                 key=key,
                 action="Schedule.Replace",
@@ -152,7 +152,7 @@ class Gen2RestoreStrategy:
                 skipped_reason="no schedules captured in backup",
             )
 
-        config = entry["config"]
+        config = entry.config
         jobs = config.get("jobs", []) if isinstance(config, dict) else []
 
         # Restore must reproduce the captured schedule set, not merge into the

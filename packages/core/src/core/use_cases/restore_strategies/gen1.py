@@ -7,7 +7,7 @@ per-component configs are Gen2-shaped and not writable as-is.
 import asyncio
 from typing import Any
 
-from core.domain.entities.device_backup import LEGACY_SETTINGS_KEY, DeviceBackup
+from core.domain.entities.config_snapshot import ComponentSnapshot, DeviceSnapshot
 from core.domain.entities.device_status import DeviceStatus
 from core.domain.services.gen1_settings_translation import (
     restorable_params,
@@ -38,9 +38,9 @@ class Gen1RestoreStrategy:
         self._settings: dict[str, Any] = {}
 
     async def prepare(
-        self, device_ip: str, backup: DeviceBackup, status: DeviceStatus
+        self, device_ip: str, snapshot: DeviceSnapshot, status: DeviceStatus
     ) -> PrepareOutcome:
-        settings = self._legacy_settings(backup)
+        settings = snapshot.legacy_settings
         if settings is None:
             return PrepareOutcome(
                 status=status, abort_reason="snapshot lacks raw Gen1 settings"
@@ -56,11 +56,11 @@ class Gen1RestoreStrategy:
     async def restore_component(
         self,
         device_ip: str,
-        key: str,
-        entry: dict[str, Any],
+        entry: ComponentSnapshot,
         present_keys: set[str],
     ) -> ComponentRestoreResult:
-        ctype = entry.get("type")
+        key = entry.key
+        ctype = entry.component_type
 
         if key not in present_keys:
             return ComponentRestoreResult(
@@ -106,14 +106,6 @@ class Gen1RestoreStrategy:
         await self._device_gateway.execute_component_action(
             device_ip, "sys", "Legacy.Reboot", {}
         )
-
-    def _legacy_settings(self, backup: DeviceBackup) -> dict[str, Any] | None:
-        components: dict[str, Any] = backup.snapshot.get("components", {})
-        entry = components.get(LEGACY_SETTINGS_KEY)
-        if not isinstance(entry, dict) or not entry.get("success"):
-            return None
-        settings = entry.get("config")
-        return settings if isinstance(settings, dict) else None
 
     async def _restore_wifi(self, device_ip: str, key: str) -> ComponentRestoreResult:
         """Replay every captured Gen1 WiFi resource behind the "wifi" component."""

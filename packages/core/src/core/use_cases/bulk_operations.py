@@ -1,14 +1,12 @@
+import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
-from ..domain.entities.device_status import DeviceStatus
+from ..domain.entities.config_snapshot import DeviceSnapshot
 from ..domain.entities.exceptions import BulkOperationError
 from ..domain.value_objects.action_result import ActionResult
-from ..domain.value_objects.generation import Generation
 from ..gateways.device import DeviceGateway
-from .capture_strategies import ComponentCaptureStrategy
-from .capture_strategies.gen1 import Gen1CaptureStrategy
-from .capture_strategies.gen2 import Gen2CaptureStrategy
+from .capture_device_config import CaptureDeviceConfig
 
 
 class BulkOperationsUseCase:
@@ -18,8 +16,7 @@ class BulkOperationsUseCase:
         device_gateway: DeviceGateway,
     ):
         self._device_gateway = device_gateway
-        self._gen1_capture = Gen1CaptureStrategy(device_gateway)
-        self._gen2_capture = Gen2CaptureStrategy(device_gateway)
+        self._capture = CaptureDeviceConfig(device_gateway)
 
     async def execute_bulk_update(
         self, device_ips: list[str], channel: str = "stable"
@@ -91,6 +88,8 @@ class BulkOperationsUseCase:
         """
         Export component configurations organized per device.
 
+        Unreachable devices are left out of the export rather than failing it.
+
         Args:
             device_ips: List of device IP addresses
             component_types: List of component types to export
@@ -98,43 +97,48 @@ class BulkOperationsUseCase:
         Returns:
             Dictionary containing export metadata and device configurations
         """
-        result = {
+        snapshots = await self._capture_all(device_ips, component_types)
+
+        return {
             "export_metadata": {
                 "timestamp": datetime.now(UTC).isoformat() + "Z",
                 "total_devices": len(device_ips),
                 "component_types": component_types,
             },
-            "devices": {},
+            "devices": {
+                device_ip: snapshot.to_dict()
+                for device_ip, snapshot in zip(device_ips, snapshots, strict=False)
+                if snapshot is not None
+            },
         }
 
-        for device_ip in device_ips:
+    async def _capture_all(
+        self, device_ips: list[str], component_types: list[str]
+    ) -> list[DeviceSnapshot | None]:
+        """Capture every device concurrently, in the order they were asked for.
 
-            device_status = await self._device_gateway.get_device_status(device_ip)
-            if not device_status:
-                continue
+        Gathering with ``return_exceptions`` lets every capture finish before a
+        failure surfaces, so one bad device does not leave the others running
+        against real hardware with nobody awaiting them.
+        """
+        results = await asyncio.gather(
+            *(self._capture_device(ip, component_types) for ip in device_ips),
+            return_exceptions=True,
+        )
+        snapshots: list[DeviceSnapshot | None] = []
+        for result in results:
+            if isinstance(result, BaseException):
+                raise result
+            snapshots.append(result)
+        return snapshots
 
-            strategy = self._capture_strategy(device_status)
-            device_data: dict[str, Any] = {
-                "device_info": {
-                    "device_name": device_status.device_name,
-                    "device_type": device_status.device_type,
-                    "firmware_version": device_status.firmware_version,
-                    "mac_address": device_status.mac_address,
-                    "app_name": device_status.app_name,
-                },
-                "components": await strategy.capture_components(
-                    device_ip, device_status, component_types
-                ),
-            }
-
-            result["devices"][device_ip] = device_data
-
-        return result
-
-    def _capture_strategy(self, status: DeviceStatus) -> ComponentCaptureStrategy:
-        if Generation.from_device_gen(status.gen) is Generation.GEN1:
-            return self._gen1_capture
-        return self._gen2_capture
+    async def _capture_device(
+        self, device_ip: str, component_types: list[str]
+    ) -> DeviceSnapshot | None:
+        status = await self._device_gateway.get_device_status(device_ip)
+        if not status:
+            return None
+        return await self._capture.capture(device_ip, status, component_types)
 
     async def apply_bulk_config(
         self,
