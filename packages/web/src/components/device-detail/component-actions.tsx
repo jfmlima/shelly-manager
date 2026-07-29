@@ -51,7 +51,7 @@ import {
   isComingSoonAction,
   shouldShowResponseData,
   hasResponseData,
-  getComponentKeyForAction,
+  actionMethod,
 } from "@/hooks/useComponentActions";
 import { ActionResponseModal } from "./action-response-modal";
 import { SetConfigModal } from "./set-config-modal";
@@ -182,12 +182,10 @@ export function ComponentActions({
     action: string,
     parameters: Record<string, unknown>,
   ) => {
-    const correctComponentKey = getComponentKeyForAction(action, component);
-
     executeAction.mutate(
       {
         deviceIp,
-        componentKey: correctComponentKey,
+        componentKey: component.key,
         action,
         parameters,
       },
@@ -248,9 +246,7 @@ export function ComponentActions({
   };
 
   const renderParameterForm = (action: string) => {
-    const cleanAction = action.includes(".")
-      ? action.split(".").pop() || action
-      : action;
+    const cleanAction = actionMethod(action);
 
     switch (cleanAction) {
       case "Set":
