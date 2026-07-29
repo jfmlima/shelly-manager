@@ -1,4 +1,3 @@
-import logging
 from datetime import UTC, datetime
 from typing import Any
 
@@ -10,8 +9,6 @@ from ..gateways.device import DeviceGateway
 from .capture_strategies import ComponentCaptureStrategy
 from .capture_strategies.gen1 import Gen1CaptureStrategy
 from .capture_strategies.gen2 import Gen2CaptureStrategy
-
-logger = logging.getLogger(__name__)
 
 
 class BulkOperationsUseCase:
@@ -85,31 +82,6 @@ class BulkOperationsUseCase:
             raise BulkOperationError(
                 "bulk_factory_reset", device_ips, f"Bulk factory reset failed: {str(e)}"
             ) from e
-
-    async def get_bulk_status(
-        self, device_ips: list[str], include_updates: bool = True
-    ) -> list[DeviceStatus]:
-        """
-        Get status of multiple devices.
-
-        Args:
-            device_ips: List of device IP addresses
-            include_updates: Include update information (parameter kept for compatibility but not used)
-
-        Returns:
-            List of device statuses
-        """
-        results = []
-
-        for ip in device_ips:
-            try:
-                device = await self._device_gateway.get_device_status(ip)
-                if device:
-                    results.append(device)
-            except Exception as e:
-                logger.warning("Error getting status for %s: %s", ip, e)
-
-        return results
 
     async def export_bulk_config(
         self,
