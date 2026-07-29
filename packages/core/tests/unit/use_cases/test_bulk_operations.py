@@ -941,3 +941,39 @@ class TestBulkOperationsUseCase:
             await use_case.export_bulk_config(["192.168.1.100", "192.168.1.101"], [])
 
         assert finished == ["192.168.1.101"]
+
+    async def test_it_applies_config_concurrently_and_keeps_device_order(
+        self, use_case, mock_device_gateway
+    ):
+        first_started = asyncio.Event()
+        second_done = asyncio.Event()
+
+        async def get_component_keys(device_ip, component_type):
+            if device_ip == "192.168.1.100":
+                first_started.set()
+                await asyncio.wait_for(second_done.wait(), timeout=1)
+            else:
+                await first_started.wait()
+                second_done.set()
+            return [f"{component_type}:0"]
+
+        mock_device_gateway.get_component_keys = AsyncMock(
+            side_effect=get_component_keys
+        )
+        mock_device_gateway.execute_component_action = AsyncMock(
+            side_effect=lambda device_ip, key, action, parameters: ActionResult(
+                success=True,
+                action_type=f"{key}.SetConfig",
+                device_ip=device_ip,
+                message="Config applied",
+            )
+        )
+
+        results = await use_case.apply_bulk_config(
+            ["192.168.1.100", "192.168.1.101"], "switch", {}
+        )
+
+        assert [result.device_ip for result in results] == [
+            "192.168.1.100",
+            "192.168.1.101",
+        ]

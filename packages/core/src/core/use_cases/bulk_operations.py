@@ -31,14 +31,9 @@ class BulkOperationsUseCase:
         Returns:
             List of action results
         """
-        try:
-            return await self._device_gateway.execute_bulk_action(
-                device_ips, "shelly", "Update", {"channel": channel}
-            )
-        except Exception as e:
-            raise BulkOperationError(
-                "bulk_update", device_ips, f"Bulk update failed: {str(e)}"
-            ) from e
+        return await self._execute_shelly_action(
+            device_ips, "Update", {"channel": channel}, "bulk_update", "Bulk update"
+        )
 
     async def execute_bulk_reboot(self, device_ips: list[str]) -> list[ActionResult]:
         """
@@ -50,14 +45,9 @@ class BulkOperationsUseCase:
         Returns:
             List of action results
         """
-        try:
-            return await self._device_gateway.execute_bulk_action(
-                device_ips, "shelly", "Reboot", {}
-            )
-        except Exception as e:
-            raise BulkOperationError(
-                "bulk_reboot", device_ips, f"Bulk reboot failed: {str(e)}"
-            ) from e
+        return await self._execute_shelly_action(
+            device_ips, "Reboot", {}, "bulk_reboot", "Bulk reboot"
+        )
 
     async def execute_bulk_factory_reset(
         self, device_ips: list[str]
@@ -71,13 +61,29 @@ class BulkOperationsUseCase:
         Returns:
             List of action results
         """
+        return await self._execute_shelly_action(
+            device_ips, "FactoryReset", {}, "bulk_factory_reset", "Bulk factory reset"
+        )
+
+    async def _execute_shelly_action(
+        self,
+        device_ips: list[str],
+        action: str,
+        parameters: dict[str, Any],
+        operation: str,
+        label: str,
+    ) -> list[ActionResult]:
+        """Run one action on the shelly component of every device.
+
+        ``operation`` and ``label`` only shape the error a failure raises.
+        """
         try:
             return await self._device_gateway.execute_bulk_action(
-                device_ips, "shelly", "FactoryReset", {}
+                device_ips, "shelly", action, parameters
             )
         except Exception as e:
             raise BulkOperationError(
-                "bulk_factory_reset", device_ips, f"Bulk factory reset failed: {str(e)}"
+                operation, device_ips, f"{label} failed: {str(e)}"
             ) from e
 
     async def export_bulk_config(
@@ -149,6 +155,9 @@ class BulkOperationsUseCase:
         """
         Apply component configuration to multiple devices.
 
+        Devices are handled concurrently; the components of a single device are
+        configured one at a time. Results stay in device order.
+
         Resolves actual component keys (e.g. cover:0) per device to ensure
         the RPC call includes the required component ID.
 
@@ -160,30 +169,37 @@ class BulkOperationsUseCase:
         Returns:
             List of action results
         """
-        all_results = []
-
-        for device_ip in device_ips:
-            keys = await self._device_gateway.get_component_keys(
-                device_ip, component_type
+        per_device = await asyncio.gather(
+            *(
+                self._apply_device_config(device_ip, component_type, config)
+                for device_ip in device_ips
             )
+        )
+        return [result for results in per_device for result in results]
 
-            if not keys:
-                all_results.append(
-                    ActionResult(
-                        device_ip=device_ip,
-                        action_type=f"{component_type}.SetConfig",
-                        success=False,
-                        message=f"No {component_type} components found on device",
-                        error=f"Component type {component_type} not present"
-                        " or device unreachable",
-                    )
+    async def _apply_device_config(
+        self,
+        device_ip: str,
+        component_type: str,
+        config: dict[str, Any],
+    ) -> list[ActionResult]:
+        keys = await self._device_gateway.get_component_keys(device_ip, component_type)
+
+        if not keys:
+            return [
+                ActionResult(
+                    device_ip=device_ip,
+                    action_type=f"{component_type}.SetConfig",
+                    success=False,
+                    message=f"No {component_type} components found on device",
+                    error=f"Component type {component_type} not present"
+                    " or device unreachable",
                 )
-                continue
+            ]
 
-            for key in keys:
-                result = await self._device_gateway.execute_component_action(
-                    device_ip, key, "SetConfig", {"config": config}
-                )
-                all_results.append(result)
-
-        return all_results
+        return [
+            await self._device_gateway.execute_component_action(
+                device_ip, key, "SetConfig", {"config": config}
+            )
+            for key in keys
+        ]
