@@ -7,10 +7,6 @@ from typing import Any
 
 from litestar import get
 
-from ..dependencies.container import APIContainer
-
-_container = APIContainer()
-
 
 @get("/health", tags=["Health"], summary="Health Check")
 async def health_check() -> dict[str, Any]:
