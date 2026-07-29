@@ -72,9 +72,11 @@ class DeviceStatus(BaseModel):
         for component_data in components_data:
             component = ComponentFactory.create_component(component_data)
             component.available_actions = component.get_available_actions(methods)
-            legacy_actions = component.attrs.get("legacy_actions")
-            if isinstance(legacy_actions, list):
-                component.available_actions.extend(legacy_actions)
+            # Gen1 actions cannot be derived from a method list; the legacy
+            # mapper declares them on its payload.
+            declared_actions = component_data.get("available_actions")
+            if isinstance(declared_actions, list):
+                component.available_actions.extend(declared_actions)
             components.append(component)
 
         for key, status in status_dict.items():

@@ -5,6 +5,11 @@ from typing import Any
 
 from core.utils.validation import normalize_mac
 
+# The raw Gen1 /settings entry captured alongside the mapped components in a
+# snapshot. It is the data source a Gen1 restore replays, never a restore
+# target itself.
+LEGACY_SETTINGS_KEY = "legacy_settings"
+
 
 @dataclass
 class DeviceBackup:

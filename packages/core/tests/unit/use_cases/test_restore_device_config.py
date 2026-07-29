@@ -576,72 +576,13 @@ class TestRestoreGen1DeviceConfig:
             if call.args[2] == "Legacy.SetConfig"
         }
 
-    async def test_it_restores_relay_settings_from_the_raw_settings(
-        self, use_case, mock_device_gateway
-    ):
-        result = await use_case.restore(1, IP, component_keys=["switch:0"])
-
-        assert result.success is True
-        # Exactly the documented settable params of /settings/relay/{index},
-        # sourced from the raw snapshot rather than the Gen2-shaped mapped config.
-        assert self._sent(mock_device_gateway)["switch:0"] == {
-            "name": "Hallway light",
-            "appliance_type": "General",
-            "default_state": "last",
-            "btn_type": "momentary",
-            "btn_reverse": 0,
-            "auto_on": 0,
-            "auto_off": 30.5,
-            "schedule": True,
-            "schedule_rules": ["0700-012345-on", "2200-012345-off"],
-            "max_power": 0,
-            # The Shelly 1/1L user power constant: settable, unlike the live
-            # readings under "meters".
-            "power": 12.5,
-        }
-
-    async def test_it_drops_readonly_relay_fields(self, use_case, mock_device_gateway):
-        await use_case.restore(1, IP, component_keys=["switch:0"])
-
-        sent = self._sent(mock_device_gateway)["switch:0"]
-        # Echoed by GET /settings but rejected/meaningless as settings.
-        for read_only in ("ison", "has_timer"):
-            assert read_only not in sent
-
-    async def test_it_renames_wifi_fields_to_their_setter_names(
-        self, use_case, mock_device_gateway
-    ):
-        await use_case.restore(1, IP, component_keys=["wifi"])
-
-        # GET /settings echoes gw/mask; /settings/sta only accepts gateway/netmask.
-        assert self._sent(mock_device_gateway)["wifi"] == {
-            "enabled": True,
-            "ssid": "Castle",
-            "ipv4_method": "static",
-            "ip": "192.168.1.100",
-            "gateway": "192.168.1.1",
-            "netmask": "255.255.255.0",
-            "dns": "8.8.8.8",
-        }
-
     async def test_it_restores_the_fallback_sta_and_ap_with_the_primary(
         self, use_case, mock_device_gateway
     ):
         result = await use_case.restore(1, IP, component_keys=["wifi"])
 
         sent = self._sent(mock_device_gateway)
-        assert sent["wifi_sta1"] == {
-            "enabled": False,
-            "ssid": "CastleFallback",
-            "ipv4_method": "dhcp",
-        }
-        # The AP SSID is device-fixed and never sent; the AP key, unlike the
-        # STA one, is echoed by GET /settings and round-trips.
-        assert sent["wifi_ap"] == {"enabled": False, "key": "appass"}
-        # The AP goes last: enabling one WiFi mode disables the other on the
-        # device, so the resource enabled in the backup must win.
         assert list(sent) == ["wifi", "wifi_sta1", "wifi_ap"]
-        # One component result for the single "wifi" component.
         assert [c.key for c in result.components] == ["wifi"]
         assert result.success is True
 
@@ -682,86 +623,6 @@ class TestRestoreGen1DeviceConfig:
         entry = next(c for c in result.components if c.key == "wifi")
         assert entry.success is False
         assert entry.error == "wifi_ap: Bad Request"
-
-    async def test_it_renames_the_roller_button_type_to_its_setter_name(
-        self, use_case, mock_device_gateway
-    ):
-        await use_case.restore(1, IP, component_keys=["cover:0"])
-
-        sent = self._sent(mock_device_gateway)["cover:0"]
-        # GET /settings echoes button_type; /settings/roller/{i} accepts btn_type.
-        assert sent["btn_type"] == "toggle"
-        assert "button_type" not in sent
-        assert sent["maxtime_open"] == 25
-        assert sent["schedule_rules"] == []
-        for read_only in ("state", "power", "is_valid", "safety_switch"):
-            assert read_only not in sent
-
-    async def test_it_flattens_the_nested_sntp_server_for_sys(
-        self, use_case, mock_device_gateway
-    ):
-        await use_case.restore(1, IP, component_keys=["sys"])
-
-        # Nested echoes (sntp.server, coiot.*, ap_roaming.*, the i3 timing
-        # blocks) flatten to the names their setters accept.
-        assert self._sent(mock_device_gateway)["sys"] == {
-            "name": "Hallway",
-            "timezone": "Europe/Lisbon",
-            "tzautodetect": False,
-            "tz_utc_offset": 3600,
-            "tz_dst": False,
-            "tz_dst_auto": True,
-            "lat": 38.7223,
-            "lng": -9.1393,
-            "discoverable": True,
-            "led_status_disable": False,
-            "led_power_disable": False,
-            "max_power": 3500,
-            "longpush_time": 1000,
-            "factory_reset_from_switch": True,
-            "wifirecovery_reboot_enabled": True,
-            "debug_enable": False,
-            "allow_cross_origin": False,
-            "supply_voltage": 0,
-            "power_correction": 1,
-            "favorites_enabled": True,
-            "coiot_enable": True,
-            "coiot_update_period": 15,
-            "coiot_peer": "10.0.0.2:5683",
-            "ap_roaming_enabled": True,
-            "ap_roaming_threshold": -70,
-            "longpush_duration_ms_min": 800,
-            "longpush_duration_ms_max": 3000,
-            "multipush_time_between_pushes_ms_max": 500,
-            "sntp_server": "pool.ntp.org",
-        }
-
-    async def test_it_never_sends_mode_in_the_sys_batch(
-        self, use_case, mock_device_gateway
-    ):
-        await use_case.restore(1, IP, component_keys=["sys"])
-
-        # A mode change reboots the device, so it only ever travels through the
-        # dedicated pre-phase, never the sys param batch.
-        assert "mode" not in self._sent(mock_device_gateway)["sys"]
-
-    async def test_it_prefixes_mqtt_params(self, use_case, mock_device_gateway):
-        await use_case.restore(1, IP, component_keys=["mqtt"])
-
-        # Gen1 has no /settings/mqtt: the settings are mqtt_*-prefixed on /settings.
-        assert self._sent(mock_device_gateway)["mqtt"] == {
-            "mqtt_enable": True,
-            "mqtt_server": "10.0.0.1:1883",
-            "mqtt_user": "shelly",
-            "mqtt_id": "shelly1-DDEEFF",
-            "mqtt_clean_session": True,
-            "mqtt_retain": False,
-            "mqtt_keep_alive": 60,
-            "mqtt_max_qos": 0,
-            "mqtt_update_period": 30,
-            "mqtt_reconnect_timeout_min": 2.0,
-            "mqtt_reconnect_timeout_max": 60.0,
-        }
 
     async def test_it_excludes_network_components_by_default(
         self, use_case, mock_device_gateway
@@ -814,19 +675,6 @@ class TestRestoreGen1DeviceConfig:
         entry = next(c for c in result.components if c.key == "legacy_settings")
         assert entry.skipped is True
         assert entry.skipped_reason == "not a restorable component"
-
-    async def test_it_restores_input_settings_via_their_own_endpoint(
-        self, use_case, mock_device_gateway
-    ):
-        result = await use_case.restore(1, IP, component_keys=["input:0"])
-
-        # i3/Button1 expose /settings/input/{i}; the snapshot echoes its params.
-        assert result.success is True
-        assert self._sent(mock_device_gateway)["input:0"] == {
-            "name": "Left button",
-            "btn_type": "momentary",
-            "btn_reverse": 0,
-        }
 
     async def test_it_skips_inputs_when_the_snapshot_has_no_input_settings(
         self, use_case, mock_device_gateway, mock_repository

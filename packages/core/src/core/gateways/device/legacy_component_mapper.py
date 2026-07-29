@@ -191,10 +191,10 @@ class LegacyComponentMapper:
                         "enable": config.get("enable", True),
                         "invert": config.get("invert", False),
                     },
+                    "available_actions": LEGACY_INPUT_ACTIONS.copy(),
                     "attrs": {
                         "legacy_component": "input",
                         "legacy_id": idx,
-                        "legacy_actions": LEGACY_INPUT_ACTIONS.copy(),
                     },
                 }
             )
@@ -250,10 +250,10 @@ class LegacyComponentMapper:
                             "current_limit", config.get("max_current", 0.0)
                         ),
                     },
+                    "available_actions": LEGACY_SWITCH_ACTIONS.copy(),
                     "attrs": {
                         "legacy_component": "relay",
                         "legacy_id": idx,
-                        "legacy_actions": LEGACY_SWITCH_ACTIONS.copy(),
                     },
                 }
             )
@@ -306,10 +306,10 @@ class LegacyComponentMapper:
                         "maxtime_close": config.get("maxtime_close", 0),
                         "power_limit": config.get("power_limit", 0),
                     },
+                    "available_actions": LEGACY_COVER_ACTIONS.copy(),
                     "attrs": {
                         "legacy_component": "roller",
                         "legacy_id": idx,
-                        "legacy_actions": LEGACY_COVER_ACTIONS.copy(),
                     },
                 }
             )
