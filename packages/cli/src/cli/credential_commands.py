@@ -26,10 +26,11 @@ async def set_credential(
     """Set credentials for a specific device."""
     console = ctx.obj.console
     container = ctx.obj.container
-    repo = container.get_credentials_repository()
 
     try:
-        await repo.set(mac, username, password)
+        await container.initialize_database()
+        async with container.create_credentials_repository() as repo:
+            await repo.set(mac, username, password)
         console.print(f"✅ Credentials set for [bold]{mac.upper()}[/bold]")
     except Exception as e:
         console.print(Messages.error(f"Failed to set credentials: {e}"))
@@ -49,10 +50,11 @@ async def set_global_credential(
     """Set global fallback credentials."""
     console = ctx.obj.console
     container = ctx.obj.container
-    repo = container.get_credentials_repository()
 
     try:
-        await repo.set("*", username, password)
+        await container.initialize_database()
+        async with container.create_credentials_repository() as repo:
+            await repo.set("*", username, password)
         console.print("✅ Global fallback credentials set")
     except Exception as e:
         console.print(Messages.error(f"Failed to set global credentials: {e}"))
@@ -66,10 +68,15 @@ async def list_credentials(ctx: click.Context) -> None:
     """List devices with stored credentials."""
     console = ctx.obj.console
     container = ctx.obj.container
-    repo = container.get_credentials_repository()
 
     try:
-        creds = await repo.list_all()
+        await container.initialize_database()
+        async with container.create_credentials_repository() as repo:
+            creds = [
+                credential
+                for credential in await repo.list_all()
+                if credential is not None
+            ]
         if not creds:
             console.print(Messages.warning("No credentials stored."))
             return
@@ -88,6 +95,7 @@ async def list_credentials(ctx: click.Context) -> None:
         console.print(table)
     except Exception as e:
         console.print(Messages.error(f"Failed to list credentials: {e}"))
+        raise click.Abort() from None
 
 
 @credential_commands.command("delete")
@@ -98,10 +106,11 @@ async def delete_credential(ctx: click.Context, mac: str) -> None:
     """Delete credentials for a device."""
     console = ctx.obj.console
     container = ctx.obj.container
-    repo = container.get_credentials_repository()
 
     try:
-        await repo.delete(mac)
+        await container.initialize_database()
+        async with container.create_credentials_repository() as repo:
+            await repo.delete(mac)
         console.print(f"✅ Credentials deleted for [bold]{mac.upper()}[/bold]")
     except Exception as e:
         console.print(Messages.error(f"Failed to delete credentials: {e}"))
