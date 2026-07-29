@@ -248,12 +248,12 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
         """
         normalized_ip = self._normalize_id(ip)
 
-        if self.auth_state_cache:
+        if self.auth_state_cache is not None:
             self.auth_state_cache.mark_auth_not_required(normalized_ip)
 
         mac = self._ip_to_mac.get(normalized_ip)
         if mac:
-            if self.auth_state_cache:
+            if self.auth_state_cache is not None:
                 self.auth_state_cache.mark_auth_not_required(mac)
             if mac in self._digest_auth_cache:
                 del self._digest_auth_cache[mac]

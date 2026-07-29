@@ -73,19 +73,13 @@ class ShellyDeviceGateway(DeviceGateway):
 
             auth_required = device_data.get("auth_en", False)
 
-            if (
-                hasattr(self._rpc_client, "auth_state_cache")
-                and self._rpc_client.auth_state_cache
-            ):
+            auth_state_cache = getattr(self._rpc_client, "auth_state_cache", None)
+            if auth_state_cache is not None:
                 if auth_required:
-                    self._rpc_client.auth_state_cache.mark_auth_required(
-                        normalize_mac(ip)
-                    )
+                    auth_state_cache.mark_auth_required(normalize_mac(ip))
                 else:
                     device_id = device_data.get("id") or ip
-                    auth_required = self._rpc_client.auth_state_cache.requires_auth(
-                        device_id
-                    )
+                    auth_required = auth_state_cache.requires_auth(device_id)
 
             device = DiscoveredDevice(
                 ip=ip,
@@ -203,8 +197,8 @@ class ShellyDeviceGateway(DeviceGateway):
             something unreadable; callers treat both as "unvalidated" rather
             than as proof that a method does not exist.
 
-        A list this asks for is always read fresh from the device, and is what
-        _remembered_methods hands to the next action on the same device.
+        A list this asks for is always read fresh from the device, and is the
+        one _resolve_method hands to the next action on the same device.
         """
         methods = await self._fetch_available_methods(ip)
         if methods:
@@ -390,7 +384,7 @@ class ShellyDeviceGateway(DeviceGateway):
         if not device_info or not device_info.get("auth_en", False):
             return
         auth_state_cache = getattr(self._rpc_client, "auth_state_cache", None)
-        if auth_state_cache:
+        if auth_state_cache is not None:
             auth_state_cache.mark_auth_required(normalize_mac(ip))
 
     async def _fetch_available_methods(self, ip: str) -> list[str]:

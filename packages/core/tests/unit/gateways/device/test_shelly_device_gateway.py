@@ -12,6 +12,7 @@ from core.domain.enums.enums import Status
 from core.domain.value_objects.action_result import ActionResult
 from core.gateways.device.legacy_device_gateway import LegacyDeviceGateway
 from core.gateways.device.shelly_device_gateway import ShellyDeviceGateway
+from core.services.auth_state_cache import AuthStateCache
 
 
 class TestShellyDeviceGateway:
@@ -375,6 +376,25 @@ class TestShellyDeviceGateway:
 
         with pytest.raises(DeviceAuthenticationError):
             await gateway.get_device_status("192.168.1.100")
+
+    async def test_it_marks_auth_required_while_the_cache_is_still_empty(
+        self, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.auth_state_cache = AuthStateCache()
+        gateway = ShellyDeviceGateway(
+            rpc_client=mock_rpc_client, legacy_gateway=mock_legacy_gateway
+        )
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                ({"id": "shelly1-abc", "auth_en": True}, 0.1),
+                ({}, 0.05),
+            ]
+        )
+
+        result = await gateway.discover_device("192.168.1.100")
+
+        assert result.auth_required is True
+        assert mock_rpc_client.auth_state_cache.requires_auth("192.168.1.100") is True
 
     async def test_it_marks_auth_required_before_a_later_read_can_fail(
         self, mock_rpc_client, mock_legacy_gateway

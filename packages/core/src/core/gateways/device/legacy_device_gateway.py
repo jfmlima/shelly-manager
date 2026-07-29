@@ -130,7 +130,7 @@ class LegacyDeviceGateway:
             mac = device_info.get("mac")
             auth: tuple[str, str] | None = None
 
-            if auth_enabled and mac and self._auth_state_cache:
+            if auth_enabled and mac and self._auth_state_cache is not None:
                 normalized_mac = normalize_mac(mac)
                 self._ip_to_mac[normalize_mac(ip)] = normalized_mac
                 self._auth_state_cache.mark_auth_required(normalized_mac)
