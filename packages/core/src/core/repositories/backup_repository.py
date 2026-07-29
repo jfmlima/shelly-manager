@@ -35,7 +35,7 @@ class BackupRepository(ABC):
     async def count_summaries(self, device_mac: str | None = None) -> int:
         """Count stored backups, optionally filtered by device MAC.
 
-        Counts every source (manual and scheduled) — this is the total a
+        Counts every source (manual and scheduled); this is the total a
         paginated list view paginates over, not a retention scope.
         """
         pass

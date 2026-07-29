@@ -110,7 +110,7 @@ class SQLAlchemyBackupRepository(BackupRepository):
         self, device_mac: str, n: int, source: str | None = "scheduled"
     ) -> int:
         if n < 1:
-            # Refuse to interpret "keep 0" as "delete everything" — that is almost
+            # Refuse to interpret "keep 0" as "delete everything"; that is almost
             # certainly a misconfiguration, not an intent to wipe all snapshots.
             return 0
         mac = normalize_mac(device_mac)

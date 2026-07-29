@@ -77,7 +77,7 @@ export function BackupsSection({
     setOffset(0);
   }, [deviceMac]);
 
-  // Step back only on a *successful* empty page — not on a transient error,
+  // Step back only on a *successful* empty page, not on a transient error,
   // which also yields items=[] and would otherwise rewind pagination state.
   useEffect(() => {
     if (isSuccess && items.length === 0 && offset >= PAGE_SIZE) {
@@ -313,7 +313,7 @@ function RestoreDialog({
                   {c.network && (
                     <span className="inline-flex items-center gap-1 text-xs text-amber-600">
                       <AlertTriangle className="h-3 w-3" />
-                      network — may disconnect
+                      network (may disconnect)
                     </span>
                   )}
                 </Label>

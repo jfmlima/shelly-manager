@@ -3,7 +3,7 @@ Shelly-specific DigestAuth that correctly handles empty opaque values.
 
 httpx 0.28.1's DigestAuth uses ``if challenge.opaque:`` which treats b""
 as falsy, omitting opaque from the Authorization header. RFC 7616 requires
-clients to return opaque unchanged — even when empty. Shelly Wall Display
+clients to return opaque unchanged, even when empty. Shelly Wall Display
 devices send ``opaque=""`` and reject responses that omit it.
 """
 
@@ -16,7 +16,7 @@ from httpx._utils import to_str
 
 
 class ShellyDigestAuth(httpx.DigestAuth):
-    # Pinned to httpx 0.28.1 — verify on upgrades.
+    # Pinned to httpx 0.28.1; verify on upgrades.
     def _build_auth_header(
         self, request: Request, challenge: _DigestAuthChallenge
     ) -> str:

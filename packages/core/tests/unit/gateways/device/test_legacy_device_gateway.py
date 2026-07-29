@@ -163,6 +163,104 @@ class TestLegacyDeviceGateway:
         assert result.success is False
         assert "Action failed" in result.error
 
+    @pytest.mark.parametrize(
+        "component_key,expected_endpoint",
+        [
+            ("switch:0", "settings/relay/0"),
+            ("switch:2", "settings/relay/2"),
+            ("cover:1", "settings/roller/1"),
+            # Only i3/Button1 expose this endpoint; the restore path never
+            # targets it for other models.
+            ("input:0", "settings/input/0"),
+            ("sys", "settings"),
+            # Gen1 exposes MQTT as mqtt_* params on the device-level /settings.
+            ("mqtt", "settings"),
+            ("cloud", "settings/cloud"),
+            ("wifi", "settings/sta"),
+            ("wifi_sta1", "settings/sta1"),
+            ("wifi_ap", "settings/ap"),
+        ],
+    )
+    async def test_it_maps_set_config_to_its_settings_endpoint(
+        self, gateway, mock_http_client, component_key, expected_endpoint
+    ):
+        mock_http_client.get_with_params.return_value = {}
+
+        result = await gateway.execute_action(
+            "192.168.1.100", component_key, "Legacy.SetConfig", {"name": "Kitchen"}
+        )
+
+        assert result.success is True
+        mock_http_client.get_with_params.assert_called_once_with(
+            "192.168.1.100", expected_endpoint, {"name": "Kitchen"}, auth=None
+        )
+
+    async def test_it_serializes_set_config_params_for_gen1(
+        self, gateway, mock_http_client
+    ):
+        mock_http_client.get_with_params.return_value = {}
+
+        await gateway.execute_action(
+            "192.168.1.100",
+            "switch:0",
+            "Legacy.SetConfig",
+            {
+                "schedule": True,
+                "btn_reverse": False,
+                "schedule_rules": ["0700-012345-on", "2200-012345-off"],
+                "auto_off": 30.5,
+                "max_power": 0,
+                "name": None,
+            },
+        )
+
+        params = mock_http_client.get_with_params.call_args.args[2]
+        assert params == {
+            "schedule": "true",
+            "btn_reverse": "false",
+            "schedule_rules": "0700-012345-on,2200-012345-off",
+            "auto_off": 30.5,
+            "max_power": 0,
+        }
+        # None is dropped, not sent as an empty value that would clear the field.
+        assert "name" not in params
+
+    async def test_it_serializes_an_empty_list_as_a_clearing_value(
+        self, gateway, mock_http_client
+    ):
+        mock_http_client.get_with_params.return_value = {}
+
+        await gateway.execute_action(
+            "192.168.1.100", "switch:0", "Legacy.SetConfig", {"schedule_rules": []}
+        )
+
+        params = mock_http_client.get_with_params.call_args.args[2]
+        assert params == {"schedule_rules": ""}
+
+    async def test_it_reboots_a_gen1_device(self, gateway, mock_http_client):
+        mock_http_client.get_with_params.return_value = {}
+
+        result = await gateway.execute_action(
+            "192.168.1.100", "sys", "Legacy.Reboot", {}
+        )
+
+        assert result.success is True
+        mock_http_client.get_with_params.assert_called_once_with(
+            "192.168.1.100", "reboot", {}, auth=None
+        )
+
+    @pytest.mark.parametrize("component_key", ["schedule", "switch", "input"])
+    async def test_it_refuses_set_config_without_a_settings_endpoint(
+        self, gateway, mock_http_client, component_key
+    ):
+        result = await gateway.execute_action(
+            "192.168.1.100", component_key, "Legacy.SetConfig", {"name": "x"}
+        )
+
+        assert result.success is False
+        assert result.error == "Unsupported legacy action"
+        mock_http_client.get_with_params.assert_not_called()
+
     async def test_it_derives_device_name_priority(
         self, gateway, mock_http_client, sample_device_info
     ):

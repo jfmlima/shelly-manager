@@ -25,6 +25,24 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Gen1 exposes MQTT as ``mqtt_*`` params on the device-level ``/settings``, so it
+# shares an endpoint with ``sys`` rather than having one of its own.
+LEGACY_SETTINGS_ENDPOINTS: dict[str, str] = {
+    "sys": "settings",
+    "mqtt": "settings",
+    "cloud": "settings/cloud",
+    "wifi": "settings/sta",
+    # Gen1 splits WiFi across three resources behind the single "wifi"
+    # component; these synthetic types exist only for the restore path.
+    "wifi_sta1": "settings/sta1",
+    "wifi_ap": "settings/ap",
+}
+LEGACY_INDEXED_SETTINGS_ENDPOINTS: dict[str, str] = {
+    "switch": "settings/relay",
+    "cover": "settings/roller",
+    "input": "settings/input",
+}
+
 
 class LegacyDeviceGateway:
     """Adapter for legacy Gen1 Shelly devices using HTTP API."""
@@ -269,7 +287,8 @@ class LegacyDeviceGateway:
             ip: Device IP address
             component_key: Component key (e.g., 'switch:0', 'input:1')
             action: Action name (must start with 'Legacy.')
-            parameters: Action parameters (unused for legacy actions)
+            parameters: Action parameters. Only ``Legacy.SetConfig`` reads them;
+                the fixed-command actions carry their own params.
 
         Returns:
             ActionResult with execution status
@@ -284,7 +303,9 @@ class LegacyDeviceGateway:
             except ValueError:
                 component_id = None
 
-        command = self._map_legacy_command(component_type, component_id, action)
+        command = self._map_legacy_command(
+            component_type, component_id, action, parameters
+        )
         if command is None:
             return ActionResult(
                 device_ip=ip,
@@ -318,9 +339,23 @@ class LegacyDeviceGateway:
             )
 
     def _map_legacy_command(
-        self, component_type: str, component_id: int | None, action: str
+        self,
+        component_type: str,
+        component_id: int | None,
+        action: str,
+        parameters: dict[str, Any],
     ) -> dict[str, Any] | None:
         """Map legacy action to HTTP endpoint and parameters."""
+        if action == "Legacy.SetConfig":
+            return self._map_set_config(component_type, component_id, parameters)
+
+        if action == "Legacy.Reboot" and component_type == "sys":
+            return {
+                "endpoint": "reboot",
+                "params": {},
+                "message": "Device reboot requested",
+            }
+
         if component_type == "switch" and component_id is not None:
             endpoint = f"relay/{component_id}"
             relay_actions: dict[str, dict[str, Any]] = {
@@ -399,6 +434,44 @@ class LegacyDeviceGateway:
                 return {"endpoint": endpoint, **input_actions[action]}
 
         return None
+
+    def _map_set_config(
+        self,
+        component_type: str,
+        component_id: int | None,
+        parameters: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        endpoint = LEGACY_SETTINGS_ENDPOINTS.get(component_type)
+        if endpoint is None:
+            indexed = LEGACY_INDEXED_SETTINGS_ENDPOINTS.get(component_type)
+            if indexed is None or component_id is None:
+                return None
+            endpoint = f"{indexed}/{component_id}"
+
+        return {
+            "endpoint": endpoint,
+            "params": self._serialize_params(parameters),
+            "message": "Configuration applied",
+        }
+
+    @staticmethod
+    def _serialize_params(parameters: dict[str, Any]) -> dict[str, Any]:
+        """Render params as Gen1 query values.
+
+        An empty list serializes to "", which is how Gen1 clears a list field,
+        whereas ``None`` is dropped so the field is left untouched instead.
+        """
+        params: dict[str, Any] = {}
+        for name, value in parameters.items():
+            if value is None:
+                continue
+            if isinstance(value, bool):
+                params[name] = "true" if value else "false"
+            elif isinstance(value, list | tuple):
+                params[name] = ",".join(str(item) for item in value)
+            else:
+                params[name] = value
+        return params
 
     def _derive_device_name(
         self,

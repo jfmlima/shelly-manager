@@ -105,8 +105,16 @@ DELETE /api/backups/{id}           # Delete a backup
 
 Restore is per-component and **excludes network components (`wifi`/`eth`/`mqtt`/`ws`/`cloud`)
 by default** to avoid locking the device off-network; pass their keys in `component_keys` to
-include them. Restore is supported on Gen2+ devices only (Gen1 devices back up but cannot be
-restored per-component).
+include them.
+
+Gen1 relay/roller/plug/i3 devices restore too, by replaying the raw `/settings` captured in the
+snapshot over the legacy HTTP endpoints, including the device mode (relay/roller), which is
+applied first and **reboots the device** when it differs from the backup. Caveats: secrets are
+never echoed by Gen1 (`GET /settings` omits the WiFi STA password and `mqtt_pass`), so a
+`wifi`/`mqtt` restore re-applies everything *except* the password; device auth
+(`/settings/login`), Gen1 `actions` and light-device (`Dimmer`/`Bulb`/`RGBW2`) configs are not
+restored. A backup and a target of different generations are refused. See the core README for
+the full list.
 
 ### Scheduled Backups
 
