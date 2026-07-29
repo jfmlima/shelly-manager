@@ -1,19 +1,12 @@
 """Use case for restoring a stored backup back onto a device."""
 
-import asyncio
 import logging
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
-from copy import deepcopy
 from typing import Any
 
 from core.domain.entities.device_backup import DeviceBackup
-from core.domain.entities.device_status import DeviceStatus
 from core.domain.entities.exceptions import DeviceNotFoundError
-from core.domain.services.gen1_settings_translation import (
-    restorable_params,
-    wifi_subresources,
-)
 from core.domain.value_objects.restore_result import (
     ComponentRestoreResult,
     RestoreResult,
@@ -21,6 +14,12 @@ from core.domain.value_objects.restore_result import (
 from core.gateways.device import DeviceGateway
 from core.repositories.backup_repository import BackupRepository
 from core.use_cases.backup_device_config import BackupNotFoundError
+from core.use_cases.restore_strategies import (
+    LEGACY_SETTINGS_KEY,
+    ComponentRestoreStrategy,
+)
+from core.use_cases.restore_strategies.gen1 import Gen1RestoreStrategy
+from core.use_cases.restore_strategies.gen2 import Gen2RestoreStrategy
 from core.utils.validation import normalize_mac
 
 logger = logging.getLogger(__name__)
@@ -28,21 +27,6 @@ logger = logging.getLogger(__name__)
 # Component types that can drop the device off the network if restored.
 # Excluded from the default selection; applied LAST when explicitly included.
 NETWORK_TYPES = {"wifi", "eth", "mqtt", "ws", "cloud"}
-
-# The "schedules" pseudo-component produced by export_bulk_config.
-SCHEDULES_KEY = "schedules"
-
-# The raw Gen1 /settings entry captured alongside the mapped components. It is the
-# data source a Gen1 restore replays, never a restore target itself.
-LEGACY_SETTINGS_KEY = "legacy_settings"
-
-# Read-only keys that GetConfig echoes but SetConfig rejects, by component type.
-# Each entry is a (parent, child) path popped from the config dict. Top-level
-# "id" and "cfg_rev" are always stripped. Table-driven so it is easy to extend.
-READ_ONLY_BY_TYPE: dict[str, list[tuple[str, str]]] = {
-    "sys": [("device", "mac")],
-    "wifi": [("ap", "is_open")],
-}
 
 
 class DeviceMismatchError(Exception):
@@ -58,7 +42,12 @@ class DeviceMismatchError(Exception):
 
 
 class RestoreDeviceConfig:
-    """Apply a stored backup back to a device, per component key."""
+    """Apply a stored backup back to a device, per component key.
+
+    Orchestration only: backup lookup, identity and generation checks,
+    selection and ordering, result aggregation. The per-generation wire work
+    lives in the restore strategies.
+    """
 
     def __init__(
         self,
@@ -136,49 +125,38 @@ class RestoreDeviceConfig:
         # A target whose generation is unknown (gen is None, e.g. GetDeviceInfo
         # failed) is already gated by the MAC check above, so it never reaches here.
         is_gen1 = backup.generation == "gen1" and status.gen == 1
-        gen1_settings: dict[str, Any] | None = None
-        if backup.generation == "gen1" or status.gen == 1:
-            if not is_gen1:
-                return self._generation_mismatch(backup, device_ip, component_keys)
-            # Gen1 restores replay the raw /settings captured at backup time; the
-            # mapped per-component configs are Gen2-shaped and not writable as-is.
-            gen1_settings = self._legacy_settings(backup)
-            if gen1_settings is None:
-                return self._all_skipped(
-                    backup,
-                    device_ip,
-                    component_keys,
-                    "snapshot lacks raw Gen1 settings",
-                )
+        if (backup.generation == "gen1" or status.gen == 1) and not is_gen1:
+            return self._generation_mismatch(backup, device_ip, component_keys)
 
-        mode_result: ComponentRestoreResult | None = None
-        if gen1_settings is not None:
-            mode_result, status = await self._sync_gen1_mode(
-                device_ip, gen1_settings, status
+        strategy = self._build_strategy(is_gen1)
+        outcome = await strategy.prepare(device_ip, backup, status)
+        if outcome.abort_reason is not None:
+            return self._all_skipped(
+                backup, device_ip, component_keys, outcome.abort_reason
             )
-            if (
-                mode_result is not None
-                and not mode_result.success
-                and not mode_result.skipped
-            ):
-                return RestoreResult(
-                    success=False,
-                    device_ip=device_ip,
-                    backup_id=backup_id,
-                    total=1,
-                    succeeded=0,
-                    failed=1,
-                    skipped=0,
-                    message=mode_result.error,
-                    components=[mode_result],
-                )
+        failure = next(
+            (r for r in outcome.preliminary if not r.success and not r.skipped), None
+        )
+        if failure is not None:
+            return RestoreResult(
+                success=False,
+                device_ip=device_ip,
+                backup_id=backup_id,
+                total=len(outcome.preliminary),
+                succeeded=sum(1 for r in outcome.preliminary if r.success),
+                failed=sum(
+                    1 for r in outcome.preliminary if not r.success and not r.skipped
+                ),
+                skipped=sum(1 for r in outcome.preliminary if r.skipped),
+                message=failure.error,
+                components=outcome.preliminary,
+            )
 
+        status = outcome.status
         present_keys = {component.key for component in status.components}
         selected = self._select(components, component_keys)
 
-        results: list[ComponentRestoreResult] = []
-        if mode_result is not None:
-            results.append(mode_result)
+        results: list[ComponentRestoreResult] = list(outcome.preliminary)
         # Surface explicitly-requested keys that aren't in the backup, so the
         # caller never silently gets a smaller restore set than they asked for.
         if component_keys is not None:
@@ -204,17 +182,11 @@ class RestoreDeviceConfig:
                         )
                     )
         for key in selected:
-            entry = components[key]
-            if gen1_settings is not None:
-                results.append(
-                    await self._restore_gen1_one(
-                        device_ip, key, entry, gen1_settings, present_keys
-                    )
+            results.append(
+                await strategy.restore_component(
+                    device_ip, key, components[key], present_keys
                 )
-            else:
-                results.append(
-                    await self._restore_one(device_ip, key, entry, present_keys)
-                )
+            )
 
         succeeded = sum(1 for r in results if r.success)
         failed = sum(1 for r in results if not r.success and not r.skipped)
@@ -226,14 +198,7 @@ class RestoreDeviceConfig:
         applied = succeeded > 0 and failed == 0
 
         if reboot and applied:
-            if is_gen1:
-                await self._device_gateway.execute_component_action(
-                    device_ip, "sys", "Legacy.Reboot", {}
-                )
-            else:
-                await self._device_gateway.execute_component_action(
-                    device_ip, "shelly", "Reboot", {}
-                )
+            await strategy.reboot(device_ip)
 
         return RestoreResult(
             success=applied,
@@ -250,6 +215,17 @@ class RestoreDeviceConfig:
             ),
             components=results,
         )
+
+    def _build_strategy(self, is_gen1: bool) -> ComponentRestoreStrategy:
+        # Strategies are stateful per run (Gen1 holds the loaded settings), so
+        # each restore constructs its own.
+        if is_gen1:
+            return Gen1RestoreStrategy(
+                self._device_gateway,
+                mode_change_timeout=self._mode_change_timeout,
+                mode_change_poll_interval=self._mode_change_poll_interval,
+            )
+        return Gen2RestoreStrategy(self._device_gateway)
 
     def _select(
         self, components: dict[str, Any], component_keys: list[str] | None
@@ -277,319 +253,6 @@ class RestoreDeviceConfig:
             return candidates[key].get("type") in NETWORK_TYPES
 
         return sorted(keys, key=is_network)
-
-    async def _restore_one(
-        self,
-        device_ip: str,
-        key: str,
-        entry: dict[str, Any],
-        present_keys: set[str],
-    ) -> ComponentRestoreResult:
-        ctype = entry.get("type")
-
-        if key == SCHEDULES_KEY:
-            return await self._restore_schedules(device_ip, key, entry)
-        if ctype == "script":
-            return await self._restore_script(device_ip, key, entry, present_keys)
-
-        if not entry.get("success") or entry.get("config") is None:
-            return ComponentRestoreResult(
-                key=key,
-                action="SetConfig",
-                success=False,
-                skipped=True,
-                skipped_reason="no config captured in backup",
-            )
-        if key not in present_keys:
-            return ComponentRestoreResult(
-                key=key,
-                action="SetConfig",
-                success=False,
-                skipped=True,
-                skipped_reason="component not present on target device",
-            )
-
-        config = self._strip_readonly(ctype, deepcopy(entry["config"]))
-        result = await self._device_gateway.execute_component_action(
-            device_ip, key, "SetConfig", {"config": config}
-        )
-        return ComponentRestoreResult(
-            key=key,
-            action="SetConfig",
-            success=result.success,
-            error=result.error if not result.success else None,
-        )
-
-    def _strip_readonly(
-        self, ctype: str | None, config: dict[str, Any]
-    ) -> dict[str, Any]:
-        config.pop("id", None)
-        config.pop("cfg_rev", None)
-        for parent, child in READ_ONLY_BY_TYPE.get(ctype or "", []):
-            section = config.get(parent)
-            if isinstance(section, dict):
-                section.pop(child, None)
-        return config
-
-    async def _restore_script(
-        self,
-        device_ip: str,
-        key: str,
-        entry: dict[str, Any],
-        present_keys: set[str],
-    ) -> ComponentRestoreResult:
-        code_block = entry.get("code") or {}
-        code = code_block.get("data") if isinstance(code_block, dict) else None
-        # Presence + type, not truthiness: an empty script body ("") is valid.
-        if not isinstance(code, str):
-            return ComponentRestoreResult(
-                key=key,
-                action="PutCode",
-                success=False,
-                skipped=True,
-                skipped_reason="no script code captured in backup",
-            )
-        if key not in present_keys:
-            return ComponentRestoreResult(
-                key=key,
-                action="PutCode",
-                success=False,
-                skipped=True,
-                skipped_reason="script not present on target device",
-            )
-        try:
-            script_id = int(key.split(":")[1])
-        except (ValueError, IndexError):
-            return ComponentRestoreResult(
-                key=key,
-                action="PutCode",
-                success=False,
-                skipped=True,
-                skipped_reason="could not resolve script id",
-            )
-
-        result = await self._device_gateway.execute_component_action(
-            device_ip, key, "PutCode", {"id": script_id, "code": code, "append": False}
-        )
-        return ComponentRestoreResult(
-            key=key,
-            action="PutCode",
-            success=result.success,
-            error=result.error if not result.success else None,
-        )
-
-    async def _restore_schedules(
-        self, device_ip: str, key: str, entry: dict[str, Any]
-    ) -> ComponentRestoreResult:
-        # Gate on whether the schedules component was *captured*, not on job
-        # count: a device with zero schedules is captured as {"jobs": []}, and
-        # restoring it must still clear the target's schedules.
-        if not entry.get("success") or entry.get("config") is None:
-            return ComponentRestoreResult(
-                key=key,
-                action="Schedule.Replace",
-                success=False,
-                skipped=True,
-                skipped_reason="no schedules captured in backup",
-            )
-
-        config = entry["config"]
-        jobs = config.get("jobs", []) if isinstance(config, dict) else []
-
-        # Restore must reproduce the captured schedule set, not merge into the
-        # device's existing jobs. Always clear the target first so re-runs are
-        # idempotent and stale/duplicate jobs don't accumulate (including when
-        # the captured set is empty). If the clear fails, abort: creating on top
-        # of un-cleared jobs would merge/duplicate instead of replace.
-        delete_result = await self._device_gateway.execute_component_action(
-            device_ip, "schedule", "DeleteAll", {}
-        )
-        if not delete_result.success:
-            return ComponentRestoreResult(
-                key=key,
-                action="Schedule.Replace",
-                success=False,
-                error=f"DeleteAll failed: {delete_result.error or 'unknown error'}",
-            )
-
-        errors: list[str] = []
-        for job in jobs:
-            params = {k: v for k, v in job.items() if k != "id"}
-            result = await self._device_gateway.execute_component_action(
-                device_ip, "schedule", "Create", params
-            )
-            if not result.success:
-                errors.append(result.error or "Schedule.Create failed")
-
-        return ComponentRestoreResult(
-            key=key,
-            action="Schedule.Replace",
-            success=not errors,
-            error="; ".join(errors) if errors else None,
-        )
-
-    def _legacy_settings(self, backup: DeviceBackup) -> dict[str, Any] | None:
-        components: dict[str, Any] = backup.snapshot.get("components", {})
-        entry = components.get(LEGACY_SETTINGS_KEY)
-        if not isinstance(entry, dict) or not entry.get("success"):
-            return None
-        settings = entry.get("config")
-        return settings if isinstance(settings, dict) else None
-
-    async def _restore_gen1_one(
-        self,
-        device_ip: str,
-        key: str,
-        entry: dict[str, Any],
-        settings: dict[str, Any],
-        present_keys: set[str],
-    ) -> ComponentRestoreResult:
-        ctype = entry.get("type")
-
-        if key not in present_keys:
-            return ComponentRestoreResult(
-                key=key,
-                action="Legacy.SetConfig",
-                success=False,
-                skipped=True,
-                skipped_reason="component not present on target device",
-            )
-
-        if ctype == "wifi":
-            return await self._restore_gen1_wifi(device_ip, key, settings)
-
-        params = restorable_params(key, ctype, settings)
-        if params is None:
-            return ComponentRestoreResult(
-                key=key,
-                action="Legacy.SetConfig",
-                success=False,
-                skipped=True,
-                skipped_reason="no Gen1 settings endpoint for this component",
-            )
-        if not params:
-            return ComponentRestoreResult(
-                key=key,
-                action="Legacy.SetConfig",
-                success=False,
-                skipped=True,
-                skipped_reason="no restorable settings captured in backup",
-            )
-
-        result = await self._device_gateway.execute_component_action(
-            device_ip, key, "Legacy.SetConfig", params
-        )
-        return ComponentRestoreResult(
-            key=key,
-            action="Legacy.SetConfig",
-            success=result.success,
-            error=result.error if not result.success else None,
-        )
-
-    async def _restore_gen1_wifi(
-        self, device_ip: str, key: str, settings: dict[str, Any]
-    ) -> ComponentRestoreResult:
-        """Replay every captured Gen1 WiFi resource behind the "wifi" component."""
-        subresources = wifi_subresources(settings)
-        errors: list[str] = []
-        for subtype, params in subresources:
-            result = await self._device_gateway.execute_component_action(
-                device_ip, subtype, "Legacy.SetConfig", params
-            )
-            if not result.success:
-                errors.append(f"{subtype}: {result.error or 'failed'}")
-
-        if not subresources:
-            return ComponentRestoreResult(
-                key=key,
-                action="Legacy.SetConfig",
-                success=False,
-                skipped=True,
-                skipped_reason="no restorable settings captured in backup",
-            )
-        return ComponentRestoreResult(
-            key=key,
-            action="Legacy.SetConfig",
-            success=not errors,
-            error="; ".join(errors) if errors else None,
-        )
-
-    async def _sync_gen1_mode(
-        self,
-        device_ip: str,
-        settings: dict[str, Any],
-        status: DeviceStatus,
-    ) -> tuple[ComponentRestoreResult | None, DeviceStatus]:
-        """Align the target's relay/roller mode with the backup before restoring.
-
-        Gen1 applies ``mode`` with a reboot and re-enumerates its components
-        afterwards, so it cannot ride along in the sys param batch: it is sent
-        alone first, and the device status is re-read once the target is back.
-        Returns the pre-phase result (``None`` when nothing needed doing) and
-        the status to restore against.
-        """
-        backup_mode = settings.get("mode")
-        if not isinstance(backup_mode, str) or not backup_mode:
-            return None, status
-
-        target_settings = await self._device_gateway.get_legacy_settings(device_ip)
-        target_mode = (
-            target_settings.get("mode") if isinstance(target_settings, dict) else None
-        )
-        if not isinstance(target_mode, str) or not target_mode:
-            return (
-                ComponentRestoreResult(
-                    key="mode",
-                    action="Legacy.SetConfig",
-                    success=False,
-                    skipped=True,
-                    skipped_reason="could not read the target device mode",
-                ),
-                status,
-            )
-        if target_mode == backup_mode:
-            return None, status
-
-        result = await self._device_gateway.execute_component_action(
-            device_ip, "sys", "Legacy.SetConfig", {"mode": backup_mode}
-        )
-        if not result.success:
-            return (
-                ComponentRestoreResult(
-                    key="mode",
-                    action="Legacy.SetConfig",
-                    success=False,
-                    error=result.error or "mode change failed",
-                ),
-                status,
-            )
-
-        new_status = await self._wait_for_device(device_ip)
-        if new_status is None:
-            return (
-                ComponentRestoreResult(
-                    key="mode",
-                    action="Legacy.SetConfig",
-                    success=False,
-                    error="device did not come back after the mode change",
-                ),
-                status,
-            )
-        return (
-            ComponentRestoreResult(key="mode", action="Legacy.SetConfig", success=True),
-            new_status,
-        )
-
-    async def _wait_for_device(self, device_ip: str) -> DeviceStatus | None:
-        loop = asyncio.get_running_loop()
-        deadline = loop.time() + self._mode_change_timeout
-        while True:
-            status = await self._device_gateway.get_device_status(device_ip)
-            if status is not None:
-                return status
-            if loop.time() >= deadline:
-                return None
-            await asyncio.sleep(self._mode_change_poll_interval)
 
     def _generation_mismatch(
         self,
