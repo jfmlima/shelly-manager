@@ -15,10 +15,10 @@ from ...domain.entities.exceptions import (
     DeviceUnreachableError,
 )
 from ...domain.enums.enums import Status
+from ...domain.value_objects.action_name import ActionName
 from ...domain.value_objects.action_result import ActionResult
 from ...utils.validation import normalize_mac
 from ..network.network import RpcNetworkGateway
-from .component_type_mapping import get_api_component_type
 from .device import DeviceGateway
 from .legacy_device_gateway import LegacyDeviceGateway
 from .rpc_methods import RpcMethods
@@ -271,18 +271,20 @@ class ShellyDeviceGateway(DeviceGateway):
             ip: Device IP address
 
         Returns:
-            List of available RPC method names, empty list on failure
+            The device's RPC method names. Empty when there is no list to check
+            against, whether the device could not be asked or answered with
+            something unreadable; callers treat both as "unvalidated" rather
+            than as proof that a method does not exist.
         """
         try:
             methods_response, _ = await self._rpc_client.make_rpc_request(
                 ip, RpcMethods.LIST_METHODS, timeout=self.timeout
             )
             result = methods_response.get("result", methods_response)
-            if isinstance(result, dict) and "methods" in result:
-                methods = result["methods"]
+            if isinstance(result, dict) and isinstance(result.get("methods"), list):
+                return [m for m in result["methods"] if isinstance(m, str)]
 
-                return methods if isinstance(methods, list) else []
-
+            logger.warning("Unreadable method list from %s: %r", ip, result)
             return []
         except Exception as e:
             logger.warning(f"Failed to get available methods for {ip}: {e}")
@@ -300,14 +302,17 @@ class ShellyDeviceGateway(DeviceGateway):
         Args:
             ip: Device IP address
             component_key: Component key (e.g., 'switch:0', 'sys', 'zigbee')
-            action: Action name (e.g., 'Toggle', 'Reboot', 'Update')
+            action: Action name, bare or qualified (e.g., 'Toggle', 'Switch.Toggle')
             parameters: Action-specific parameters (e.g., {'channel': 'beta'})
 
         Returns:
             ActionResult with success/failure details
         """
+        action_name = ActionName.of(action)
+        action_type = f"{component_key}.{action_name.method}"
+
         try:
-            if action.startswith("Legacy."):
+            if action_name.is_legacy:
                 if self._legacy_gateway:
                     return await self._legacy_gateway.execute_action(
                         ip, component_key, action, parameters or {}
@@ -322,15 +327,15 @@ class ShellyDeviceGateway(DeviceGateway):
                     )
 
             available_methods = await self.get_available_methods(ip)
-            rpc_method = self._build_rpc_method_name(component_key, action)
+            rpc_method = action_name.resolve(component_key, available_methods)
 
-            if available_methods and rpc_method not in available_methods:
+            if rpc_method is None:
                 return ActionResult(
                     device_ip=ip,
-                    action_type=f"{component_key}.{action}",
+                    action_type=action_type,
                     success=False,
-                    message=f"Action {rpc_method} not supported by device",
-                    error=f"Method {rpc_method} not found in available methods",
+                    message=f"Action {action} not supported by {component_key}",
+                    error=f"Component {component_key} has no method {action}",
                 )
 
             params: dict[str, Any] = {}
@@ -341,7 +346,7 @@ class ShellyDeviceGateway(DeviceGateway):
                 except (IndexError, ValueError):
                     return ActionResult(
                         device_ip=ip,
-                        action_type=f"{component_key}.{action}",
+                        action_type=action_type,
                         success=False,
                         message=f"Invalid component key format: {component_key}",
                         error=f"Could not parse component ID from {component_key}",
@@ -357,9 +362,9 @@ class ShellyDeviceGateway(DeviceGateway):
 
             return ActionResult(
                 device_ip=ip,
-                action_type=f"{component_key}.{action}",
+                action_type=action_type,
                 success=True,
-                message=f"{action} executed successfully on {component_key}",
+                message=f"{action_name.method} executed successfully on {component_key}",
                 data=response,
             )
 
@@ -372,28 +377,11 @@ class ShellyDeviceGateway(DeviceGateway):
 
             return ActionResult(
                 device_ip=ip,
-                action_type=f"{component_key}.{action}",
+                action_type=action_type,
                 success=False,
                 message=f"Action failed: {err}",
                 error=error_message,
             )
-
-    def _build_rpc_method_name(self, component_key: str, action: str) -> str:
-        """Build RPC method name from component key and action.
-
-        Args:
-            component_key: Component key (e.g., 'switch:0', 'sys', 'zigbee')
-            action: Action name (e.g., 'Toggle', 'Reboot', 'Update')
-
-        Returns:
-            RPC method name (e.g., 'Switch.Toggle', 'Shelly.Reboot', 'Shelly.Update', 'Sys.GetConfig')
-        """
-        component_type = (
-            component_key.split(":")[0] if ":" in component_key else component_key
-        )
-        component_prefix = get_api_component_type(component_type)
-
-        return f"{component_prefix}.{action}"
 
     async def execute_bulk_action(
         self,
@@ -420,12 +408,20 @@ class ShellyDeviceGateway(DeviceGateway):
         Raises:
             ValueError: If component_key/action combination is not supported for bulk operations
         """
-        allowed_bulk_operations = SHELLY_SYSTEM_ACTIONS
+        action_name = ActionName.of(action)
 
-        if action not in allowed_bulk_operations or component_key.lower() != "shelly":
+        namespace = action_name.namespace
+        allowed = {a.lower() for a in SHELLY_SYSTEM_ACTIONS}
+
+        if (
+            component_key.lower() != "shelly"
+            or (namespace is not None and namespace.lower() != "shelly")
+            or action_name.method.lower() not in allowed
+        ):
             raise ValueError(
                 f"Bulk operation '{component_key}.{action}' is not supported. "
-                f"Supported operations: shelly.Update, shelly.Reboot, shelly.FactoryReset"
+                f"Supported actions on the shelly component: "
+                f"{', '.join(sorted(SHELLY_SYSTEM_ACTIONS))}"
             )
 
         tasks = [

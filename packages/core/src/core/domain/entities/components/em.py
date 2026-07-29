@@ -71,6 +71,3 @@ class EMComponent(Component):
             name=config.get("name"),
             ct_type=config.get("ct_type"),
         )
-
-    def get_available_actions(self, all_methods: list[str]) -> list[str]:
-        return [m for m in all_methods if m.startswith("EM.")]

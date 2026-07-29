@@ -660,7 +660,7 @@ class TestShellyDeviceGateway:
 
         assert result.success is False
         assert result.action_type == "sys.SetConfig"
-        assert "not found in available methods" in result.error
+        assert "has no method" in result.error
         assert mock_rpc_client.make_rpc_request.call_count == 1
 
     async def test_it_handles_component_action_with_invalid_component(
@@ -678,7 +678,7 @@ class TestShellyDeviceGateway:
 
         assert result.success is False
         assert result.action_type == "invalid_component.SomeAction"
-        assert "not found in available methods" in result.error
+        assert "has no method" in result.error
         assert mock_rpc_client.make_rpc_request.call_count == 1
 
     async def test_it_handles_component_action_execution_failure(
@@ -991,3 +991,364 @@ class TestShellyDeviceGateway:
             ("192.168.1.100", "Shelly.GetDeviceInfo"),
             {"timeout": 10.0},
         )
+
+
+class TestActionNameResolution:
+
+    DEVICE_METHODS = [
+        "Switch.Toggle",
+        "Shelly.Reboot",
+        "Wifi.SetConfig",
+        "Mqtt.SetConfig",
+        "EMData.GetStatus",
+        "EM1Data.GetStatus",
+    ]
+
+    @pytest.fixture
+    def mock_rpc_client(self):
+        return MagicMock()
+
+    @pytest.fixture
+    def gateway(self, mock_rpc_client):
+        return ShellyDeviceGateway(
+            rpc_client=mock_rpc_client,
+            legacy_gateway=AsyncMock(spec=LegacyDeviceGateway),
+        )
+
+    @pytest.fixture
+    def listing_device(self, mock_rpc_client):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                ({"methods": self.DEVICE_METHODS}, 0.1),
+                ({}, 0.1),
+            ]
+        )
+        return mock_rpc_client
+
+    @pytest.mark.parametrize(
+        "component_key,action,expected_method,expected_params",
+        [
+            ("emdata:0", "GetStatus", "EMData.GetStatus", {"id": 0}),
+            ("emdata:0", "EMData.GetStatus", "EMData.GetStatus", {"id": 0}),
+            ("em1data:1", "GetStatus", "EM1Data.GetStatus", {"id": 1}),
+            ("switch:0", "Switch.Toggle", "Switch.Toggle", {"id": 0}),
+            ("switch:0", "Toggle", "Switch.Toggle", {"id": 0}),
+            ("sys", "Shelly.Reboot", "Shelly.Reboot", None),
+            ("wifi", "SetConfig", "Wifi.SetConfig", None),
+            ("wifi", "WiFi.SetConfig", "Wifi.SetConfig", None),
+            ("mqtt", "SetConfig", "Mqtt.SetConfig", None),
+            ("mqtt", "MQTT.SetConfig", "Mqtt.SetConfig", None),
+        ],
+    )
+    async def test_it_sends_the_method_name_the_device_reported(
+        self,
+        gateway,
+        listing_device,
+        component_key,
+        action,
+        expected_method,
+        expected_params,
+    ):
+        result = await gateway.execute_component_action(
+            "192.168.1.100", component_key, action
+        )
+
+        assert result.success is True
+        listing_device.make_rpc_request.assert_any_call(
+            "192.168.1.100", expected_method, params=expected_params, timeout=10.0
+        )
+
+    async def test_it_rejects_a_method_the_device_does_not_report(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            return_value=({"methods": self.DEVICE_METHODS}, 0.1)
+        )
+
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "switch:0", "Switch.Nonsense"
+        )
+
+        assert result.success is False
+        assert "Switch.Nonsense not supported by switch:0" in result.message
+
+    async def test_it_sends_the_qualified_name_when_the_device_lists_nothing(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                ({"methods": []}, 0.1),
+                ({}, 0.1),
+            ]
+        )
+
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "switch:0", "Toggle"
+        )
+
+        assert result.success is True
+        mock_rpc_client.make_rpc_request.assert_any_call(
+            "192.168.1.100", "Switch.Toggle", params={"id": 0}, timeout=10.0
+        )
+
+    async def test_it_routes_a_qualified_legacy_action_to_the_legacy_gateway(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock()
+
+        await gateway.execute_component_action(
+            "192.168.1.100", "switch:0", "Legacy.Toggle"
+        )
+
+        gateway._legacy_gateway.execute_action.assert_awaited_once_with(
+            "192.168.1.100", "switch:0", "Legacy.Toggle", {}
+        )
+        mock_rpc_client.make_rpc_request.assert_not_called()
+
+    @pytest.mark.parametrize("action", ["Reboot", "Shelly.Reboot"])
+    async def test_it_accepts_bulk_actions_bare_or_qualified(
+        self, gateway, mock_rpc_client, action
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                ({"methods": self.DEVICE_METHODS}, 0.1),
+                ({}, 0.1),
+            ]
+        )
+
+        results = await gateway.execute_bulk_action(["192.168.1.100"], "shelly", action)
+
+        assert [r.success for r in results] == [True]
+
+    @pytest.mark.parametrize(
+        "component_key,action",
+        [
+            ("shelly", "Switch.Toggle"),
+            ("shelly", "Nonsense"),
+            ("switch:0", "Reboot"),
+            ("switch:0", "Shelly.Reboot"),
+        ],
+    )
+    async def test_it_still_refuses_bulk_actions_outside_the_allowlist(
+        self, gateway, component_key, action
+    ):
+        with pytest.raises(ValueError):
+            await gateway.execute_bulk_action(["192.168.1.100"], component_key, action)
+
+    @pytest.mark.parametrize("action", ["Toggle", "Switch.Toggle"])
+    async def test_it_reports_the_same_action_type_bare_or_qualified(
+        self, gateway, listing_device, action
+    ):
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "switch:0", action
+        )
+
+        assert result.action_type == "switch:0.Toggle"
+        assert result.message == "Toggle executed successfully on switch:0"
+
+
+class TestComponentOwnershipOnExecute:
+
+    DEVICE_METHODS = [
+        "Switch.Toggle",
+        "Wifi.SetConfig",
+        "Zigbee.GetStatus",
+        "Shelly.ZigbeeClear",
+        "Sys.GetConfig",
+        "Shelly.Reboot",
+        "Shelly.FactoryReset",
+    ]
+
+    @pytest.fixture
+    def mock_rpc_client(self):
+        return MagicMock()
+
+    @pytest.fixture
+    def gateway(self, mock_rpc_client):
+        return ShellyDeviceGateway(
+            rpc_client=mock_rpc_client,
+            legacy_gateway=AsyncMock(spec=LegacyDeviceGateway),
+        )
+
+    @pytest.mark.parametrize(
+        "component_key,action",
+        [
+            ("wifi", "Shelly.FactoryReset"),
+            ("switch:0", "Shelly.FactoryReset"),
+            ("zigbee", "FactoryReset"),
+            ("zigbee", "Shelly.FactoryReset"),
+            ("mqtt", "Switch.Toggle"),
+        ],
+    )
+    async def test_it_never_sends_a_method_the_component_does_not_own(
+        self, gateway, mock_rpc_client, component_key, action
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            return_value=({"methods": self.DEVICE_METHODS}, 0.1)
+        )
+
+        result = await gateway.execute_component_action(
+            "192.168.1.100", component_key, action
+        )
+
+        assert result.success is False
+        sent = [c.args[1] for c in mock_rpc_client.make_rpc_request.call_args_list]
+        assert sent == ["Shelly.ListMethods"]
+
+    async def test_it_still_reaches_a_shelly_method_the_sys_component_owns(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[({"methods": self.DEVICE_METHODS}, 0.1), ({}, 0.1)]
+        )
+
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "sys", "Reboot"
+        )
+
+        assert result.success is True
+        mock_rpc_client.make_rpc_request.assert_any_call(
+            "192.168.1.100", "Shelly.Reboot", params=None, timeout=10.0
+        )
+
+    async def test_it_still_reaches_the_shelly_method_zigbee_owns(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[({"methods": self.DEVICE_METHODS}, 0.1), ({}, 0.1)]
+        )
+
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "zigbee", "ZigbeeClear"
+        )
+
+        assert result.success is True
+        mock_rpc_client.make_rpc_request.assert_any_call(
+            "192.168.1.100", "Shelly.ZigbeeClear", params=None, timeout=10.0
+        )
+
+    @pytest.mark.parametrize("action", ["Shelly.FactoryReset", "shelly.factoryreset"])
+    async def test_it_refuses_an_unowned_call_when_list_methods_fails(
+        self, gateway, mock_rpc_client, action
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[Exception("ListMethods timed out"), ({}, 0.1)]
+        )
+
+        result = await gateway.execute_component_action("192.168.1.100", "wifi", action)
+
+        assert result.success is False
+        sent = [c.args[1] for c in mock_rpc_client.make_rpc_request.call_args_list]
+        assert sent == ["Shelly.ListMethods"]
+
+    async def test_a_bare_action_still_runs_when_list_methods_fails(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[Exception("ListMethods timed out"), ({}, 0.1)]
+        )
+
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "wifi", "SetConfig"
+        )
+
+        assert result.success is True
+        mock_rpc_client.make_rpc_request.assert_any_call(
+            "192.168.1.100", "Wifi.SetConfig", params=None, timeout=10.0
+        )
+
+
+class TestUnreadableMethodLists:
+
+    @pytest.fixture
+    def mock_rpc_client(self):
+        return MagicMock()
+
+    @pytest.fixture
+    def gateway(self, mock_rpc_client):
+        return ShellyDeviceGateway(rpc_client=mock_rpc_client)
+
+    @pytest.mark.parametrize(
+        "payload,expected",
+        [
+            ({"methods": ["Switch.Toggle", None, 7]}, ["Switch.Toggle"]),
+            ({"methods": [None]}, []),
+            ({"methods": "Switch.Toggle"}, []),
+            ({"unexpected": []}, []),
+            ({}, []),
+        ],
+    )
+    async def test_it_keeps_only_the_entries_that_are_method_names(
+        self, gateway, mock_rpc_client, payload, expected
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(return_value=(payload, 0.1))
+
+        assert await gateway.get_available_methods("192.168.1.100") == expected
+
+    async def test_a_list_of_non_names_does_not_break_execution(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[({"methods": [None]}, 0.1), ({}, 0.1)]
+        )
+
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "switch:0", "Toggle"
+        )
+
+        assert result.success is True
+        mock_rpc_client.make_rpc_request.assert_any_call(
+            "192.168.1.100", "Switch.Toggle", params={"id": 0}, timeout=10.0
+        )
+
+
+class TestBulkAllowlistCasing:
+
+    @pytest.fixture
+    def mock_rpc_client(self):
+        return MagicMock()
+
+    @pytest.fixture
+    def gateway(self, mock_rpc_client):
+        return ShellyDeviceGateway(rpc_client=mock_rpc_client)
+
+    @pytest.mark.parametrize(
+        "component_key,action",
+        [
+            ("shelly", "Reboot"),
+            ("shelly", "Shelly.Reboot"),
+            ("shelly", "shelly.Reboot"),
+            ("SHELLY", "Shelly.reboot"),
+            ("shelly", "SHELLY.REBOOT"),
+        ],
+    )
+    async def test_it_accepts_the_allowlisted_action_however_it_is_spelled(
+        self, gateway, mock_rpc_client, component_key, action
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[({"methods": ["Shelly.Reboot"]}, 0.1), ({}, 0.1)]
+        )
+
+        results = await gateway.execute_bulk_action(
+            ["192.168.1.100"], component_key, action
+        )
+
+        assert [r.success for r in results] == [True]
+        mock_rpc_client.make_rpc_request.assert_any_call(
+            "192.168.1.100", "Shelly.Reboot", params=None, timeout=10.0
+        )
+
+    @pytest.mark.parametrize(
+        "component_key,action",
+        [
+            ("shelly", "Switch.Toggle"),
+            ("shelly", "Nonsense"),
+            ("switch:0", "Reboot"),
+            ("switch:0", "Shelly.Reboot"),
+        ],
+    )
+    async def test_it_still_refuses_anything_outside_the_allowlist(
+        self, gateway, component_key, action
+    ):
+        with pytest.raises(ValueError):
+            await gateway.execute_bulk_action(["192.168.1.100"], component_key, action)

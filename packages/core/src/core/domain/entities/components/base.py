@@ -2,6 +2,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from ...value_objects.component_namespace import ComponentNamespace
+
 
 class Component(BaseModel):
     key: str = Field(
@@ -44,14 +46,5 @@ class Component(BaseModel):
         )
 
     def get_available_actions(self, all_methods: list[str]) -> list[str]:
-        return [
-            m
-            for m in all_methods
-            if m.lower().startswith(self.component_type.lower() + ".")
-        ]
-
-    def can_perform_action(self, action: str) -> bool:
-        component_prefix = self.component_type.title()
-        expected_method = f"{component_prefix}.{action}"
-
-        return expected_method in self.available_actions
+        namespace = ComponentNamespace.for_component_type(self.component_type)
+        return namespace.actions_in(all_methods)

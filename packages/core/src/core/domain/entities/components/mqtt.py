@@ -42,6 +42,3 @@ class MqttComponent(Component):
             enable_rpc=config.get("enable_rpc", True),
             enable_control=config.get("enable_control", True),
         )
-
-    def get_available_actions(self, all_methods: list[str]) -> list[str]:
-        return [m for m in all_methods if m.lower().startswith("mqtt.")]
