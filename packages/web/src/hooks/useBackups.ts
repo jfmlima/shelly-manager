@@ -39,8 +39,9 @@ export function useDeleteBackup() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (backupId: number) => backupApi.deleteBackup(backupId),
-    onSuccess: () => {
+    onSuccess: (_data, backupId) => {
       toast.success("Backup deleted");
+      queryClient.removeQueries({ queryKey: ["backup", backupId] });
       queryClient.invalidateQueries({ queryKey: ["backups"] });
     },
     onError: (error) => toast.error(handleApiError(error)),
