@@ -77,6 +77,31 @@ class TestDeviceStatusComponents:
         zigbee_comp = device_status.get_component_by_key("zigbee")
         assert zigbee_comp is None
 
+    def test_it_extends_derived_actions_with_the_ones_a_gateway_declares(self):
+        response_data = {
+            "components": [
+                {
+                    "key": "switch:0",
+                    "status": {"output": True},
+                    "config": {"name": "Test Switch"},
+                    "available_actions": ["Legacy.Toggle", "Legacy.TurnOn"],
+                    "attrs": {},
+                }
+            ],
+        }
+
+        device_status = DeviceStatus.from_raw_response(
+            "192.168.1.100", response_data, available_methods=["Switch.Toggle"]
+        )
+
+        switch_comp = device_status.get_component_by_key("switch:0")
+        assert switch_comp is not None
+        assert switch_comp.available_actions == [
+            "Switch.Toggle",
+            "Legacy.Toggle",
+            "Legacy.TurnOn",
+        ]
+
     def test_it_gets_zigbee_info_method(self):
         zigbee_comp = ZigbeeComponent(
             key="zigbee", component_type="zigbee", network_state="joined", enabled=True

@@ -20,6 +20,22 @@ def _switch_config(mapper, relay_settings):
     return switch["config"]
 
 
+class TestLegacyActionDeclaration:
+    def test_it_declares_the_relay_actions_on_the_component_payload(self, mapper):
+        components = mapper.map(
+            {"mac": "AABBCCDDEEFF", "type": "SHSW-1"},
+            {"relays": [{"ison": False}]},
+            {"relays": [{}]},
+        )
+
+        switch = next(c for c in components if c["key"] == "switch:0")
+        assert switch["available_actions"] == [
+            "Legacy.Toggle",
+            "Legacy.TurnOn",
+            "Legacy.TurnOff",
+        ]
+
+
 class TestLegacyAutoTimerMapping:
     @pytest.mark.parametrize(
         "value, expected_flag, expected_delay",
