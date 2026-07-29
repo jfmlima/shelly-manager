@@ -143,6 +143,15 @@ class BulkOperationsUseCase:
                 "components": {},
             }
 
+            # Gen1 has no /rpc: GetConfig and Schedule.List 404, so capture from
+            # the configs already mapped onto the DeviceStatus instead.
+            if device_status.gen == 1:
+                await self._export_gen1_config(
+                    device_ip, device_status, component_types, device_data
+                )
+                result["devices"][device_ip] = device_data
+                continue
+
             for component in device_status.components:
                 if component.component_type in component_types:
 
@@ -175,6 +184,37 @@ class BulkOperationsUseCase:
             result["devices"][device_ip] = device_data
 
         return result
+
+    async def _export_gen1_config(
+        self,
+        device_ip: str,
+        device_status: DeviceStatus,
+        component_types: list[str],
+        device_data: dict[str, Any],
+    ) -> None:
+        """Capture Gen1 component configs plus the raw ``/settings``.
+
+        The ``legacy_settings`` entry is the source of truth a Gen1 restore
+        replays; it is omitted when the raw fetch fails, and the mapped configs
+        alone still make the backup valid.
+        """
+        for component in device_status.components:
+            if component.component_type in component_types:
+                device_data["components"][component.key] = {
+                    "type": component.component_type,
+                    "success": True,
+                    "config": component.config,
+                    "error": None,
+                }
+
+        legacy_settings = await self._device_gateway.get_legacy_settings(device_ip)
+        if legacy_settings is not None:
+            device_data["components"]["legacy_settings"] = {
+                "type": "legacy_settings",
+                "success": True,
+                "config": legacy_settings,
+                "error": None,
+            }
 
     async def _fetch_script_code(
         self, device_ip: str, component_key: str

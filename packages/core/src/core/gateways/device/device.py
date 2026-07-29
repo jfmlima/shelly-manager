@@ -29,6 +29,11 @@ class DeviceGateway(ABC):
         """Get available RPC methods for action validation."""
         pass
 
+    async def get_legacy_settings(self, ip: str) -> dict[str, Any] | None:
+        """Raw Gen1 ``/settings`` payload; ``None`` unless the gateway speaks the
+        legacy HTTP path."""
+        return None
+
     @abstractmethod
     async def execute_component_action(
         self,

@@ -241,8 +241,8 @@ class LegacyComponentMapper:
                     },
                     "config": {
                         "name": config.get("name"),
-                        "auto_on": config.get("auto_on", False),
-                        "auto_off": config.get("auto_off", False),
+                        **self._map_auto_timer(config, "auto_on"),
+                        **self._map_auto_timer(config, "auto_off"),
                         "power_limit": config.get(
                             "power_limit", config.get("max_power", 0.0)
                         ),
@@ -258,6 +258,19 @@ class LegacyComponentMapper:
                 }
             )
         return components
+
+    def _map_auto_timer(self, config: dict[str, Any], key: str) -> dict[str, Any]:
+        """Translate a Gen1 auto-timer (``auto_on``/``auto_off`` in seconds, ``0``
+        = off) into the ``bool`` flag + ``<key>_delay`` shape ``SwitchComponent``
+        requires. Passing the raw seconds into the bool field raised a
+        ``ValidationError`` for any real timer value, so it is healed here.
+        """
+        value = config.get(key)
+        if isinstance(value, bool):
+            return {key: value}
+        if isinstance(value, int | float):
+            return {key: value > 0, f"{key}_delay": float(value)}
+        return {key: False}
 
     def _build_cover_components(
         self, status: dict[str, Any], settings: dict[str, Any]
