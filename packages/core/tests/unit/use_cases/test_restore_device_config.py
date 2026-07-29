@@ -420,6 +420,19 @@ class TestRestoreDeviceConfig:
         # the real key still restored
         assert any(c.key == "switch:0" and c.success for c in result.components)
 
+    async def test_it_reports_a_corrupt_entry_rather_than_calling_it_absent(
+        self, use_case, mock_repository
+    ):
+        backup = _backup()
+        backup.snapshot["components"]["switch:0"] = "corrupt"
+        mock_repository.get = AsyncMock(return_value=backup)
+
+        result = await use_case.restore(1, IP, component_keys=["switch:0"])
+
+        entry = next(c for c in result.components if c.key == "switch:0")
+        assert entry.skipped is True
+        assert entry.skipped_reason != "not present in backup"
+
     async def test_it_short_circuits_when_target_is_gen1(
         self, use_case, mock_device_gateway
     ):

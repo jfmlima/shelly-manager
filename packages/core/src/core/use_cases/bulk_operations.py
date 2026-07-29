@@ -113,7 +113,7 @@ class BulkOperationsUseCase:
             },
             "devices": {
                 device_ip: snapshot.to_dict()
-                for device_ip, snapshot in zip(device_ips, snapshots, strict=False)
+                for device_ip, snapshot in zip(device_ips, snapshots, strict=True)
                 if snapshot is not None
             },
         }

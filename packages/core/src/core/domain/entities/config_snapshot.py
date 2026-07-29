@@ -78,7 +78,15 @@ class ComponentSnapshot:
     code: dict[str, Any] | None = None
 
     @classmethod
-    def from_dict(cls, key: str, raw: dict[str, Any]) -> "ComponentSnapshot":
+    def from_dict(cls, key: str, raw: Any) -> "ComponentSnapshot":
+        """Read one stored entry.
+
+        An entry that is not a mapping is corrupt, not absent: it comes back as
+        a failed capture so a restore still reports the key rather than quietly
+        handing the caller a smaller selection than they asked for.
+        """
+        if not isinstance(raw, dict):
+            return cls(key=key, success=False, error="unreadable snapshot entry")
         return cls(
             key=key,
             component_type=raw.get("type"),
@@ -143,7 +151,6 @@ class DeviceSnapshot:
                 for key, entry in (
                     components if isinstance(components, dict) else {}
                 ).items()
-                if isinstance(entry, dict)
             },
         )
 

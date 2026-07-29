@@ -86,10 +86,15 @@ class TestSnapshotRoundTrip:
         assert snapshot.components == {}
         assert snapshot.device_info == SnapshotDeviceInfo()
 
-    def test_it_drops_component_entries_that_are_not_mappings(self):
+    def test_it_keeps_a_corrupt_entry_as_a_failed_capture(self):
+        # Dropping the key would make a restore report it as absent from the
+        # backup, which is a different (and wrong) thing to tell the caller.
         snapshot = DeviceSnapshot.from_dict({"components": {"switch:0": "corrupt"}})
 
-        assert snapshot.components == {}
+        entry = snapshot.components["switch:0"]
+        assert entry.success is False
+        assert entry.error == "unreadable snapshot entry"
+        assert not entry.has_restorable_payload
 
 
 class TestComponentSnapshot:
