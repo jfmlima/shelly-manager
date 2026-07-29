@@ -234,9 +234,12 @@ async def execute_component_action(
 
     Execute any available action on device components.
 
+    The action may be bare or carry the namespace that "actions list" prints.
+
     Examples:
       shelly-manager device actions execute shelly Reboot -t 192.168.1.100
       shelly-manager device actions execute switch:0 Toggle -t 192.168.1.100
+      shelly-manager device actions execute switch:0 Switch.Toggle -t 192.168.1.100
     """
     console = ctx.obj.console
     container = ctx.obj.container
