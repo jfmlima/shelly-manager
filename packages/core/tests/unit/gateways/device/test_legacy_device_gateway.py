@@ -169,11 +169,16 @@ class TestLegacyDeviceGateway:
             ("switch:0", "settings/relay/0"),
             ("switch:2", "settings/relay/2"),
             ("cover:1", "settings/roller/1"),
+            # Only i3/Button1 expose this endpoint; the restore path never
+            # targets it for other models.
+            ("input:0", "settings/input/0"),
             ("sys", "settings"),
             # Gen1 exposes MQTT as mqtt_* params on the device-level /settings.
             ("mqtt", "settings"),
             ("cloud", "settings/cloud"),
             ("wifi", "settings/sta"),
+            ("wifi_sta1", "settings/sta1"),
+            ("wifi_ap", "settings/ap"),
         ],
     )
     async def test_it_maps_set_config_to_its_settings_endpoint(
@@ -244,7 +249,7 @@ class TestLegacyDeviceGateway:
             "192.168.1.100", "reboot", {}, auth=None
         )
 
-    @pytest.mark.parametrize("component_key", ["input:0", "schedule", "switch"])
+    @pytest.mark.parametrize("component_key", ["schedule", "switch", "input"])
     async def test_it_refuses_set_config_without_a_settings_endpoint(
         self, gateway, mock_http_client, component_key
     ):

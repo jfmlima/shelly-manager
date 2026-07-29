@@ -1,5 +1,6 @@
 """Use case for restoring a stored backup back onto a device."""
 
+import asyncio
 import logging
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
@@ -7,6 +8,7 @@ from copy import deepcopy
 from typing import Any
 
 from core.domain.entities.device_backup import DeviceBackup
+from core.domain.entities.device_status import DeviceStatus
 from core.domain.entities.exceptions import DeviceNotFoundError
 from core.domain.value_objects.restore_result import (
     ComponentRestoreResult,
@@ -31,18 +33,23 @@ SCHEDULES_KEY = "schedules"
 LEGACY_SETTINGS_KEY = "legacy_settings"
 
 # Section of the raw /settings holding each component's config. "" is the top level.
+# wifi_sta1/wifi_ap are synthetic types for the extra Gen1 WiFi resources replayed
+# behind the single "wifi" component (see _restore_gen1_wifi).
 GEN1_SECTION_BY_TYPE: dict[str, str] = {
     "switch": "relays",
     "cover": "rollers",
+    "input": "inputs",
     "sys": "",
     "mqtt": "mqtt",
     "cloud": "cloud",
     "wifi": "wifi_sta",
+    "wifi_sta1": "wifi_sta1",
+    "wifi_ap": "wifi_ap",
 }
 
 # Restorable Gen1 settings per component type, as GET /settings names them. Only
 # params documented as settable at https://shelly-api-docs.shelly.cloud/gen1/ are
-# listed, so read-only echoes (ison, has_timer, power, is_valid, safety_switch) are
+# listed, so read-only echoes (ison, has_timer, is_valid, safety_switch) are
 # never sent back. Fields a model does not have are absent and skip themselves,
 # which is what lets one table serve every Gen1 model.
 GEN1_RESTORABLE_BY_TYPE: dict[str, tuple[str, ...]] = {
@@ -63,6 +70,9 @@ GEN1_RESTORABLE_BY_TYPE: dict[str, tuple[str, ...]] = {
         "schedule",
         "schedule_rules",
         "max_power",
+        # On Shelly 1/1L "power" is the settable user power constant shown in
+        # meters, not a live reading (live power is echoed under "meters").
+        "power",
     ),
     "cover": (
         "default_state",
@@ -87,6 +97,8 @@ GEN1_RESTORABLE_BY_TYPE: dict[str, tuple[str, ...]] = {
         "schedule",
         "schedule_rules",
     ),
+    # "mode" is deliberately absent: Gen1 applies it with a reboot, so it is
+    # replayed alone as a pre-phase (_sync_gen1_mode), never in this batch.
     "sys": (
         "name",
         "timezone",
@@ -98,8 +110,34 @@ GEN1_RESTORABLE_BY_TYPE: dict[str, tuple[str, ...]] = {
         "lng",
         "discoverable",
         "led_status_disable",
+        "led_power_disable",
         "sntp.server",
+        # Device-level overpower threshold (1PM, Plug/PlugS, 2.5 in roller
+        # mode); distinct from the per-relay max_power.
+        "max_power",
+        "longpush_time",
+        "factory_reset_from_switch",
+        "wifirecovery_reboot_enabled",
+        "debug_enable",
+        "allow_cross_origin",
+        "supply_voltage",
+        "power_correction",
+        # 2.5 roller favourite positions live on /settings/favorites/{i} (not
+        # replayed); only their enable flag is a plain /settings param.
+        "favorites_enabled",
+        "coiot.enabled",
+        "coiot.update_period",
+        "coiot.peer",
+        "ap_roaming.enabled",
+        "ap_roaming.threshold",
+        "longpush_duration_ms.min",
+        "longpush_duration_ms.max",
+        "multipush_time_between_pushes_ms.max",
     ),
+    # Only i3/Button1 expose /settings/input/{i}. Relay-bearing models never
+    # echo an "inputs" section in /settings (their input config lives on the
+    # owning relay), so their inputs skip as having nothing captured.
+    "input": ("name", "btn_type", "btn_reverse"),
     # mqtt_pass is not echoed by GET /settings, so it cannot be restored.
     "mqtt": (
         "enable",
@@ -115,18 +153,37 @@ GEN1_RESTORABLE_BY_TYPE: dict[str, tuple[str, ...]] = {
         "reconnect_timeout_max",
     ),
     "cloud": ("enabled",),
-    # The WiFi "key" is not echoed by GET /settings, so it cannot be restored.
+    # The WiFi STA "key" is not echoed by GET /settings, so it cannot be restored.
     "wifi": ("enabled", "ssid", "ipv4_method", "ip", "gw", "mask", "dns"),
+    # The AP SSID is device-fixed and not settable; the AP key, unlike the STA
+    # one, IS echoed by GET /settings and round-trips.
+    "wifi_ap": ("enabled", "key"),
 }
+# /settings/sta1 (fallback STA) is documented as an identical resource to
+# /settings/sta.
+GEN1_RESTORABLE_BY_TYPE["wifi_sta1"] = GEN1_RESTORABLE_BY_TYPE["wifi"]
 
 # GET /settings echoes several fields under a different name than the one their
 # setter accepts; sending the echoed name is silently ignored by the device.
 GEN1_PARAM_RENAMES: dict[str, dict[str, str]] = {
     "cover": {"button_type": "btn_type"},
-    "sys": {"sntp.server": "sntp_server"},
+    "sys": {
+        "sntp.server": "sntp_server",
+        "coiot.enabled": "coiot_enable",
+        "coiot.update_period": "coiot_update_period",
+        "coiot.peer": "coiot_peer",
+        "ap_roaming.enabled": "ap_roaming_enabled",
+        "ap_roaming.threshold": "ap_roaming_threshold",
+        "longpush_duration_ms.min": "longpush_duration_ms_min",
+        "longpush_duration_ms.max": "longpush_duration_ms_max",
+        "multipush_time_between_pushes_ms.max": (
+            "multipush_time_between_pushes_ms_max"
+        ),
+    },
     "mqtt": {name: f"mqtt_{name}" for name in GEN1_RESTORABLE_BY_TYPE["mqtt"]},
     "wifi": {"gw": "gateway", "mask": "netmask"},
 }
+GEN1_PARAM_RENAMES["wifi_sta1"] = GEN1_PARAM_RENAMES["wifi"]
 
 # Read-only keys that GetConfig echoes but SetConfig rejects, by component type.
 # Each entry is a (parent, child) path popped from the config dict. Top-level
@@ -165,9 +222,14 @@ class RestoreDeviceConfig:
         self,
         device_gateway: DeviceGateway,
         repository_factory: Callable[[], AbstractAsyncContextManager[BackupRepository]],
+        *,
+        mode_change_timeout: float = 60.0,
+        mode_change_poll_interval: float = 2.0,
     ):
         self._device_gateway = device_gateway
         self._repository_factory = repository_factory
+        self._mode_change_timeout = mode_change_timeout
+        self._mode_change_poll_interval = mode_change_poll_interval
 
     async def restore(
         self,
@@ -247,15 +309,39 @@ class RestoreDeviceConfig:
                     "snapshot lacks raw Gen1 settings",
                 )
 
+        mode_result: ComponentRestoreResult | None = None
+        if gen1_settings is not None:
+            mode_result, status = await self._sync_gen1_mode(
+                device_ip, gen1_settings, status
+            )
+            if (
+                mode_result is not None
+                and not mode_result.success
+                and not mode_result.skipped
+            ):
+                return RestoreResult(
+                    success=False,
+                    device_ip=device_ip,
+                    backup_id=backup_id,
+                    total=1,
+                    succeeded=0,
+                    failed=1,
+                    skipped=0,
+                    message=mode_result.error,
+                    components=[mode_result],
+                )
+
         present_keys = {component.key for component in status.components}
         selected = self._select(components, component_keys)
 
         results: list[ComponentRestoreResult] = []
+        if mode_result is not None:
+            results.append(mode_result)
         # Surface explicitly-requested keys that aren't in the backup, so the
         # caller never silently gets a smaller restore set than they asked for.
         if component_keys is not None:
             for key in component_keys:
-                if key == LEGACY_SETTINGS_KEY:
+                if key == LEGACY_SETTINGS_KEY and key in components:
                     results.append(
                         ComponentRestoreResult(
                             key=key,
@@ -294,7 +380,7 @@ class RestoreDeviceConfig:
 
         # A restore only "succeeds" if something was actually applied. An
         # all-skipped restore (e.g. unknown keys, or every component absent on
-        # the target) is a no-op, not a success — and must not reboot.
+        # the target) is a no-op, not a success, and must not reboot.
         applied = succeeded > 0 and failed == 0
 
         if reboot and applied:
@@ -471,7 +557,7 @@ class RestoreDeviceConfig:
         # Restore must reproduce the captured schedule set, not merge into the
         # device's existing jobs. Always clear the target first so re-runs are
         # idempotent and stale/duplicate jobs don't accumulate (including when
-        # the captured set is empty). If the clear fails, abort — creating on top
+        # the captured set is empty). If the clear fails, abort: creating on top
         # of un-cleared jobs would merge/duplicate instead of replace.
         delete_result = await self._device_gateway.execute_component_action(
             device_ip, "schedule", "DeleteAll", {}
@@ -527,6 +613,9 @@ class RestoreDeviceConfig:
                 skipped_reason="component not present on target device",
             )
 
+        if ctype == "wifi":
+            return await self._restore_gen1_wifi(device_ip, key, settings)
+
         params = self._gen1_params(key, ctype, settings)
         if params is None:
             return ComponentRestoreResult(
@@ -555,12 +644,126 @@ class RestoreDeviceConfig:
             error=result.error if not result.success else None,
         )
 
+    async def _restore_gen1_wifi(
+        self, device_ip: str, key: str, settings: dict[str, Any]
+    ) -> ComponentRestoreResult:
+        """Replay every captured Gen1 WiFi resource behind the "wifi" component.
+
+        Gen1 splits WiFi across /settings/sta, /settings/sta1 (fallback STA) and
+        /settings/ap. The AP is applied last: enabling one mode disables the
+        other on the device, so the resource enabled in the backup must win.
+        """
+        attempted = False
+        errors: list[str] = []
+        for subtype in ("wifi", "wifi_sta1", "wifi_ap"):
+            params = self._gen1_params(subtype, subtype, settings)
+            if not params:
+                continue
+            attempted = True
+            result = await self._device_gateway.execute_component_action(
+                device_ip, subtype, "Legacy.SetConfig", params
+            )
+            if not result.success:
+                errors.append(f"{subtype}: {result.error or 'failed'}")
+
+        if not attempted:
+            return ComponentRestoreResult(
+                key=key,
+                action="Legacy.SetConfig",
+                success=False,
+                skipped=True,
+                skipped_reason="no restorable settings captured in backup",
+            )
+        return ComponentRestoreResult(
+            key=key,
+            action="Legacy.SetConfig",
+            success=not errors,
+            error="; ".join(errors) if errors else None,
+        )
+
+    async def _sync_gen1_mode(
+        self,
+        device_ip: str,
+        settings: dict[str, Any],
+        status: DeviceStatus,
+    ) -> tuple[ComponentRestoreResult | None, DeviceStatus]:
+        """Align the target's relay/roller mode with the backup before restoring.
+
+        Gen1 applies ``mode`` with a reboot and re-enumerates its components
+        afterwards, so it cannot ride along in the sys param batch: it is sent
+        alone first, and the device status is re-read once the target is back.
+        Returns the pre-phase result (``None`` when nothing needed doing) and
+        the status to restore against.
+        """
+        backup_mode = settings.get("mode")
+        if not isinstance(backup_mode, str) or not backup_mode:
+            return None, status
+
+        target_settings = await self._device_gateway.get_legacy_settings(device_ip)
+        target_mode = (
+            target_settings.get("mode") if isinstance(target_settings, dict) else None
+        )
+        if not isinstance(target_mode, str) or not target_mode:
+            return (
+                ComponentRestoreResult(
+                    key="mode",
+                    action="Legacy.SetConfig",
+                    success=False,
+                    skipped=True,
+                    skipped_reason="could not read the target device mode",
+                ),
+                status,
+            )
+        if target_mode == backup_mode:
+            return None, status
+
+        result = await self._device_gateway.execute_component_action(
+            device_ip, "sys", "Legacy.SetConfig", {"mode": backup_mode}
+        )
+        if not result.success:
+            return (
+                ComponentRestoreResult(
+                    key="mode",
+                    action="Legacy.SetConfig",
+                    success=False,
+                    error=result.error or "mode change failed",
+                ),
+                status,
+            )
+
+        new_status = await self._wait_for_device(device_ip)
+        if new_status is None:
+            return (
+                ComponentRestoreResult(
+                    key="mode",
+                    action="Legacy.SetConfig",
+                    success=False,
+                    error="device did not come back after the mode change",
+                ),
+                status,
+            )
+        return (
+            ComponentRestoreResult(key="mode", action="Legacy.SetConfig", success=True),
+            new_status,
+        )
+
+    async def _wait_for_device(self, device_ip: str) -> DeviceStatus | None:
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + self._mode_change_timeout
+        while True:
+            status = await self._device_gateway.get_device_status(device_ip)
+            if status is not None:
+                return status
+            if loop.time() >= deadline:
+                return None
+            await asyncio.sleep(self._mode_change_poll_interval)
+
     def _gen1_params(
         self, key: str, ctype: str | None, settings: dict[str, Any]
     ) -> dict[str, Any] | None:
-        """``None`` when the type has no Gen1 settings endpoint at all (e.g. inputs,
-        whose config lives on the owning relay); ``{}`` when it has one but the
-        snapshot holds nothing to send.
+        """``None`` when the type has no Gen1 settings endpoint at all; ``{}``
+        when it has one but the snapshot holds nothing to send (e.g. inputs on
+        relay-bearing models, which never echo an ``inputs`` settings section).
         """
         allowed = GEN1_RESTORABLE_BY_TYPE.get(ctype or "")
         if allowed is None:
@@ -618,11 +821,11 @@ class RestoreDeviceConfig:
     ) -> RestoreResult:
         components: dict[str, Any] = backup.snapshot.get("components", {})
         # Honour an explicit request subset, and still surface unknown keys
-        # rather than reporting every captured component as skipped.
+        # rather than reporting every captured component as skipped. The default
+        # selection mirrors the restore path, so network components a default
+        # restore would never touch are not reported as skipped either.
         keys = (
-            [key for key in components if key != LEGACY_SETTINGS_KEY]
-            if component_keys is None
-            else component_keys
+            self._select(components, None) if component_keys is None else component_keys
         )
         results = [
             ComponentRestoreResult(

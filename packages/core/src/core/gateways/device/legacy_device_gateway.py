@@ -32,10 +32,15 @@ LEGACY_SETTINGS_ENDPOINTS: dict[str, str] = {
     "mqtt": "settings",
     "cloud": "settings/cloud",
     "wifi": "settings/sta",
+    # Gen1 splits WiFi across three resources behind the single "wifi"
+    # component; these synthetic types exist only for the restore path.
+    "wifi_sta1": "settings/sta1",
+    "wifi_ap": "settings/ap",
 }
 LEGACY_INDEXED_SETTINGS_ENDPOINTS: dict[str, str] = {
     "switch": "settings/relay",
     "cover": "settings/roller",
+    "input": "settings/input",
 }
 
 

@@ -232,7 +232,8 @@ shelly-manager backup delete 1
 > own snapshot. Use `bulk config apply` to push the same settings out to many devices at once.
 > Restore works on Gen1 and Gen2+ devices, but the backup and the target must be the same
 > generation. On Gen1, secrets never leave the device in a backup, so restoring `wifi` or `mqtt`
-> re-applies everything except the password.
+> re-applies everything except the password. A Gen1 backup taken in a different device mode
+> (relay/roller) applies the mode first, which reboots the device mid-restore.
 
 ### Scheduled Backups
 

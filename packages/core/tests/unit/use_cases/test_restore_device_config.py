@@ -50,14 +50,17 @@ def _backup(generation="gen2"):
 def _gen1_settings():
     """A raw Gen1 /settings payload, shaped as the device echoes it.
 
-    Field names follow https://shelly-api-docs.shelly.cloud/gen1/ — note the
-    read-only echoes (ison/has_timer/power) and the fields GET names differently
-    from their setter (wifi gw/mask, roller button_type, nested sntp.server).
+    Field names follow https://shelly-api-docs.shelly.cloud/gen1/; note the
+    read-only echoes (relay ison/has_timer, roller state/power) and the fields
+    GET names differently from their setter (wifi gw/mask, roller button_type,
+    nested sntp.server/coiot/ap_roaming). Deliberately cross-model: relay power
+    (Shelly 1), rollers/favorites (2.5), inputs (i3), led_power_disable (PlugS).
     """
     return {
         "device": {"type": "SHSW-1", "mac": "AABBCCDDEEFF"},
         "fw": "20230913-112003/v1.14.0",
         "name": "Hallway",
+        "mode": "relay",
         "timezone": "Europe/Lisbon",
         "tzautodetect": False,
         "tz_utc_offset": 3600,
@@ -67,8 +70,23 @@ def _gen1_settings():
         "lng": -9.1393,
         "discoverable": True,
         "led_status_disable": False,
+        "led_power_disable": False,
+        "max_power": 3500,
+        "longpush_time": 1000,
+        "factory_reset_from_switch": True,
+        "wifirecovery_reboot_enabled": True,
+        "debug_enable": False,
+        "allow_cross_origin": False,
+        "supply_voltage": 0,
+        "power_correction": 1,
+        "favorites_enabled": True,
+        "coiot": {"enabled": True, "update_period": 15, "peer": "10.0.0.2:5683"},
+        "ap_roaming": {"enabled": True, "threshold": -70},
+        "longpush_duration_ms": {"min": 800, "max": 3000},
+        "multipush_time_between_pushes_ms": {"max": 500},
         "sntp": {"server": "pool.ntp.org", "enabled": True},
         "login": {"enabled": True, "username": "admin"},
+        "inputs": [{"name": "Left button", "btn_type": "momentary", "btn_reverse": 0}],
         "relays": [
             {
                 "name": "Hallway light",
@@ -113,6 +131,16 @@ def _gen1_settings():
             "mask": "255.255.255.0",
             "dns": "8.8.8.8",
         },
+        "wifi_sta1": {
+            "enabled": False,
+            "ssid": "CastleFallback",
+            "ipv4_method": "dhcp",
+            "ip": None,
+            "gw": None,
+            "mask": None,
+            "dns": None,
+        },
+        "wifi_ap": {"enabled": False, "ssid": "shelly1-DDEEFF", "key": "appass"},
         "mqtt": {
             "enable": True,
             "server": "10.0.0.1:1883",
@@ -314,7 +342,18 @@ class TestRestoreDeviceConfig:
 
         assert result.skipped == len(result.components)
         assert result.success is False
+        # Mirrors the default selection: network components are not reported.
+        assert "wifi" not in {c.key for c in result.components}
         mock_device_gateway.execute_component_action.assert_not_called()
+
+    async def test_it_reports_a_missing_legacy_settings_request_as_not_in_backup(
+        self, use_case
+    ):
+        result = await use_case.restore(1, IP, component_keys=["legacy_settings"])
+
+        entry = next(c for c in result.components if c.key == "legacy_settings")
+        assert entry.skipped is True
+        assert entry.skipped_reason == "not present in backup"
 
     async def test_it_raises_when_backup_missing(self, use_case, mock_repository):
         mock_repository.get = AsyncMock(return_value=None)
@@ -480,7 +519,7 @@ class TestRestoreDeviceConfig:
             for call in mock_device_gateway.execute_component_action.call_args_list
             if call.args[1] == "schedule"
         ]
-        # Aborted after the failed clear — no Create attempted.
+        # Aborted after the failed clear; no Create attempted.
         assert actions == ["DeleteAll"]
         assert result.success is False
         sched = next(c for c in result.components if c.key == "schedules")
@@ -518,6 +557,10 @@ class TestRestoreGen1DeviceConfig:
         mock_device_gateway.get_device_status = AsyncMock(
             return_value=_status(keys=GEN1_KEYS, app_name="SHSW-1", gen=1)
         )
+        # Target mode matches the backup, so no mode pre-phase by default.
+        mock_device_gateway.get_legacy_settings = AsyncMock(
+            return_value={"mode": "relay"}
+        )
         mock_device_gateway.execute_component_action = AsyncMock(
             side_effect=lambda ip, key, action, params: _ok(key)
         )
@@ -552,6 +595,9 @@ class TestRestoreGen1DeviceConfig:
             "schedule": True,
             "schedule_rules": ["0700-012345-on", "2200-012345-off"],
             "max_power": 0,
+            # The Shelly 1/1L user power constant: settable, unlike the live
+            # readings under "meters".
+            "power": 12.5,
         }
 
     async def test_it_drops_readonly_relay_fields(self, use_case, mock_device_gateway):
@@ -559,7 +605,7 @@ class TestRestoreGen1DeviceConfig:
 
         sent = self._sent(mock_device_gateway)["switch:0"]
         # Echoed by GET /settings but rejected/meaningless as settings.
-        for read_only in ("ison", "has_timer", "power"):
+        for read_only in ("ison", "has_timer"):
             assert read_only not in sent
 
     async def test_it_renames_wifi_fields_to_their_setter_names(
@@ -577,6 +623,65 @@ class TestRestoreGen1DeviceConfig:
             "netmask": "255.255.255.0",
             "dns": "8.8.8.8",
         }
+
+    async def test_it_restores_the_fallback_sta_and_ap_with_the_primary(
+        self, use_case, mock_device_gateway
+    ):
+        result = await use_case.restore(1, IP, component_keys=["wifi"])
+
+        sent = self._sent(mock_device_gateway)
+        assert sent["wifi_sta1"] == {
+            "enabled": False,
+            "ssid": "CastleFallback",
+            "ipv4_method": "dhcp",
+        }
+        # The AP SSID is device-fixed and never sent; the AP key, unlike the
+        # STA one, is echoed by GET /settings and round-trips.
+        assert sent["wifi_ap"] == {"enabled": False, "key": "appass"}
+        # The AP goes last: enabling one WiFi mode disables the other on the
+        # device, so the resource enabled in the backup must win.
+        assert list(sent) == ["wifi", "wifi_sta1", "wifi_ap"]
+        # One component result for the single "wifi" component.
+        assert [c.key for c in result.components] == ["wifi"]
+        assert result.success is True
+
+    async def test_it_only_replays_captured_wifi_resources(
+        self, use_case, mock_device_gateway, mock_repository
+    ):
+        settings = _gen1_settings()
+        settings.pop("wifi_sta1")
+        settings.pop("wifi_ap")
+        mock_repository.get = AsyncMock(return_value=_gen1_backup(settings=settings))
+
+        result = await use_case.restore(1, IP, component_keys=["wifi"])
+
+        assert set(self._sent(mock_device_gateway)) == {"wifi"}
+        assert result.success is True
+
+    async def test_it_reports_a_failing_wifi_subresource(
+        self, use_case, mock_device_gateway
+    ):
+        def side_effect(ip, key, action, params):
+            if key == "wifi_ap":
+                return ActionResult(
+                    success=False,
+                    action_type="wifi_ap.Legacy.SetConfig",
+                    device_ip=IP,
+                    message="bad",
+                    error="Bad Request",
+                )
+            return _ok(key)
+
+        mock_device_gateway.execute_component_action = AsyncMock(
+            side_effect=side_effect
+        )
+
+        result = await use_case.restore(1, IP, component_keys=["wifi"])
+
+        assert result.success is False
+        entry = next(c for c in result.components if c.key == "wifi")
+        assert entry.success is False
+        assert entry.error == "wifi_ap: Bad Request"
 
     async def test_it_renames_the_roller_button_type_to_its_setter_name(
         self, use_case, mock_device_gateway
@@ -597,7 +702,8 @@ class TestRestoreGen1DeviceConfig:
     ):
         await use_case.restore(1, IP, component_keys=["sys"])
 
-        # /settings echoes sntp.server nested; the setter takes flat sntp_server.
+        # Nested echoes (sntp.server, coiot.*, ap_roaming.*, the i3 timing
+        # blocks) flatten to the names their setters accept.
         assert self._sent(mock_device_gateway)["sys"] == {
             "name": "Hallway",
             "timezone": "Europe/Lisbon",
@@ -609,8 +715,35 @@ class TestRestoreGen1DeviceConfig:
             "lng": -9.1393,
             "discoverable": True,
             "led_status_disable": False,
+            "led_power_disable": False,
+            "max_power": 3500,
+            "longpush_time": 1000,
+            "factory_reset_from_switch": True,
+            "wifirecovery_reboot_enabled": True,
+            "debug_enable": False,
+            "allow_cross_origin": False,
+            "supply_voltage": 0,
+            "power_correction": 1,
+            "favorites_enabled": True,
+            "coiot_enable": True,
+            "coiot_update_period": 15,
+            "coiot_peer": "10.0.0.2:5683",
+            "ap_roaming_enabled": True,
+            "ap_roaming_threshold": -70,
+            "longpush_duration_ms_min": 800,
+            "longpush_duration_ms_max": 3000,
+            "multipush_time_between_pushes_ms_max": 500,
             "sntp_server": "pool.ntp.org",
         }
+
+    async def test_it_never_sends_mode_in_the_sys_batch(
+        self, use_case, mock_device_gateway
+    ):
+        await use_case.restore(1, IP, component_keys=["sys"])
+
+        # A mode change reboots the device, so it only ever travels through the
+        # dedicated pre-phase, never the sys param batch.
+        assert "mode" not in self._sent(mock_device_gateway)["sys"]
 
     async def test_it_prefixes_mqtt_params(self, use_case, mock_device_gateway):
         await use_case.restore(1, IP, component_keys=["mqtt"])
@@ -635,7 +768,12 @@ class TestRestoreGen1DeviceConfig:
     ):
         result = await use_case.restore(1, IP)
 
-        assert set(self._sent(mock_device_gateway)) == {"sys", "switch:0", "cover:0"}
+        assert set(self._sent(mock_device_gateway)) == {
+            "sys",
+            "switch:0",
+            "cover:0",
+            "input:0",
+        }
         assert result.success is True
 
     async def test_it_orders_network_components_last(
@@ -646,7 +784,8 @@ class TestRestoreGen1DeviceConfig:
         )
 
         order = list(self._sent(mock_device_gateway))
-        assert set(order[-3:]) == {"wifi", "mqtt", "cloud"}
+        assert order[:2] == ["switch:0", "sys"]
+        assert set(order[2:]) == {"wifi", "wifi_sta1", "wifi_ap", "mqtt", "cloud"}
 
     async def test_it_skips_everything_when_the_snapshot_lacks_raw_settings(
         self, use_case, mock_device_gateway, mock_repository
@@ -660,6 +799,9 @@ class TestRestoreGen1DeviceConfig:
         assert result.success is False
         assert result.skipped == len(result.components)
         assert result.message == "snapshot lacks raw Gen1 settings"
+        # The default selection never restores network components, so they are
+        # not reported as skipped either.
+        assert {"wifi", "mqtt", "cloud"}.isdisjoint({c.key for c in result.components})
         mock_device_gateway.execute_component_action.assert_not_called()
 
     async def test_it_never_restores_the_legacy_settings_entry(
@@ -673,16 +815,34 @@ class TestRestoreGen1DeviceConfig:
         assert entry.skipped is True
         assert entry.skipped_reason == "not a restorable component"
 
-    async def test_it_skips_components_without_a_gen1_settings_endpoint(
+    async def test_it_restores_input_settings_via_their_own_endpoint(
         self, use_case, mock_device_gateway
     ):
         result = await use_case.restore(1, IP, component_keys=["input:0"])
 
-        # Gen1 input config lives on the owning relay; there is nothing to write.
+        # i3/Button1 expose /settings/input/{i}; the snapshot echoes its params.
+        assert result.success is True
+        assert self._sent(mock_device_gateway)["input:0"] == {
+            "name": "Left button",
+            "btn_type": "momentary",
+            "btn_reverse": 0,
+        }
+
+    async def test_it_skips_inputs_when_the_snapshot_has_no_input_settings(
+        self, use_case, mock_device_gateway, mock_repository
+    ):
+        # Relay-bearing models never echo an "inputs" settings section: their
+        # input config lives on, and restores with, the owning relay.
+        settings = _gen1_settings()
+        settings.pop("inputs")
+        mock_repository.get = AsyncMock(return_value=_gen1_backup(settings=settings))
+
+        result = await use_case.restore(1, IP, component_keys=["input:0"])
+
         assert self._sent(mock_device_gateway) == {}
         entry = next(c for c in result.components if c.key == "input:0")
         assert entry.skipped is True
-        assert entry.skipped_reason == "no Gen1 settings endpoint for this component"
+        assert entry.skipped_reason == "no restorable settings captured in backup"
 
     async def test_it_skips_a_component_missing_from_the_captured_settings(
         self, use_case, mock_device_gateway, mock_repository
@@ -722,8 +882,12 @@ class TestRestoreGen1DeviceConfig:
         assert reboots == [("sys", "Legacy.Reboot")]
 
     async def test_it_does_not_reboot_when_nothing_was_applied(
-        self, use_case, mock_device_gateway
+        self, use_case, mock_device_gateway, mock_repository
     ):
+        settings = _gen1_settings()
+        settings.pop("inputs")
+        mock_repository.get = AsyncMock(return_value=_gen1_backup(settings=settings))
+
         result = await use_case.restore(1, IP, component_keys=["input:0"], reboot=True)
 
         assert result.success is False
@@ -767,3 +931,133 @@ class TestRestoreGen1DeviceConfig:
         assert result.success is False
         assert result.message == "Backup and device generations differ"
         mock_device_gateway.execute_component_action.assert_not_called()
+
+    async def test_it_switches_mode_before_restoring(
+        self, use_case, mock_device_gateway, mock_repository
+    ):
+        # Backup taken in roller mode; the target boots in relay mode and only
+        # enumerates its cover component after the mode change reboots it.
+        settings = _gen1_settings()
+        settings["mode"] = "roller"
+        mock_repository.get = AsyncMock(return_value=_gen1_backup(settings=settings))
+        mock_device_gateway.get_device_status = AsyncMock(
+            side_effect=[
+                _status(keys=("sys", "switch:0", "switch:1"), gen=1),
+                _status(keys=("sys", "cover:0"), gen=1),
+            ]
+        )
+        mock_device_gateway.get_legacy_settings = AsyncMock(
+            return_value={"mode": "relay"}
+        )
+
+        result = await use_case.restore(1, IP, component_keys=["cover:0"])
+
+        calls = [
+            (call.args[1], call.args[3])
+            for call in mock_device_gateway.execute_component_action.call_args_list
+            if call.args[2] == "Legacy.SetConfig"
+        ]
+        assert calls[0] == ("sys", {"mode": "roller"})
+        assert calls[1][0] == "cover:0"
+        mode_entry = next(c for c in result.components if c.key == "mode")
+        assert mode_entry.success is True
+        assert result.success is True
+
+    async def test_it_skips_the_mode_phase_when_modes_match(
+        self, use_case, mock_device_gateway
+    ):
+        result = await use_case.restore(1, IP, component_keys=["sys"])
+
+        assert "mode" not in {c.key for c in result.components}
+        assert mock_device_gateway.get_device_status.await_count == 1
+
+    async def test_it_skips_the_mode_phase_when_the_backup_lacks_a_mode(
+        self, use_case, mock_device_gateway, mock_repository
+    ):
+        settings = _gen1_settings()
+        settings.pop("mode")
+        mock_repository.get = AsyncMock(return_value=_gen1_backup(settings=settings))
+
+        result = await use_case.restore(1, IP, component_keys=["sys"])
+
+        mock_device_gateway.get_legacy_settings.assert_not_called()
+        assert "mode" not in {c.key for c in result.components}
+
+    async def test_it_reports_when_the_target_mode_cannot_be_read(
+        self, use_case, mock_device_gateway
+    ):
+        mock_device_gateway.get_legacy_settings = AsyncMock(return_value=None)
+
+        result = await use_case.restore(1, IP, component_keys=["switch:0"])
+
+        # Surfaced as a skip rather than silently proceeding blind, and the
+        # rest of the restore still runs.
+        entry = next(c for c in result.components if c.key == "mode")
+        assert entry.skipped is True
+        assert entry.skipped_reason == "could not read the target device mode"
+        assert "switch:0" in self._sent(mock_device_gateway)
+        assert result.success is True
+
+    async def test_it_fails_the_restore_when_the_mode_change_fails(
+        self, use_case, mock_device_gateway, mock_repository
+    ):
+        settings = _gen1_settings()
+        settings["mode"] = "roller"
+        mock_repository.get = AsyncMock(return_value=_gen1_backup(settings=settings))
+        mock_device_gateway.get_legacy_settings = AsyncMock(
+            return_value={"mode": "relay"}
+        )
+
+        def side_effect(ip, key, action, params):
+            if params == {"mode": "roller"}:
+                return ActionResult(
+                    success=False,
+                    action_type="sys.Legacy.SetConfig",
+                    device_ip=IP,
+                    message="bad",
+                    error="Bad Request",
+                )
+            return _ok(key)
+
+        mock_device_gateway.execute_component_action = AsyncMock(
+            side_effect=side_effect
+        )
+
+        result = await use_case.restore(1, IP)
+
+        assert result.success is False
+        assert (result.total, result.failed) == (1, 1)
+        assert result.message == "Bad Request"
+        assert len(mock_device_gateway.execute_component_action.call_args_list) == 1
+
+    async def test_it_fails_when_the_device_never_returns_after_the_mode_change(
+        self, mock_device_gateway, mock_repository
+    ):
+        @asynccontextmanager
+        async def repository_factory():
+            yield mock_repository
+
+        settings = _gen1_settings()
+        settings["mode"] = "roller"
+        mock_repository.get = AsyncMock(return_value=_gen1_backup(settings=settings))
+        mock_device_gateway.get_device_status = AsyncMock(
+            side_effect=[_status(keys=GEN1_KEYS, gen=1)] + [None] * 50
+        )
+        mock_device_gateway.get_legacy_settings = AsyncMock(
+            return_value={"mode": "relay"}
+        )
+        mock_device_gateway.execute_component_action = AsyncMock(
+            side_effect=lambda ip, key, action, params: _ok(key)
+        )
+        use_case = RestoreDeviceConfig(
+            device_gateway=mock_device_gateway,
+            repository_factory=repository_factory,
+            mode_change_timeout=0.05,
+            mode_change_poll_interval=0.01,
+        )
+
+        result = await use_case.restore(1, IP)
+
+        assert result.success is False
+        assert result.message == "device did not come back after the mode change"
+        assert (result.total, result.failed) == (1, 1)

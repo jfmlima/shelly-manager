@@ -48,7 +48,7 @@ export function BackupsTableSection() {
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
 
-  // Step back only on a *successful* empty page — not on a transient error,
+  // Step back only on a *successful* empty page, not on a transient error,
   // which also yields items=[] and would otherwise rewind pagination state.
   useEffect(() => {
     if (isSuccess && items.length === 0 && offset >= PAGE_SIZE) {

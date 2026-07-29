@@ -175,7 +175,7 @@ class TestBackupDeviceConfig:
     async def test_it_raises_when_only_scripts_without_code(
         self, use_case, mock_device_gateway, mock_bulk_operations
     ):
-        # GetConfig succeeded for the script but GetCode failed, so no `code` —
+        # GetConfig succeeded for the script but GetCode failed, so no `code`:
         # not actually restorable, even though config is present.
         mock_device_gateway.get_device_status = AsyncMock(return_value=_status())
         mock_bulk_operations.export_bulk_config = AsyncMock(

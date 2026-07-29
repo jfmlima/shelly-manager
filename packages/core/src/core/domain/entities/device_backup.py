@@ -37,7 +37,7 @@ class DeviceBackup:
 class DeviceBackupSummary:
     """Lightweight backup record without the (encrypted) snapshot blob.
 
-    Used for list views so they don't decrypt every snapshot — listing keeps
+    Used for list views so they don't decrypt every snapshot; listing keeps
     working even after the encryption key has rotated.
     """
 

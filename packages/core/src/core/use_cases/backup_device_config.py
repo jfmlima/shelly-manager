@@ -93,7 +93,7 @@ class BackupDeviceConfig:
             )
 
         # Generation comes from the device's explicit `gen` field (Gen2+ RPC) or
-        # the legacy gateway's gen=1 stamp — never inferred from a missing field.
+        # the legacy gateway's gen=1 stamp, never inferred from a missing field.
         if status.gen == 1:
             generation = "gen1"
         elif status.gen is not None and status.gen >= 2:
@@ -132,7 +132,7 @@ class BackupDeviceConfig:
     ) -> list[DeviceBackupSummary]:
         """List every backup summary, newest first, optionally filtered by MAC.
 
-        Unbounded — used by callers that want the full set (the CLI listing).
+        Unbounded; used by callers that want the full set (the CLI listing).
         UI/API list views should use :meth:`list_backups_page` instead.
         """
         async with self._repository_factory() as repository:
@@ -179,7 +179,7 @@ def _has_restorable_payload(entry: dict[str, Any]) -> bool:
     """True if a captured component carries something a restore could apply.
 
     Scripts are only restorable when their code was actually fetched
-    (``GetConfig`` succeeding is not enough — restore re-pushes ``code.data``).
+    (``GetConfig`` succeeding is not enough: restore re-pushes ``code.data``).
     """
     if entry.get("type") == "script":
         code = entry.get("code")
