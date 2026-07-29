@@ -422,7 +422,7 @@ class ShellyDeviceGateway(DeviceGateway):
         """
         allowed_bulk_operations = SHELLY_SYSTEM_ACTIONS
 
-        if action not in allowed_bulk_operations and component_key.lower() != "shelly":
+        if action not in allowed_bulk_operations or component_key.lower() != "shelly":
             raise ValueError(
                 f"Bulk operation '{component_key}.{action}' is not supported. "
                 f"Supported operations: shelly.Update, shelly.Reboot, shelly.FactoryReset"

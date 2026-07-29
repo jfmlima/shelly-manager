@@ -725,6 +725,28 @@ class TestShellyDeviceGateway:
         assert all(result.action_type == "shelly.Reboot" for result in results)
         assert mock_rpc_client.make_rpc_request.call_count == 6
 
+    async def test_it_rejects_bulk_action_with_unsupported_action(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock()
+
+        with pytest.raises(ValueError, match="not supported"):
+            await gateway.execute_bulk_action(
+                ["192.168.1.100"], "shelly", "AnythingAtAll"
+            )
+
+        mock_rpc_client.make_rpc_request.assert_not_called()
+
+    async def test_it_rejects_bulk_action_with_unsupported_component(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock()
+
+        with pytest.raises(ValueError, match="not supported"):
+            await gateway.execute_bulk_action(["192.168.1.100"], "switch:0", "Update")
+
+        mock_rpc_client.make_rpc_request.assert_not_called()
+
     async def test_it_handles_device_with_partial_info(self, gateway, mock_rpc_client):
         device_info = {"id": "minimal-device"}
         mock_rpc_client.make_rpc_request = AsyncMock(return_value=(device_info, 0.1))
