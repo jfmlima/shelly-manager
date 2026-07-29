@@ -25,7 +25,7 @@ class TestCheckDeviceStatusUseCase:
             return_value=sample_device_status
         )
 
-        request = CheckDeviceStatusRequest(device_ip=device_ip, include_updates=True)
+        request = CheckDeviceStatusRequest(device_ip=device_ip)
         result = await use_case.execute(request)
 
         assert result is not None
@@ -44,9 +44,7 @@ class TestCheckDeviceStatusUseCase:
             return_value=sample_device_status
         )
 
-        result = await use_case.execute(
-            CheckDeviceStatusRequest(device_ip=device_ip, include_updates=True)
-        )
+        result = await use_case.execute(CheckDeviceStatusRequest(device_ip=device_ip))
 
         assert result is not None
         assert result.device_ip == device_ip
@@ -58,9 +56,7 @@ class TestCheckDeviceStatusUseCase:
         device_ip = "192.168.1.200"
         mock_device_gateway.get_device_status = AsyncMock(return_value=None)
 
-        result = await use_case.execute(
-            CheckDeviceStatusRequest(device_ip=device_ip, include_updates=True)
-        )
+        result = await use_case.execute(CheckDeviceStatusRequest(device_ip=device_ip))
 
         assert result is None
         mock_device_gateway.get_device_status.assert_called_once_with(device_ip)
@@ -71,9 +67,7 @@ class TestCheckDeviceStatusUseCase:
         device_ip = "192.168.1.101"
         mock_device_gateway.get_device_status = AsyncMock(return_value=None)
 
-        result = await use_case.execute(
-            CheckDeviceStatusRequest(device_ip=device_ip, include_updates=True)
-        )
+        result = await use_case.execute(CheckDeviceStatusRequest(device_ip=device_ip))
 
         assert result is None
         mock_device_gateway.get_device_status.assert_called_once_with(device_ip)
@@ -84,9 +78,7 @@ class TestCheckDeviceStatusUseCase:
         device_ip = "192.168.1.102"
         mock_device_gateway.get_device_status = AsyncMock(return_value=None)
 
-        result = await use_case.execute(
-            CheckDeviceStatusRequest(device_ip=device_ip, include_updates=True)
-        )
+        result = await use_case.execute(CheckDeviceStatusRequest(device_ip=device_ip))
 
         assert result is None
         mock_device_gateway.get_device_status.assert_called_once_with(device_ip)
@@ -98,9 +90,7 @@ class TestCheckDeviceStatusUseCase:
         )
         mock_device_gateway.get_device_status = AsyncMock(return_value=device_status)
 
-        result = await use_case.execute(
-            CheckDeviceStatusRequest(device_ip=device_ip, include_updates=True)
-        )
+        result = await use_case.execute(CheckDeviceStatusRequest(device_ip=device_ip))
 
         assert result is not None
         assert isinstance(result, DeviceStatus)
@@ -130,27 +120,7 @@ class TestCheckDeviceStatusUseCase:
         )
         mock_device_gateway.get_device_status = AsyncMock(return_value=device_status)
 
-        result = await use_case.execute(
-            CheckDeviceStatusRequest(device_ip=device_ip, include_updates=True)
-        )
-
-        assert result is not None
-        assert isinstance(result, DeviceStatus)
-        assert result.device_ip == device_ip
-        mock_device_gateway.get_device_status.assert_called_once_with(device_ip)
-
-    async def test_it_defaults_include_updates_to_true(
-        self, use_case, mock_device_gateway
-    ):
-        device_ip = "192.168.1.100"
-        device_status = DeviceStatus(
-            device_ip=device_ip, components=[], total_components=0
-        )
-        mock_device_gateway.get_device_status = AsyncMock(return_value=device_status)
-
-        result = await use_case.execute(
-            CheckDeviceStatusRequest(device_ip=device_ip, include_updates=True)
-        )
+        result = await use_case.execute(CheckDeviceStatusRequest(device_ip=device_ip))
 
         assert result is not None
         assert isinstance(result, DeviceStatus)
@@ -166,6 +136,4 @@ class TestCheckDeviceStatusUseCase:
         )
 
         with pytest.raises(Exception, match="Network connection failed"):
-            await use_case.execute(
-                CheckDeviceStatusRequest(device_ip=device_ip, include_updates=True)
-            )
+            await use_case.execute(CheckDeviceStatusRequest(device_ip=device_ip))

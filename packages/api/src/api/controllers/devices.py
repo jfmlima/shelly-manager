@@ -176,7 +176,6 @@ async def execute_component_action(
 @get("/{ip:str}/status", tags=["Devices"], summary="Get Device Status")
 async def get_device_status(
     ip: str,
-    include_updates: bool = True,
     status_interactor: CheckDeviceStatusUseCase | None = None,
 ) -> dict:
     """
@@ -187,14 +186,13 @@ async def get_device_status(
 
     Args:
         ip: Device IP address (e.g., "192.168.1.100")
-        include_updates: Whether to include firmware update information
 
     Returns:
         dict: Complete device status including components and system information
     """
     status_interactor = _require("status_interactor", status_interactor)
 
-    request = CheckDeviceStatusRequest(device_ip=ip, include_updates=include_updates)
+    request = CheckDeviceStatusRequest(device_ip=ip)
     device_status = await status_interactor.execute(request)
     if device_status:
         summary = device_status.get_device_summary()

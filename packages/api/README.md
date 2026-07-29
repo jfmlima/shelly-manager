@@ -60,7 +60,6 @@ GET /api/devices/scan              # Scan network for devices
 
 ```bash
 GET /api/devices/{ip}/status       # Get device status
-  ?include_updates=true            # Include update information
 
 POST /api/devices/{ip}/update      # Update device firmware
   ?channel=stable                  # Update channel (stable/beta)

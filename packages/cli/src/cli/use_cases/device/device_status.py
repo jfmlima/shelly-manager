@@ -83,9 +83,7 @@ class DeviceStatusUseCase:
         ) as task:
             for device_ip in device_ips:
                 try:
-                    status_request = CheckDeviceStatusRequest(
-                        device_ip=device_ip, include_updates=request.include_updates
-                    )
+                    status_request = CheckDeviceStatusRequest(device_ip=device_ip)
                     status_result = await status_interactor.execute(status_request)
                     results.append(status_result)
                 except Exception as e:

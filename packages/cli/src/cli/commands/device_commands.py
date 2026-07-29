@@ -111,19 +111,12 @@ async def list_devices(
 @click.argument("targets", nargs=-1, required=False)
 @device_targeting_options
 @common_options
-@click.option(
-    "--include-updates",
-    is_flag=True,
-    default=True,
-    help="Include firmware update information",
-)
 @click.pass_context
 @async_command
 async def status(
     ctx: click.Context,
     targets: tuple[str, ...],
     targets_opt: tuple[str, ...],
-    include_updates: bool,
     timeout: int,
     workers: int,
 ) -> None:
@@ -142,7 +135,6 @@ async def status(
 
     request = DeviceStatusRequest(
         targets=list(targets) + list(targets_opt),
-        include_updates=include_updates,
         timeout=timeout,
         workers=workers,
         verbose=ctx.obj.verbose,
