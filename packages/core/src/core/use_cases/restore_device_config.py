@@ -10,6 +10,10 @@ from typing import Any
 from core.domain.entities.device_backup import DeviceBackup
 from core.domain.entities.device_status import DeviceStatus
 from core.domain.entities.exceptions import DeviceNotFoundError
+from core.domain.services.gen1_settings_translation import (
+    restorable_params,
+    wifi_subresources,
+)
 from core.domain.value_objects.restore_result import (
     ComponentRestoreResult,
     RestoreResult,
@@ -32,159 +36,6 @@ SCHEDULES_KEY = "schedules"
 # data source a Gen1 restore replays, never a restore target itself.
 LEGACY_SETTINGS_KEY = "legacy_settings"
 
-# Section of the raw /settings holding each component's config. "" is the top level.
-# wifi_sta1/wifi_ap are synthetic types for the extra Gen1 WiFi resources replayed
-# behind the single "wifi" component (see _restore_gen1_wifi).
-GEN1_SECTION_BY_TYPE: dict[str, str] = {
-    "switch": "relays",
-    "cover": "rollers",
-    "input": "inputs",
-    "sys": "",
-    "mqtt": "mqtt",
-    "cloud": "cloud",
-    "wifi": "wifi_sta",
-    "wifi_sta1": "wifi_sta1",
-    "wifi_ap": "wifi_ap",
-}
-
-# Restorable Gen1 settings per component type, as GET /settings names them. Only
-# params documented as settable at https://shelly-api-docs.shelly.cloud/gen1/ are
-# listed, so read-only echoes (ison, has_timer, is_valid, safety_switch) are
-# never sent back. Fields a model does not have are absent and skip themselves,
-# which is what lets one table serve every Gen1 model.
-GEN1_RESTORABLE_BY_TYPE: dict[str, tuple[str, ...]] = {
-    "switch": (
-        "name",
-        "appliance_type",
-        "default_state",
-        "btn_type",
-        "btn_reverse",
-        # Shelly 1L exposes two inputs instead of one.
-        "btn1_type",
-        "btn1_reverse",
-        "btn2_type",
-        "btn2_reverse",
-        "swap_inputs",
-        "auto_on",
-        "auto_off",
-        "schedule",
-        "schedule_rules",
-        "max_power",
-        # On Shelly 1/1L "power" is the settable user power constant shown in
-        # meters, not a live reading (live power is echoed under "meters").
-        "power",
-    ),
-    "cover": (
-        "default_state",
-        "input_mode",
-        "button_type",
-        "btn_reverse",
-        "swap",
-        "swap_inputs",
-        "maxtime",
-        "maxtime_open",
-        "maxtime_close",
-        "positioning",
-        "obstacle_mode",
-        "obstacle_action",
-        "obstacle_power",
-        "obstacle_delay",
-        "ends_delay",
-        "off_power",
-        "safety_mode",
-        "safety_action",
-        "safety_allowed_on_trigger",
-        "schedule",
-        "schedule_rules",
-    ),
-    # "mode" is deliberately absent: Gen1 applies it with a reboot, so it is
-    # replayed alone as a pre-phase (_sync_gen1_mode), never in this batch.
-    "sys": (
-        "name",
-        "timezone",
-        "tzautodetect",
-        "tz_utc_offset",
-        "tz_dst",
-        "tz_dst_auto",
-        "lat",
-        "lng",
-        "discoverable",
-        "led_status_disable",
-        "led_power_disable",
-        "sntp.server",
-        # Device-level overpower threshold (1PM, Plug/PlugS, 2.5 in roller
-        # mode); distinct from the per-relay max_power.
-        "max_power",
-        "longpush_time",
-        "factory_reset_from_switch",
-        "wifirecovery_reboot_enabled",
-        "debug_enable",
-        "allow_cross_origin",
-        "supply_voltage",
-        "power_correction",
-        # 2.5 roller favourite positions live on /settings/favorites/{i} (not
-        # replayed); only their enable flag is a plain /settings param.
-        "favorites_enabled",
-        "coiot.enabled",
-        "coiot.update_period",
-        "coiot.peer",
-        "ap_roaming.enabled",
-        "ap_roaming.threshold",
-        "longpush_duration_ms.min",
-        "longpush_duration_ms.max",
-        "multipush_time_between_pushes_ms.max",
-    ),
-    # Only i3/Button1 expose /settings/input/{i}. Relay-bearing models never
-    # echo an "inputs" section in /settings (their input config lives on the
-    # owning relay), so their inputs skip as having nothing captured.
-    "input": ("name", "btn_type", "btn_reverse"),
-    # mqtt_pass is not echoed by GET /settings, so it cannot be restored.
-    "mqtt": (
-        "enable",
-        "server",
-        "user",
-        "id",
-        "clean_session",
-        "retain",
-        "keep_alive",
-        "update_period",
-        "max_qos",
-        "reconnect_timeout_min",
-        "reconnect_timeout_max",
-    ),
-    "cloud": ("enabled",),
-    # The WiFi STA "key" is not echoed by GET /settings, so it cannot be restored.
-    "wifi": ("enabled", "ssid", "ipv4_method", "ip", "gw", "mask", "dns"),
-    # The AP SSID is device-fixed and not settable; the AP key, unlike the STA
-    # one, IS echoed by GET /settings and round-trips.
-    "wifi_ap": ("enabled", "key"),
-}
-# /settings/sta1 (fallback STA) is documented as an identical resource to
-# /settings/sta.
-GEN1_RESTORABLE_BY_TYPE["wifi_sta1"] = GEN1_RESTORABLE_BY_TYPE["wifi"]
-
-# GET /settings echoes several fields under a different name than the one their
-# setter accepts; sending the echoed name is silently ignored by the device.
-GEN1_PARAM_RENAMES: dict[str, dict[str, str]] = {
-    "cover": {"button_type": "btn_type"},
-    "sys": {
-        "sntp.server": "sntp_server",
-        "coiot.enabled": "coiot_enable",
-        "coiot.update_period": "coiot_update_period",
-        "coiot.peer": "coiot_peer",
-        "ap_roaming.enabled": "ap_roaming_enabled",
-        "ap_roaming.threshold": "ap_roaming_threshold",
-        "longpush_duration_ms.min": "longpush_duration_ms_min",
-        "longpush_duration_ms.max": "longpush_duration_ms_max",
-        "multipush_time_between_pushes_ms.max": (
-            "multipush_time_between_pushes_ms_max"
-        ),
-    },
-    "mqtt": {name: f"mqtt_{name}" for name in GEN1_RESTORABLE_BY_TYPE["mqtt"]},
-    "wifi": {"gw": "gateway", "mask": "netmask"},
-}
-GEN1_PARAM_RENAMES["wifi_sta1"] = GEN1_PARAM_RENAMES["wifi"]
-
 # Read-only keys that GetConfig echoes but SetConfig rejects, by component type.
 # Each entry is a (parent, child) path popped from the config dict. Top-level
 # "id" and "cfg_rev" are always stripped. Table-driven so it is easy to extend.
@@ -192,15 +43,6 @@ READ_ONLY_BY_TYPE: dict[str, list[tuple[str, str]]] = {
     "sys": [("device", "mac")],
     "wifi": [("ap", "is_open")],
 }
-
-
-def _dig(section: dict[str, Any], path: str) -> Any:
-    value: Any = section
-    for part in path.split("."):
-        if not isinstance(value, dict):
-            return None
-        value = value.get(part)
-    return value
 
 
 class DeviceMismatchError(Exception):
@@ -616,7 +458,7 @@ class RestoreDeviceConfig:
         if ctype == "wifi":
             return await self._restore_gen1_wifi(device_ip, key, settings)
 
-        params = self._gen1_params(key, ctype, settings)
+        params = restorable_params(key, ctype, settings)
         if params is None:
             return ComponentRestoreResult(
                 key=key,
@@ -647,26 +489,17 @@ class RestoreDeviceConfig:
     async def _restore_gen1_wifi(
         self, device_ip: str, key: str, settings: dict[str, Any]
     ) -> ComponentRestoreResult:
-        """Replay every captured Gen1 WiFi resource behind the "wifi" component.
-
-        Gen1 splits WiFi across /settings/sta, /settings/sta1 (fallback STA) and
-        /settings/ap. The AP is applied last: enabling one mode disables the
-        other on the device, so the resource enabled in the backup must win.
-        """
-        attempted = False
+        """Replay every captured Gen1 WiFi resource behind the "wifi" component."""
+        subresources = wifi_subresources(settings)
         errors: list[str] = []
-        for subtype in ("wifi", "wifi_sta1", "wifi_ap"):
-            params = self._gen1_params(subtype, subtype, settings)
-            if not params:
-                continue
-            attempted = True
+        for subtype, params in subresources:
             result = await self._device_gateway.execute_component_action(
                 device_ip, subtype, "Legacy.SetConfig", params
             )
             if not result.success:
                 errors.append(f"{subtype}: {result.error or 'failed'}")
 
-        if not attempted:
+        if not subresources:
             return ComponentRestoreResult(
                 key=key,
                 action="Legacy.SetConfig",
@@ -757,45 +590,6 @@ class RestoreDeviceConfig:
             if loop.time() >= deadline:
                 return None
             await asyncio.sleep(self._mode_change_poll_interval)
-
-    def _gen1_params(
-        self, key: str, ctype: str | None, settings: dict[str, Any]
-    ) -> dict[str, Any] | None:
-        """``None`` when the type has no Gen1 settings endpoint at all; ``{}``
-        when it has one but the snapshot holds nothing to send (e.g. inputs on
-        relay-bearing models, which never echo an ``inputs`` settings section).
-        """
-        allowed = GEN1_RESTORABLE_BY_TYPE.get(ctype or "")
-        if allowed is None:
-            return None
-
-        section = self._gen1_section(key, ctype or "", settings)
-        if section is None:
-            return {}
-
-        renames = GEN1_PARAM_RENAMES.get(ctype or "", {})
-        params: dict[str, Any] = {}
-        for attr in allowed:
-            value = _dig(section, attr)
-            if value is not None:
-                params[renames.get(attr, attr)] = value
-        return params
-
-    def _gen1_section(
-        self, key: str, ctype: str, settings: dict[str, Any]
-    ) -> dict[str, Any] | None:
-        section_name = GEN1_SECTION_BY_TYPE[ctype]
-        section: Any = settings if not section_name else settings.get(section_name)
-
-        # relays/rollers are arrays parallel to the component id.
-        if isinstance(section, list):
-            try:
-                index = int(key.split(":")[1])
-            except (IndexError, ValueError):
-                return None
-            section = section[index] if 0 <= index < len(section) else None
-
-        return section if isinstance(section, dict) else None
 
     def _generation_mismatch(
         self,
