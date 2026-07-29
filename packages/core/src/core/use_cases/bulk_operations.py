@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime
 from typing import Any
 
@@ -5,6 +6,8 @@ from ..domain.entities.device_status import DeviceStatus
 from ..domain.entities.exceptions import BulkOperationError
 from ..domain.value_objects.action_result import ActionResult
 from ..gateways.device import DeviceGateway
+
+logger = logging.getLogger(__name__)
 
 
 class BulkOperationsUseCase:
@@ -98,7 +101,7 @@ class BulkOperationsUseCase:
                 if device:
                     results.append(device)
             except Exception as e:
-                print(f"Error getting status for {ip}: {str(e)}")
+                logger.warning("Error getting status for %s: %s", ip, e)
 
         return results
 

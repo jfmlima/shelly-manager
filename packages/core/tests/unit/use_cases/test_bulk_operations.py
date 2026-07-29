@@ -202,6 +202,37 @@ class TestBulkOperationsUseCase:
         assert update_result == []
         assert reboot_result == []
 
+    async def test_it_gets_bulk_status_for_multiple_devices(
+        self, use_case, mock_device_gateway
+    ):
+        statuses = [
+            DeviceStatus(device_ip="192.168.1.100"),
+            DeviceStatus(device_ip="192.168.1.101"),
+        ]
+        mock_device_gateway.get_device_status = AsyncMock(side_effect=statuses)
+
+        results = await use_case.get_bulk_status(["192.168.1.100", "192.168.1.101"])
+
+        assert results == statuses
+
+    async def test_it_logs_warning_and_skips_device_on_status_failure(
+        self, use_case, mock_device_gateway, caplog
+    ):
+        status = DeviceStatus(device_ip="192.168.1.101")
+        mock_device_gateway.get_device_status = AsyncMock(
+            side_effect=[Exception("Connection refused"), status]
+        )
+
+        with caplog.at_level("WARNING", logger="core.use_cases.bulk_operations"):
+            results = await use_case.get_bulk_status(["192.168.1.100", "192.168.1.101"])
+
+        assert results == [status]
+        assert any(
+            "192.168.1.100" in record.getMessage()
+            and "Connection refused" in record.getMessage()
+            for record in caplog.records
+        )
+
     @pytest.fixture
     def mock_device_status_with_components(self):
         return DeviceStatus(
