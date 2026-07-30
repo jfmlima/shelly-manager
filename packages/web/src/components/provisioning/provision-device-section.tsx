@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { provisioningApi, handleApiError } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import type { APDeviceInfo, ProvisionResult } from "@/types/api";
 
 export function ProvisionDeviceSection() {
@@ -45,7 +46,7 @@ export function ProvisionDeviceSection() {
   const [verifyTargets, setVerifyTargets] = useState("");
 
   const { data: profiles } = useQuery({
-    queryKey: ["provisioning", "profiles"],
+    queryKey: queryKeys.provisioning.profiles(),
     queryFn: provisioningApi.listProfiles,
     enabled: true,
   });

@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { backupApi, handleApiError } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 
 const PAGE_SIZE = 50;
 
@@ -40,7 +41,7 @@ export function BackupsTableSection() {
   const [offset, setOffset] = useState(0);
 
   const { data, isLoading, isSuccess, error } = useQuery({
-    queryKey: ["backups", "all", offset],
+    queryKey: queryKeys.backups.list({ limit: PAGE_SIZE, offset }),
     queryFn: () => backupApi.listBackups({ limit: PAGE_SIZE, offset }),
     enabled: true,
   });
@@ -58,10 +59,9 @@ export function BackupsTableSection() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => backupApi.deleteBackup(id),
-    onSuccess: (_data, id) => {
+    onSuccess: () => {
       toast.success("Backup deleted");
-      queryClient.removeQueries({ queryKey: ["backup", id] });
-      queryClient.invalidateQueries({ queryKey: ["backups"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.backups.all() });
     },
     onError: (err) => toast.error(handleApiError(err)),
   });

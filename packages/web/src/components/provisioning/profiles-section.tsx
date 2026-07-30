@@ -34,6 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { provisioningApi, handleApiError } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import type {
   CreateProvisioningProfileRequest,
   UpdateProvisioningProfileRequest,
@@ -127,7 +128,7 @@ export function ProfilesSection() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["provisioning", "profiles"],
+    queryKey: queryKeys.provisioning.profiles(),
     queryFn: provisioningApi.listProfiles,
     enabled: true,
   });
@@ -137,7 +138,7 @@ export function ProfilesSection() {
       provisioningApi.createProfile(data),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["provisioning", "profiles"],
+        queryKey: queryKeys.provisioning.profiles(),
       });
       toast.success(t("provisioning.profiles.created"));
       setCreateOpen(false);
@@ -156,7 +157,7 @@ export function ProfilesSection() {
     }) => provisioningApi.updateProfile(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["provisioning", "profiles"],
+        queryKey: queryKeys.provisioning.profiles(),
       });
       toast.success(t("provisioning.editDialog.updated"));
       setEditOpen(false);
@@ -169,7 +170,7 @@ export function ProfilesSection() {
     mutationFn: provisioningApi.deleteProfile,
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["provisioning", "profiles"],
+        queryKey: queryKeys.provisioning.profiles(),
       });
       toast.success(t("provisioning.profiles.deleted"));
     },
@@ -180,7 +181,7 @@ export function ProfilesSection() {
     mutationFn: provisioningApi.setDefaultProfile,
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["provisioning", "profiles"],
+        queryKey: queryKeys.provisioning.profiles(),
       });
       toast.success(t("provisioning.profiles.defaultUpdated"));
     },

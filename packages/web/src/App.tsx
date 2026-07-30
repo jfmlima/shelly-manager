@@ -10,8 +10,11 @@ import { Provisioning } from "@/pages/provisioning";
 import { BackupSchedules } from "@/pages/backup-schedules";
 import { Settings } from "@/pages/settings";
 import { queryClient, persister } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
 
 import "@/i18n";
+
+const SCAN_QUERY_KEY = queryKeys.devices.scan();
 
 function App() {
   return (
@@ -21,14 +24,11 @@ function App() {
         persister,
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days (longer than our 2-day stale threshold)
         dehydrateOptions: {
-          shouldDehydrateQuery: (query: Query) => {
-            return (
-              query.queryKey.length >= 2 &&
-              query.queryKey[0] === "devices" &&
-              query.queryKey[1] === "scan" &&
-              query.state.data !== undefined
-            );
-          },
+          shouldDehydrateQuery: (query: Query) =>
+            query.state.data !== undefined &&
+            SCAN_QUERY_KEY.every(
+              (segment, index) => query.queryKey[index] === segment,
+            ),
         },
       }}
     >

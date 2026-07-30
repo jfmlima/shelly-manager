@@ -29,6 +29,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { backupApi } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import {
   useBackups,
   useCreateBackup,
@@ -232,7 +233,7 @@ function RestoreDialog({
 }) {
   const restore = useRestoreBackup();
   const { data: detail, isLoading } = useQuery({
-    queryKey: ["backup", backup.id],
+    queryKey: queryKeys.backups.detail(backup.id),
     queryFn: () => backupApi.getBackup(backup.id),
     // The app sets a global `enabled: false` default, so every query must opt
     // in explicitly; without this the snapshot never loads and the restore

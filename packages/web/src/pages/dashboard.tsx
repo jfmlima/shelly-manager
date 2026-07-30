@@ -8,6 +8,7 @@ import { DeviceTable } from "@/components/dashboard/device-table";
 import { BulkActionsDialog } from "@/components/dashboard/bulk-actions-dialog";
 import { Footer } from "@/components/ui/footer";
 import { deviceApi, handleApiError } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import {
   loadScanResults,
   saveScanResults,
@@ -26,7 +27,7 @@ export function Dashboard() {
     isLoading: isLoadingCached,
     error: cacheError,
   } = useQuery({
-    queryKey: ["devices", "scan"],
+    queryKey: queryKeys.devices.scan(),
     queryFn: () => {
       const cached = loadScanResults();
       return cached ? cached.devices : [];
@@ -39,12 +40,12 @@ export function Dashboard() {
   const scanMutation = useMutation({
     mutationFn: async (params: ScanRequest) => {
       clearScanResults();
-      queryClient.removeQueries({ queryKey: ["devices", "scan"] });
+      queryClient.removeQueries({ queryKey: queryKeys.devices.scan() });
       return deviceApi.scanDevices(params);
     },
     onSuccess: (data, variables) => {
       saveScanResults(data, variables);
-      queryClient.setQueryData(["devices", "scan"], data);
+      queryClient.setQueryData(queryKeys.devices.scan(), data);
       toast.success(
         t("dashboard.messages.scanSuccess", { count: data.length }),
       );

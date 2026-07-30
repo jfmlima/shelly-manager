@@ -25,6 +25,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { credentialsApi, handleApiError } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import type { Credential, CredentialCreateRequest } from "@/types/api";
 
 interface CredentialsManagerProps {
@@ -48,7 +49,7 @@ export function CredentialsManager({
   const setMutation = useMutation({
     mutationFn: credentialsApi.setCredential,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["credentials"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.credentials.all() });
       toast.success(t("common.success"));
       setIsOpen(false);
       setNewCred({ mac: "", username: "admin", password: "" });
@@ -61,7 +62,7 @@ export function CredentialsManager({
   const deleteMutation = useMutation({
     mutationFn: credentialsApi.deleteCredential,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["credentials"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.credentials.all() });
       toast.success(t("common.success"));
     },
     onError: (error) => {
