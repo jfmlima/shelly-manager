@@ -43,7 +43,6 @@ export function BackupsTableSection() {
   const { data, isLoading, isSuccess, error } = useQuery({
     queryKey: queryKeys.backups.list({ limit: PAGE_SIZE, offset }),
     queryFn: () => backupApi.listBackups({ limit: PAGE_SIZE, offset }),
-    enabled: true,
   });
 
   const items = data?.items ?? [];

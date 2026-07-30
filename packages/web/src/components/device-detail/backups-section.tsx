@@ -235,10 +235,6 @@ function RestoreDialog({
   const { data: detail, isLoading } = useQuery({
     queryKey: queryKeys.backups.detail(backup.id),
     queryFn: () => backupApi.getBackup(backup.id),
-    // The app sets a global `enabled: false` default, so every query must opt
-    // in explicitly; without this the snapshot never loads and the restore
-    // dialog shows no components (Restore stays disabled).
-    enabled: true,
   });
 
   const componentTypes = useMemo(() => {

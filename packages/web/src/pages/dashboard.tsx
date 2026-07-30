@@ -34,7 +34,6 @@ export function Dashboard() {
     },
     staleTime: Infinity, // Cached data never becomes stale automatically
     gcTime: Infinity, // Keep in memory indefinitely
-    enabled: true, // Auto-load on mount
   });
 
   const scanMutation = useMutation({

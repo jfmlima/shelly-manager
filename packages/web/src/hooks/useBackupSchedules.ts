@@ -14,7 +14,6 @@ export function useBackupSchedules() {
   return useQuery({
     queryKey: QUERY_KEY,
     queryFn: backupScheduleApi.listSchedules,
-    enabled: true,
   });
 }
 

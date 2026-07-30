@@ -48,7 +48,6 @@ export function ProvisionDeviceSection() {
   const { data: profiles } = useQuery({
     queryKey: queryKeys.provisioning.profiles(),
     queryFn: provisioningApi.listProfiles,
-    enabled: true,
   });
 
   const detectMutation = useMutation({

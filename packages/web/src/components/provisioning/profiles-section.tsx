@@ -130,7 +130,6 @@ export function ProfilesSection() {
   } = useQuery({
     queryKey: queryKeys.provisioning.profiles(),
     queryFn: provisioningApi.listProfiles,
-    enabled: true,
   });
 
   const createMutation = useMutation({
