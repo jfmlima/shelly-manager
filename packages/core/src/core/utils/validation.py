@@ -4,9 +4,6 @@ Shared validation utilities for the core domain.
 
 import ipaddress
 import re
-from typing import Any
-
-from pydantic import field_validator
 
 
 def normalize_mac(mac: str) -> str:
@@ -46,13 +43,35 @@ def is_valid_mac(mac: str) -> bool:
     return bool(re.match(r"^[0-9A-F]{12}$", mac_clean))
 
 
-def validate_ip_address(cls: Any, v: str) -> str:
+def validate_mac(mac: str, allow_wildcard: bool = False) -> str:
     """
-    Reusable IP address validator for Pydantic models.
+    Normalize a MAC address, raising when it is invalid.
 
     Args:
-        cls: The Pydantic model class (automatically passed by field_validator)
-        v: The IP address string to validate
+        mac: MAC address in any format
+        allow_wildcard: Accept "*" (the global credentials fallback) as-is
+
+    Returns:
+        Normalized MAC address (uppercase, no separators)
+
+    Raises:
+        ValueError: If the MAC address is invalid
+    """
+    if mac == "*" and allow_wildcard:
+        return mac
+    if mac == "*" or not is_valid_mac(mac):
+        raise ValueError(
+            "Invalid MAC address format. Expected AA:BB:CC:DD:EE:FF or AABBCCDDEEFF"
+        )
+    return normalize_mac(mac)
+
+
+def validate_ip_address(ip: str) -> str:
+    """
+    Validate an IPv4 address string.
+
+    Args:
+        ip: The IP address string to validate
 
     Returns:
         The validated IP address string
@@ -61,19 +80,18 @@ def validate_ip_address(cls: Any, v: str) -> str:
         ValueError: If the IP address is invalid
     """
     try:
-        ipaddress.IPv4Address(v)
+        ipaddress.IPv4Address(ip)
     except ipaddress.AddressValueError as e:
-        raise ValueError(f"Invalid IP address: {v}") from e
-    return v
+        raise ValueError(f"Invalid IP address: {ip}") from e
+    return ip
 
 
-def validate_ip_address_list(cls: Any, v: list[str]) -> list[str]:
+def validate_ip_address_list(ips: list[str]) -> list[str]:
     """
-    Reusable IP address list validator for Pydantic models.
+    Validate a list of IPv4 address strings.
 
     Args:
-        cls: The Pydantic model class (automatically passed by field_validator)
-        v: The list of IP address strings to validate
+        ips: The list of IP address strings to validate
 
     Returns:
         The validated list of IP address strings
@@ -81,13 +99,6 @@ def validate_ip_address_list(cls: Any, v: list[str]) -> list[str]:
     Raises:
         ValueError: If any IP address in the list is invalid
     """
-    for ip in v:
-        try:
-            ipaddress.IPv4Address(ip)
-        except ipaddress.AddressValueError as e:
-            raise ValueError(f"Invalid IP address: {ip}") from e
-    return v
-
-
-ip_validator = field_validator("device_ip", "ip")(validate_ip_address)
-ip_list_validator = field_validator("device_ips", "ips")(validate_ip_address_list)
+    for ip in ips:
+        validate_ip_address(ip)
+    return ips

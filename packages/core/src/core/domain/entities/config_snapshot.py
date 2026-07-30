@@ -12,6 +12,7 @@ missing or malformed entries degrade to "nothing captured" rather than raising.
 from dataclasses import dataclass, field
 from typing import Any
 
+from ..value_objects.component_namespace import known_component_types
 from .device_status import DeviceStatus
 
 # The raw Gen1 /settings entry captured alongside the mapped components. It is
@@ -20,6 +21,21 @@ LEGACY_SETTINGS_KEY = "legacy_settings"
 
 # The pseudo-component holding a Gen2+ device's schedule jobs.
 SCHEDULES_KEY = "schedules"
+
+# "shelly" and "schedule" route actions and kvs/http/webhook are services, so
+# none of them owns an exportable config. Capture skips types a device does not
+# have, so the set can be broader than any one device.
+EXPORTABLE_COMPONENT_TYPES: frozenset[str] = (
+    known_component_types() - {"shelly", "schedule", "kvs", "http", "webhook"}
+) | {SCHEDULES_KEY}
+
+# Schedules are replayed by restore rather than applied via SetConfig, and the
+# energy data logs own no settable configuration.
+CONFIGURABLE_COMPONENT_TYPES: frozenset[str] = EXPORTABLE_COMPONENT_TYPES - {
+    SCHEDULES_KEY,
+    "emdata",
+    "em1data",
+}
 
 
 @dataclass(frozen=True)

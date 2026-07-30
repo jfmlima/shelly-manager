@@ -5,6 +5,7 @@ from typing import Any, TypeVar
 
 from ..domain.entities.config_snapshot import DeviceSnapshot
 from ..domain.entities.exceptions import BulkOperationError
+from ..domain.enums.enums import UpdateChannel
 from ..domain.value_objects.action_result import ActionResult
 from ..gateways.device import DeviceGateway
 from .capture_device_config import CaptureDeviceConfig
@@ -62,8 +63,9 @@ class BulkOperationsUseCase:
         Returns:
             List of action results
         """
+        parameters = UpdateChannel(channel).to_update_parameters()
         return await self._execute_shelly_action(
-            device_ips, "Update", {"channel": channel}, "bulk_update", "Bulk update"
+            device_ips, "Update", parameters, "bulk_update", "Bulk update"
         )
 
     async def execute_bulk_reboot(self, device_ips: list[str]) -> list[ActionResult]:

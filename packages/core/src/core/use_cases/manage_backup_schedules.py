@@ -3,16 +3,26 @@
 import logging
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
+from dataclasses import replace
 from datetime import UTC, datetime
+from typing import Any
 
-from core.domain.entities.backup_schedule import BackupSchedule
+from core.domain.entities.backup_schedule import (
+    MIN_INTERVAL_SECONDS,
+    BackupSchedule,
+)
 from core.repositories.backup_schedule_repository import BackupScheduleRepository
+from core.utils.validation import validate_mac
 
 logger = logging.getLogger(__name__)
 
 
 def _default_clock() -> int:
     return int(datetime.now(UTC).timestamp())
+
+
+class ScheduleValidationError(ValueError):
+    """Raised when a schedule fails domain validation."""
 
 
 class ScheduleNotFoundError(Exception):
@@ -69,8 +79,11 @@ class ManageBackupSchedulesUseCase:
         use run-now for an immediate baseline.
 
         Raises:
+            ScheduleValidationError: If the schedule has no targets or its
+                interval is below the minimum.
             ScheduleAlreadyExistsError: If a schedule with the same name exists.
         """
+        _validate_schedule(schedule)
         async with self._repository_factory() as repository:
             if await repository.get_by_name(schedule.name) is not None:
                 raise ScheduleAlreadyExistsError(schedule.name)
@@ -85,10 +98,13 @@ class ManageBackupSchedulesUseCase:
 
         Raises:
             ScheduleNotFoundError: If the schedule does not exist.
+            ScheduleValidationError: If the schedule has no targets or its
+                interval is below the minimum.
             ScheduleAlreadyExistsError: If the new name conflicts with another.
         """
         if schedule.id is None:
             raise ScheduleNotFoundError("unknown (no ID)")
+        _validate_schedule(schedule)
 
         async with self._repository_factory() as repository:
             existing = await repository.get(schedule.id)
@@ -109,6 +125,45 @@ class ManageBackupSchedulesUseCase:
             updated = await repository.update(schedule)
             logger.info("Updated backup schedule: %s", schedule.name)
             return updated
+
+    async def apply_schedule_update(
+        self,
+        schedule_id: int,
+        *,
+        name: str | None = None,
+        interval_seconds: int | None = None,
+        target_ips: list[str] | None = None,
+        target_macs: list[str] | None = None,
+        all_credentialed: bool | None = None,
+        enabled: bool | None = None,
+        retention_keep_last: int | None = None,
+        retention_max_age_days: int | None = None,
+    ) -> BackupSchedule:
+        """Merge the provided fields onto a stored schedule and update it.
+
+        ``None`` means keep the stored value; no field can be cleared here.
+
+        Raises:
+            ScheduleNotFoundError: If the schedule does not exist.
+            ScheduleValidationError: If the merged schedule has no targets or
+                its interval is below the minimum.
+            ScheduleAlreadyExistsError: If the new name conflicts with another.
+        """
+        existing = await self.get_schedule(schedule_id)
+        provided: dict[str, Any] = {
+            "name": name,
+            "interval_seconds": interval_seconds,
+            "target_ips": target_ips,
+            "target_macs": target_macs,
+            "all_credentialed": all_credentialed,
+            "enabled": enabled,
+            "retention_keep_last": retention_keep_last,
+            "retention_max_age_days": retention_max_age_days,
+        }
+        merged = replace(
+            existing, **{k: v for k, v in provided.items() if v is not None}
+        )
+        return await self.update_schedule(merged)
 
     async def set_enabled(self, schedule_id: int, enabled: bool) -> BackupSchedule:
         """Enable or disable a schedule.
@@ -143,3 +198,20 @@ class ManageBackupSchedulesUseCase:
             logger.info(
                 "Deleted backup schedule: %s (id=%s)", existing.name, schedule_id
             )
+
+
+def _validate_schedule(schedule: BackupSchedule) -> None:
+    if not schedule.has_targets:
+        raise ScheduleValidationError(
+            "A schedule needs at least one target "
+            "(target IPs, target MACs, or all credentialed devices)"
+        )
+    if schedule.interval_seconds < MIN_INTERVAL_SECONDS:
+        raise ScheduleValidationError(
+            f"Backup interval must be at least {MIN_INTERVAL_SECONDS} seconds"
+        )
+    for mac in schedule.target_macs:
+        try:
+            validate_mac(mac)
+        except ValueError as e:
+            raise ScheduleValidationError(str(e)) from e

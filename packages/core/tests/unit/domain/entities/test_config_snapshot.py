@@ -1,5 +1,8 @@
 import pytest
 from core.domain.entities.config_snapshot import (
+    CONFIGURABLE_COMPONENT_TYPES,
+    EXPORTABLE_COMPONENT_TYPES,
+    SCHEDULES_KEY,
     ComponentSnapshot,
     DeviceSnapshot,
     SnapshotDeviceInfo,
@@ -176,3 +179,39 @@ class TestDeviceSnapshot:
         snapshot = DeviceSnapshot.from_dict(GEN2_SNAPSHOT)
 
         assert snapshot.legacy_settings is None
+
+
+class TestComponentTypeVocabulary:
+    def test_it_allows_exporting_schedules(self):
+        assert SCHEDULES_KEY in EXPORTABLE_COMPONENT_TYPES
+
+    def test_it_exports_every_component_type_the_namespace_table_knows(self):
+        from core.domain.value_objects.component_namespace import (
+            known_component_types,
+        )
+
+        excluded = {"shelly", "schedule", "kvs", "http", "webhook"}
+        assert known_component_types() - excluded <= EXPORTABLE_COMPONENT_TYPES
+
+    def test_it_does_not_export_the_action_routing_pseudo_components(self):
+        assert "shelly" not in EXPORTABLE_COMPONENT_TYPES
+        assert "schedule" not in EXPORTABLE_COMPONENT_TYPES
+
+    def test_it_does_not_export_the_service_namespaces(self):
+        assert "kvs" not in EXPORTABLE_COMPONENT_TYPES
+        assert "http" not in EXPORTABLE_COMPONENT_TYPES
+        assert "webhook" not in EXPORTABLE_COMPONENT_TYPES
+
+    def test_it_does_not_allow_configuring_schedules(self):
+        assert SCHEDULES_KEY not in CONFIGURABLE_COMPONENT_TYPES
+
+    def test_it_does_not_allow_configuring_energy_data_logs(self):
+        assert "emdata" not in CONFIGURABLE_COMPONENT_TYPES
+        assert "em1data" not in CONFIGURABLE_COMPONENT_TYPES
+
+    def test_it_configures_every_other_exportable_type(self):
+        assert CONFIGURABLE_COMPONENT_TYPES == EXPORTABLE_COMPONENT_TYPES - {
+            SCHEDULES_KEY,
+            "emdata",
+            "em1data",
+        }

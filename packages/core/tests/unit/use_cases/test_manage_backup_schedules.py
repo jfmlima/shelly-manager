@@ -9,6 +9,7 @@ from core.use_cases.manage_backup_schedules import (
     ManageBackupSchedulesUseCase,
     ScheduleAlreadyExistsError,
     ScheduleNotFoundError,
+    ScheduleValidationError,
 )
 
 NOW = 500_000
@@ -53,6 +54,38 @@ class TestCreate:
         with pytest.raises(ScheduleAlreadyExistsError):
             await use_case.create_schedule(_schedule())
 
+    async def test_it_rejects_a_schedule_without_targets(self):
+        repo = AsyncMock()
+        use_case = _use_case(repo)
+
+        with pytest.raises(ScheduleValidationError):
+            await use_case.create_schedule(
+                _schedule(target_ips=[], target_macs=[], all_credentialed=False)
+            )
+
+    async def test_it_rejects_an_interval_below_the_minimum(self):
+        repo = AsyncMock()
+        use_case = _use_case(repo)
+
+        with pytest.raises(ScheduleValidationError):
+            await use_case.create_schedule(_schedule(interval_seconds=59))
+
+    async def test_it_rejects_an_invalid_target_mac(self):
+        repo = AsyncMock()
+        use_case = _use_case(repo)
+
+        with pytest.raises(ScheduleValidationError):
+            await use_case.create_schedule(
+                _schedule(target_ips=[], target_macs=["not-a-mac"])
+            )
+
+    async def test_it_rejects_the_wildcard_as_a_target_mac(self):
+        repo = AsyncMock()
+        use_case = _use_case(repo)
+
+        with pytest.raises(ScheduleValidationError):
+            await use_case.create_schedule(_schedule(target_ips=[], target_macs=["*"]))
+
 
 class TestUpdate:
     async def test_it_recomputes_next_run_when_interval_changes(self):
@@ -89,6 +122,44 @@ class TestUpdate:
 
         with pytest.raises(ScheduleNotFoundError):
             await use_case.update_schedule(_schedule(id=99))
+
+
+class TestApplyScheduleUpdate:
+    async def test_it_merges_provided_fields_onto_the_stored_schedule(self):
+        existing = _schedule(
+            id=1, interval_seconds=3600, next_run_at=NOW + 100, enabled=True
+        )
+        repo = AsyncMock(
+            get=AsyncMock(return_value=existing),
+            get_by_name=AsyncMock(return_value=None),
+            update=AsyncMock(side_effect=lambda s: s),
+        )
+        use_case = _use_case(repo)
+
+        updated = await use_case.apply_schedule_update(1, name="weekly", enabled=False)
+
+        assert updated.name == "weekly"
+        assert updated.enabled is False
+        assert updated.interval_seconds == 3600
+        assert updated.target_ips == ["192.168.1.10"]
+        assert updated.next_run_at == NOW + 100
+
+    async def test_it_rejects_an_update_that_clears_all_targets(self):
+        existing = _schedule(id=1)
+        repo = AsyncMock(get=AsyncMock(return_value=existing))
+        use_case = _use_case(repo)
+
+        with pytest.raises(ScheduleValidationError):
+            await use_case.apply_schedule_update(
+                1, target_ips=[], target_macs=[], all_credentialed=False
+            )
+
+    async def test_it_missing_raises(self):
+        repo = AsyncMock(get=AsyncMock(return_value=None))
+        use_case = _use_case(repo)
+
+        with pytest.raises(ScheduleNotFoundError):
+            await use_case.apply_schedule_update(99, name="renamed")
 
 
 class TestEnableDisableDelete:
