@@ -2,7 +2,12 @@
 Device-related Click commands.
 """
 
+import sys
+
 import click
+from core.domain.enums.enums import UpdateChannel
+from rich.console import Console
+from rich.markup import escape
 
 from ..entities import (
     ComponentActionRequest,
@@ -10,6 +15,7 @@ from ..entities import (
     DeviceScanRequest,
     DeviceStatusRequest,
 )
+from ..exceptions import EXIT_VALIDATION
 from ..presentation.styles import Messages
 from ..use_cases.device.component_actions import ComponentActionsUseCase
 from ..use_cases.device.device_status import DeviceStatusUseCase
@@ -142,13 +148,15 @@ async def status(
 
     try:
         results = await status_use_case.execute(request)
-        status_use_case.display_results(results)
     except ValueError as e:
-        console.print(Messages.error(str(e)))
-        console.print("\nExamples:")
-        console.print("  shelly-manager device status 192.168.1.100 192.168.1.101")
-        console.print("  shelly-manager device status 192.168.1.0/24")
-        raise click.Abort() from None
+        _print_usage_error(
+            console,
+            e,
+            "shelly-manager device status 192.168.1.100 192.168.1.101",
+            "shelly-manager device status 192.168.1.0/24",
+        )
+        sys.exit(EXIT_VALIDATION)
+    status_use_case.display_results(results)
 
 
 @click.group()
@@ -195,13 +203,15 @@ async def list_component_actions(
 
     try:
         results = await actions_use_case.list_actions(request)
-        actions_use_case.display_actions_list(results)
     except ValueError as e:
-        console.print(Messages.error(str(e)))
-        console.print("\nExamples:")
-        console.print("  shelly-manager device actions list -t 192.168.1.100")
-        console.print("  shelly-manager device actions list 192.168.1.0/24")
-        raise click.Abort() from None
+        _print_usage_error(
+            console,
+            e,
+            "shelly-manager device actions list -t 192.168.1.100",
+            "shelly-manager device actions list 192.168.1.0/24",
+        )
+        sys.exit(EXIT_VALIDATION)
+    actions_use_case.display_actions_list(results)
 
 
 @actions.command("execute")
@@ -233,11 +243,6 @@ async def execute_component_action(
       shelly-manager device actions execute switch:0 Toggle -t 192.168.1.100
       shelly-manager device actions execute switch:0 Switch.Toggle -t 192.168.1.100
     """
-    console = ctx.obj.console
-    container = ctx.obj.container
-
-    actions_use_case = ComponentActionsUseCase(container, console)
-
     request = ComponentActionRequest(
         targets=list(targets) + list(targets_opt),
         component_key=component_key,
@@ -247,21 +252,12 @@ async def execute_component_action(
         force=force,
     )
 
-    try:
-        results = await actions_use_case.execute_action(request)
-        actions_use_case.display_action_results(results)
-    except ValueError as e:
-        console.print(Messages.error(str(e)))
-        console.print("\nExamples:")
-        console.print(
-            "  shelly-manager device actions execute shelly Reboot -t 192.168.1.100"
-        )
-        console.print(
-            "  shelly-manager device actions execute switch:0 Toggle -t 192.168.1.0/24"
-        )
-        raise click.Abort() from None
-    except RuntimeError:
-        return
+    await _run_component_action(
+        ctx,
+        request,
+        "shelly-manager device actions execute shelly Reboot -t 192.168.1.100",
+        "shelly-manager device actions execute switch:0 Toggle -t 192.168.1.0/24",
+    )
 
 
 device_commands.add_command(actions)
@@ -288,11 +284,6 @@ async def reboot_devices(
       shelly-manager device reboot -t 192.168.1.100
       shelly-manager device reboot 192.168.1.0/24 --force
     """
-    console = ctx.obj.console
-    container = ctx.obj.container
-
-    actions_use_case = ComponentActionsUseCase(container, console)
-
     request = ComponentActionRequest(
         targets=list(targets) + list(targets_opt),
         component_key="shelly",
@@ -302,23 +293,22 @@ async def reboot_devices(
         force=force,
     )
 
-    try:
-        results = await actions_use_case.execute_action(request)
-        actions_use_case.display_action_results(results)
-    except ValueError as e:
-        console.print(Messages.error(str(e)))
-        console.print("\nExamples:")
-        console.print("  shelly-manager device reboot -t 192.168.1.100")
-        console.print("  shelly-manager device reboot 192.168.1.0/24 --force")
-        raise click.Abort() from None
-    except RuntimeError:
-        return
+    await _run_component_action(
+        ctx,
+        request,
+        "shelly-manager device reboot -t 192.168.1.100",
+        "shelly-manager device reboot 192.168.1.0/24 --force",
+    )
 
 
 @device_commands.command("update")
 @click.argument("targets", nargs=-1)
 @device_targeting_options
-@click.option("--channel", type=click.Choice(["stable", "beta"]), default="stable")
+@click.option(
+    "--channel",
+    type=click.Choice([channel.value for channel in UpdateChannel]),
+    default=UpdateChannel.STABLE.value,
+)
 @click.option("--force", is_flag=True)
 @common_options
 @click.pass_context
@@ -338,36 +328,22 @@ async def update_firmware(
       shelly-manager device update -t 192.168.1.100
       shelly-manager device update 192.168.1.0/24 --channel beta
     """
-    console = ctx.obj.console
-    container = ctx.obj.container
-
-    actions_use_case = ComponentActionsUseCase(container, console)
-
-    update_parameters = {}
-    if channel != "stable":
-        update_parameters["channel"] = channel
-
     request = ComponentActionRequest(
         targets=list(targets) + list(targets_opt),
         component_key="shelly",
         action="Update",
-        parameters=update_parameters,
+        parameters=UpdateChannel(channel).to_update_parameters(),
         timeout=timeout,
         workers=workers,
         force=force,
     )
 
-    try:
-        results = await actions_use_case.execute_action(request)
-        actions_use_case.display_action_results(results)
-    except ValueError as e:
-        console.print(Messages.error(str(e)))
-        console.print("\nExamples:")
-        console.print("  shelly-manager device update -t 192.168.1.100")
-        console.print("  shelly-manager device update 192.168.1.0/24 --channel beta")
-        raise click.Abort() from None
-    except RuntimeError:
-        return
+    await _run_component_action(
+        ctx,
+        request,
+        "shelly-manager device update -t 192.168.1.100",
+        "shelly-manager device update 192.168.1.0/24 --channel beta",
+    )
 
 
 @device_commands.command("toggle")
@@ -392,11 +368,6 @@ async def toggle_component(
       shelly-manager device toggle switch:0 -t 192.168.1.100
       shelly-manager device toggle switch:1 192.168.1.0/24
     """
-    console = ctx.obj.console
-    container = ctx.obj.container
-
-    actions_use_case = ComponentActionsUseCase(container, console)
-
     request = ComponentActionRequest(
         targets=list(targets) + list(targets_opt),
         component_key=component_key,
@@ -406,17 +377,34 @@ async def toggle_component(
         force=force,
     )
 
+    await _run_component_action(
+        ctx,
+        request,
+        "shelly-manager device toggle switch:0 -t 192.168.1.100",
+        "shelly-manager device toggle switch:1 192.168.1.0/24",
+    )
+
+
+def _print_usage_error(console: Console, error: Exception, *examples: str) -> None:
+    console.print(Messages.error(escape(str(error))))
+    console.print("\nExamples:")
+    for example in examples:
+        console.print(f"  {example}")
+
+
+async def _run_component_action(
+    ctx: click.Context,
+    request: ComponentActionRequest,
+    *examples: str,
+) -> None:
+    console = ctx.obj.console
+    actions_use_case = ComponentActionsUseCase(ctx.obj.container, console)
     try:
         results = await actions_use_case.execute_action(request)
-        actions_use_case.display_action_results(results)
     except ValueError as e:
-        console.print(Messages.error(str(e)))
-        console.print("\nExamples:")
-        console.print("  shelly-manager device toggle switch:0 -t 192.168.1.100")
-        console.print("  shelly-manager device toggle switch:1 192.168.1.0/24")
-        raise click.Abort() from None
-    except RuntimeError:
-        return
+        _print_usage_error(console, e, *examples)
+        sys.exit(EXIT_VALIDATION)
+    actions_use_case.display_action_results(results)
 
 
 __all__ = ["device_commands", "scan"]

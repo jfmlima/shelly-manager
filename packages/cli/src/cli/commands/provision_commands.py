@@ -19,9 +19,6 @@ def provision_commands() -> None:
     pass
 
 
-# --- Device operations ---
-
-
 @provision_commands.command("detect")
 @click.option(
     "--ip",
@@ -44,12 +41,8 @@ async def detect_device(
     request = DetectDeviceRequest(device_ip=ip, timeout=timeout)
     use_case = container.get_provision_device_interactor()
 
-    try:
-        with console.status(f"Detecting device at {ip}..."):
-            info = await use_case.detect(request)
-    except Exception as e:
-        console.print(Messages.error(f"Detection failed: {e}"))
-        raise click.Abort() from None
+    with console.status(f"Detecting device at {ip}..."):
+        info = await use_case.detect(request)
 
     table = Table(title="Detected Device", show_header=False)
     table.add_column("Field", style="cyan")
@@ -97,16 +90,11 @@ async def run_provision(
     console = ctx.obj.console
     container = ctx.obj.container
 
-    # Resolve profile ID from name
     profile_id: int | None = None
     if profile_name:
         profiles_uc = container.get_manage_profiles_interactor()
-        profiles = await profiles_uc.list_profiles()
-        matched = [p for p in profiles if p.name == profile_name]
-        if not matched:
-            console.print(Messages.error(f"Profile not found: {profile_name}"))
-            raise click.Abort()
-        profile_id = matched[0].id
+        profile = await profiles_uc.get_profile_by_name(profile_name)
+        profile_id = profile.id
 
     request = ProvisionDeviceRequest(
         device_ip=ip,
@@ -120,7 +108,6 @@ async def run_provision(
 
     result = await use_case.execute(request)
 
-    # Display steps
     for step in result.steps_completed:
         icon = "[green]OK[/green]"
         restart = (
@@ -143,7 +130,6 @@ async def run_provision(
             )
         )
 
-        # Verification step
         if result.needs_verification and verify_targets:
             console.print(
                 "\n[yellow]Please reconnect to your main network, "
@@ -184,9 +170,6 @@ async def run_provision(
             )
         )
         raise click.Abort()
-
-
-# --- Profile management ---
 
 
 @provision_commands.group("profiles")
@@ -298,17 +281,13 @@ async def create_profile(
 
     use_case = container.get_manage_profiles_interactor()
 
-    try:
-        created = await use_case.create_profile(profile)
-        console.print(
-            Messages.success(
-                f"Profile '{created.name}' created (id={created.id})"
-                + (" [default]" if created.is_default else "")
-            )
+    created = await use_case.create_profile(profile)
+    console.print(
+        Messages.success(
+            f"Profile '{created.name}' created (id={created.id})"
+            + (" [default]" if created.is_default else "")
         )
-    except Exception as e:
-        console.print(Messages.error(f"Failed to create profile: {e}"))
-        raise click.Abort() from None
+    )
 
 
 @profile_commands.command("delete")
@@ -327,19 +306,10 @@ async def delete_profile(
     container = ctx.obj.container
 
     use_case = container.get_manage_profiles_interactor()
-    profiles = await use_case.list_profiles()
-    matched = [p for p in profiles if p.name == name]
+    profile = await use_case.get_profile_by_name(name)
 
-    if not matched:
-        console.print(Messages.error(f"Profile not found: {name}"))
-        raise click.Abort()
-
-    try:
-        await use_case.delete_profile(matched[0].id)
-        console.print(Messages.success(f"Profile '{name}' deleted"))
-    except Exception as e:
-        console.print(Messages.error(f"Failed to delete profile: {e}"))
-        raise click.Abort() from None
+    await use_case.delete_profile(profile.id)
+    console.print(Messages.success(f"Profile '{name}' deleted"))
 
 
 @profile_commands.command("set-default")
@@ -358,16 +328,7 @@ async def set_default_profile(
     container = ctx.obj.container
 
     use_case = container.get_manage_profiles_interactor()
-    profiles = await use_case.list_profiles()
-    matched = [p for p in profiles if p.name == name]
+    profile = await use_case.get_profile_by_name(name)
 
-    if not matched:
-        console.print(Messages.error(f"Profile not found: {name}"))
-        raise click.Abort()
-
-    try:
-        await use_case.set_default_profile(matched[0].id)
-        console.print(Messages.success(f"Profile '{name}' set as default"))
-    except Exception as e:
-        console.print(Messages.error(f"Failed to set default: {e}"))
-        raise click.Abort() from None
+    await use_case.set_default_profile(profile.id)
+    console.print(Messages.success(f"Profile '{name}' set as default"))

@@ -11,6 +11,7 @@ from core.domain.value_objects.provision_request import (
     ProvisionResult,
     ProvisionStep,
 )
+from core.use_cases.manage_provisioning_profiles import ProfileNotFoundError
 
 
 class TestProvisionCommands:
@@ -189,9 +190,9 @@ class TestRunProvisionCommand:
         mock_provision_interactor,
         mock_profiles_interactor,
     ):
-        mock_profiles_interactor.list_profiles.return_value = [
-            ProvisioningProfile(id=5, name="my-profile", is_default=False),
-        ]
+        mock_profiles_interactor.get_profile_by_name.return_value = ProvisioningProfile(
+            id=5, name="my-profile", is_default=False
+        )
         mock_provision_interactor.execute.return_value = ProvisionResult(
             success=True,
             device_id="test-device",
@@ -211,16 +212,18 @@ class TestRunProvisionCommand:
         )
 
         assert result.exit_code == 0
-        mock_profiles_interactor.list_profiles.assert_called_once()
+        mock_profiles_interactor.get_profile_by_name.assert_called_once_with(
+            "my-profile"
+        )
         call_args = mock_provision_interactor.execute.call_args[0][0]
         assert call_args.profile_id == 5
 
     def test_run_provision_with_unknown_profile_aborts(
         self, cli_context_with_provision, mock_profiles_interactor
     ):
-        mock_profiles_interactor.list_profiles.return_value = [
-            ProvisioningProfile(id=1, name="other", is_default=False),
-        ]
+        mock_profiles_interactor.get_profile_by_name.side_effect = ProfileNotFoundError(
+            "nonexistent"
+        )
 
         runner = CliRunner()
         result = runner.invoke(
@@ -436,9 +439,9 @@ class TestProfileDeleteCommand:
     def test_delete_profile_success(
         self, cli_context_with_profiles, mock_profiles_interactor
     ):
-        mock_profiles_interactor.list_profiles.return_value = [
-            ProvisioningProfile(id=1, name="to-delete", is_default=False),
-        ]
+        mock_profiles_interactor.get_profile_by_name.return_value = ProvisioningProfile(
+            id=1, name="to-delete", is_default=False
+        )
         mock_profiles_interactor.delete_profile.return_value = None
 
         runner = CliRunner()
@@ -454,9 +457,9 @@ class TestProfileDeleteCommand:
     def test_delete_profile_not_found_aborts(
         self, cli_context_with_profiles, mock_profiles_interactor
     ):
-        mock_profiles_interactor.list_profiles.return_value = [
-            ProvisioningProfile(id=1, name="other", is_default=False),
-        ]
+        mock_profiles_interactor.get_profile_by_name.side_effect = ProfileNotFoundError(
+            "nonexistent"
+        )
 
         runner = CliRunner()
         result = runner.invoke(
@@ -484,9 +487,9 @@ class TestProfileSetDefaultCommand:
     def test_set_default_success(
         self, cli_context_with_profiles, mock_profiles_interactor
     ):
-        mock_profiles_interactor.list_profiles.return_value = [
-            ProvisioningProfile(id=2, name="my-profile", is_default=False),
-        ]
+        mock_profiles_interactor.get_profile_by_name.return_value = ProvisioningProfile(
+            id=2, name="my-profile", is_default=False
+        )
         mock_profiles_interactor.set_default_profile.return_value = None
 
         runner = CliRunner()
@@ -502,7 +505,9 @@ class TestProfileSetDefaultCommand:
     def test_set_default_not_found_aborts(
         self, cli_context_with_profiles, mock_profiles_interactor
     ):
-        mock_profiles_interactor.list_profiles.return_value = []
+        mock_profiles_interactor.get_profile_by_name.side_effect = ProfileNotFoundError(
+            "nonexistent"
+        )
 
         runner = CliRunner()
         result = runner.invoke(

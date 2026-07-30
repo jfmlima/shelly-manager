@@ -2,13 +2,17 @@
 Bulk operations commands for the CLI.
 """
 
-import asyncio
 import json
 from pathlib import Path
 
 import click
+from core.domain.entities.config_snapshot import (
+    CONFIGURABLE_COMPONENT_TYPES,
+    EXPORTABLE_COMPONENT_TYPES,
+)
+from core.domain.enums.enums import UpdateChannel
 
-from cli.commands.common import device_targeting_options
+from cli.commands.common import async_command, device_targeting_options
 from cli.entities.bulk import (
     BulkConfigApplyRequest,
     BulkConfigExportRequest,
@@ -40,7 +44,8 @@ def bulk() -> None:
     help="Number of concurrent operations (default: 10)",
 )
 @click.pass_context
-def reboot(
+@async_command
+async def reboot(
     ctx: click.Context,
     targets: tuple[str, ...],
     targets_opt: tuple[str, ...],
@@ -65,7 +70,7 @@ def reboot(
         workers=workers,
     )
 
-    result = asyncio.run(bulk_use_case.execute_bulk_reboot(request))
+    result = await bulk_use_case.execute_bulk_reboot(request)
     bulk_use_case.display_bulk_results(result)
 
 
@@ -74,8 +79,8 @@ def reboot(
 @device_targeting_options
 @click.option(
     "--channel",
-    type=click.Choice(["stable", "beta"]),
-    default="stable",
+    type=click.Choice([channel.value for channel in UpdateChannel]),
+    default=UpdateChannel.STABLE.value,
     help="Update channel (default: stable)",
 )
 @click.option("--force", is_flag=True, help="Skip confirmation prompts")
@@ -86,7 +91,8 @@ def reboot(
     help="Number of concurrent operations (default: 10)",
 )
 @click.pass_context
-def update(
+@async_command
+async def update(
     ctx: click.Context,
     targets: tuple[str, ...],
     targets_opt: tuple[str, ...],
@@ -112,7 +118,7 @@ def update(
         workers=workers,
     )
 
-    result = asyncio.run(bulk_use_case.execute_bulk_update(request, channel))
+    result = await bulk_use_case.execute_bulk_update(request, channel)
     bulk_use_case.display_bulk_results(result)
 
 
@@ -149,7 +155,8 @@ def config() -> None:
     help="Number of concurrent operations (default: 10)",
 )
 @click.pass_context
-def export(
+@async_command
+async def export(
     ctx: click.Context,
     targets: tuple[str, ...],
     targets_opt: tuple[str, ...],
@@ -169,6 +176,11 @@ def export(
     container = ctx.obj.container
 
     component_types = [comp.strip() for comp in components.split(",")]
+    invalid_types = [
+        comp for comp in component_types if comp not in EXPORTABLE_COMPONENT_TYPES
+    ]
+    if invalid_types:
+        raise ValueError(f"Invalid component types: {invalid_types}")
 
     output_path = Path(output)
     if output_path.exists() and not force:
@@ -187,13 +199,8 @@ def export(
         workers=workers,
     )
 
-    try:
-        result = asyncio.run(bulk_use_case.execute_bulk_config_export(request))
-    except ValueError as e:
-        console.print(f"[yellow]{e}[/yellow]")
-        raise click.Abort() from None
+    result = await bulk_use_case.execute_bulk_config_export(request)
 
-    # Write to output file
     try:
         with open(output, "w") as f:
             json.dump(result, f, indent=2)
@@ -228,7 +235,8 @@ def export(
     help="Number of concurrent operations (default: 10)",
 )
 @click.pass_context
-def apply(
+@async_command
+async def apply(
     ctx: click.Context,
     targets: tuple[str, ...],
     targets_opt: tuple[str, ...],
@@ -252,13 +260,14 @@ def apply(
     container = ctx.obj.container
     all_targets = list(targets) + list(targets_opt)
 
+    if component not in CONFIGURABLE_COMPONENT_TYPES:
+        raise ValueError(f"Invalid component type: {component}")
+
     if not config_file and not config:
-        console.print("[red]Error: Either --config-file or --config must be provided.")
-        raise click.Abort()
+        raise ValueError("Either --config-file or --config must be provided.")
 
     if config_file and config:
-        console.print("[red]Error: Cannot use both --config-file and --config options.")
-        raise click.Abort()
+        raise ValueError("Cannot use both --config-file and --config options.")
 
     config_data = None
     config_source = ""
@@ -269,16 +278,14 @@ def apply(
                 config_data = json.load(f)
             config_source = f"file: {config_file}"
         except (FileNotFoundError, json.JSONDecodeError) as e:
-            console.print(f"[red]Error reading config file: {e}")
-            raise click.Abort() from e
+            raise ValueError(f"Error reading config file: {e}") from e
     else:
         try:
             assert config is not None
             config_data = json.loads(config)
             config_source = "command line"
         except json.JSONDecodeError as e:
-            console.print(f"[red]Error parsing config JSON: {e}")
-            raise click.Abort() from e
+            raise ValueError(f"Error parsing config JSON: {e}") from e
 
     if not force:
         device_count = len(all_targets) if all_targets else "discovered"
@@ -303,11 +310,7 @@ def apply(
         workers=workers,
     )
 
-    try:
-        results = asyncio.run(bulk_use_case.execute_bulk_config_apply(request))
-    except ValueError as e:
-        console.print(f"[red]Error: {e}")
-        raise click.Abort() from None
+    results = await bulk_use_case.execute_bulk_config_apply(request)
 
     successful = len([r for r in results if r.success])
     failed = len([r for r in results if not r.success])
