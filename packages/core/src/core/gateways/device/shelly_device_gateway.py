@@ -21,6 +21,7 @@ from ...domain.value_objects.action_result import ActionResult
 from ...services.auth_state_cache import AuthStateCache
 from ...utils.validation import normalize_mac
 from ..network.network import RpcNetworkGateway
+from ..network.rpc_envelope import RpcError, rpc_result
 from .device import DeviceGateway
 from .legacy_device_gateway import LegacyDeviceGateway
 from .legacy_route import LegacyRoute
@@ -265,7 +266,15 @@ class ShellyDeviceGateway(DeviceGateway):
                 message=(
                     f"{action_name.method} executed successfully on {component_key}"
                 ),
-                data=response,
+                data=rpc_result(response),
+            )
+
+        except RpcError as e:
+            # The device answered, and refused. That is a failed action, not a
+            # transport problem, and it carries the device's own reason.
+            return envelope.failed(
+                message=f"{action_name.method} failed on {component_key}",
+                error=str(e),
             )
 
         except Exception as e:
