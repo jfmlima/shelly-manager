@@ -1,4 +1,5 @@
 import click
+from core.utils.validation import validate_mac
 from rich.table import Table
 
 from cli.commands.common import async_command
@@ -27,14 +28,11 @@ async def set_credential(
     console = ctx.obj.console
     container = ctx.obj.container
 
-    try:
-        await container.initialize_database()
-        async with container.create_credentials_repository() as repo:
-            await repo.set(mac, username, password)
-        console.print(f"✅ Credentials set for [bold]{mac.upper()}[/bold]")
-    except Exception as e:
-        console.print(Messages.error(f"Failed to set credentials: {e}"))
-        raise click.Abort() from None
+    mac = validate_mac(mac, allow_wildcard=True)
+    await container.initialize_database()
+    async with container.create_credentials_repository() as repo:
+        await repo.set(mac, username, password)
+    console.print(f"✅ Credentials set for [bold]{mac.upper()}[/bold]")
 
 
 @credential_commands.command("set-global")
@@ -51,14 +49,10 @@ async def set_global_credential(
     console = ctx.obj.console
     container = ctx.obj.container
 
-    try:
-        await container.initialize_database()
-        async with container.create_credentials_repository() as repo:
-            await repo.set("*", username, password)
-        console.print("✅ Global fallback credentials set")
-    except Exception as e:
-        console.print(Messages.error(f"Failed to set global credentials: {e}"))
-        raise click.Abort() from None
+    await container.initialize_database()
+    async with container.create_credentials_repository() as repo:
+        await repo.set("*", username, password)
+    console.print("✅ Global fallback credentials set")
 
 
 @credential_commands.command("list")
@@ -69,33 +63,27 @@ async def list_credentials(ctx: click.Context) -> None:
     console = ctx.obj.console
     container = ctx.obj.container
 
-    try:
-        await container.initialize_database()
-        async with container.create_credentials_repository() as repo:
-            creds = [
-                credential
-                for credential in await repo.list_all()
-                if credential is not None
-            ]
-        if not creds:
-            console.print(Messages.warning("No credentials stored."))
-            return
+    await container.initialize_database()
+    async with container.create_credentials_repository() as repo:
+        creds = [
+            credential for credential in await repo.list_all() if credential is not None
+        ]
+    if not creds:
+        console.print(Messages.warning("No credentials stored."))
+        return
 
-        table = Table(show_header=True, header_style="bold magenta")
-        table.add_column("MAC Address", style="cyan")
-        table.add_column("Username", style="green")
-        table.add_column("Last Seen IP", style="yellow")
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("MAC Address", style="cyan")
+    table.add_column("Username", style="green")
+    table.add_column("Last Seen IP", style="yellow")
 
-        for c in creds:
-            mac_display = c.mac
-            if c.mac == "*":
-                mac_display = "[bold]GLOBAL FALLBACK[/bold]"
-            table.add_row(mac_display, c.username, c.last_seen_ip or "-")
+    for c in creds:
+        mac_display = c.mac
+        if c.mac == "*":
+            mac_display = "[bold]GLOBAL FALLBACK[/bold]"
+        table.add_row(mac_display, c.username, c.last_seen_ip or "-")
 
-        console.print(table)
-    except Exception as e:
-        console.print(Messages.error(f"Failed to list credentials: {e}"))
-        raise click.Abort() from None
+    console.print(table)
 
 
 @credential_commands.command("delete")
@@ -107,11 +95,7 @@ async def delete_credential(ctx: click.Context, mac: str) -> None:
     console = ctx.obj.console
     container = ctx.obj.container
 
-    try:
-        await container.initialize_database()
-        async with container.create_credentials_repository() as repo:
-            await repo.delete(mac)
-        console.print(f"✅ Credentials deleted for [bold]{mac.upper()}[/bold]")
-    except Exception as e:
-        console.print(Messages.error(f"Failed to delete credentials: {e}"))
-        raise click.Abort() from None
+    await container.initialize_database()
+    async with container.create_credentials_repository() as repo:
+        await repo.delete(mac)
+    console.print(f"✅ Credentials deleted for [bold]{mac.upper()}[/bold]")

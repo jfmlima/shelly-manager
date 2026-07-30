@@ -22,6 +22,7 @@ from cli.entities.component_actions import (
     ComponentActionsListRequest,
     ComponentActionsListResult,
 )
+from cli.exceptions import OperationCancelledError
 
 from ..common.device_discovery import DeviceDiscoveryRequest, DeviceDiscoveryUseCase
 from ..common.progress_tracking import ProgressTracker
@@ -79,7 +80,7 @@ class ComponentActionsUseCase:
             self._console.print(f"[yellow]Target devices:[/yellow] {devices}")
 
             if not self._console.input("\nContinue? [y/N]: ").lower().startswith("y"):
-                raise RuntimeError("Operation cancelled by user")
+                raise OperationCancelledError("Operation cancelled by user")
 
         results = []
         execute_interactor = self._container.get_execute_component_action_interactor()

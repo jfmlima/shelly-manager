@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock
 
 from cli.commands.export_commands import export_commands
+from cli.exceptions import EXIT_VALIDATION
 from click.testing import CliRunner
 
 
@@ -57,9 +58,4 @@ class TestExportCommands:
             obj=cli_context,
         )
 
-        assert result.exit_code != 0
-        assert (
-            "Aborted" in result.output
-            or "Missing" in result.output
-            or "Error" in result.output
-        )
+        assert result.exit_code == EXIT_VALIDATION

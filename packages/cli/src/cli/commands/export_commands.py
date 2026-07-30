@@ -2,9 +2,12 @@
 Export-related Click commands.
 """
 
+import sys
+
 import click
 
 from ..entities import ExportRequest
+from ..exceptions import EXIT_VALIDATION
 from ..use_cases.export.device_export import DeviceExportUseCase
 from .common import (
     async_command,
@@ -84,13 +87,11 @@ async def devices(
 
     try:
         success = await export_use_case.execute(request)
-        if not success:
-            raise click.Abort()
     except ValueError as e:
         console.print(f"[red]❌ {e}[/red]")
-        raise click.Abort() from None
-    except RuntimeError:
-        return
+        sys.exit(EXIT_VALIDATION)
+    if not success:
+        raise click.Abort()
 
 
 __all__ = ["export_commands"]
