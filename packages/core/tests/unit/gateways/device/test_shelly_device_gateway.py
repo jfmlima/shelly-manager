@@ -9,6 +9,7 @@ from core.domain.entities.exceptions import (
     DeviceUnreachableError,
 )
 from core.domain.enums.enums import Status
+from core.domain.value_objects.action_result import ActionResult
 from core.gateways.device.legacy_device_gateway import LegacyDeviceGateway
 from core.gateways.device.shelly_device_gateway import ShellyDeviceGateway
 
@@ -103,60 +104,6 @@ class TestShellyDeviceGateway:
         assert result.status == Status.UNREACHABLE
         assert result.error_message == "Network timeout"
         assert isinstance(result.last_seen, datetime)
-
-    async def test_it_discovers_legacy_device_when_rpc_fails(
-        self, gateway, mock_rpc_client, mock_legacy_gateway
-    ):
-        mock_rpc_client.make_rpc_request = AsyncMock(side_effect=Exception("RPC fail"))
-
-        legacy_device = DiscoveredDevice(
-            ip="192.168.1.200",
-            status=Status.UPDATE_AVAILABLE,
-            device_id="legacy-001",
-            device_type="SHSW-1",
-            device_name="Legacy Switch Friendly",
-            firmware_version="20220101-121314",
-            response_time=0.1,
-            last_seen=datetime.now(),
-            has_update=True,
-        )
-        mock_legacy_gateway.discover_device.return_value = legacy_device
-
-        result = await gateway.discover_device("192.168.1.200")
-
-        assert result is legacy_device
-        mock_legacy_gateway.discover_device.assert_awaited_once_with(
-            "192.168.1.200", timeout=10.0
-        )
-
-    async def test_it_skips_legacy_fallback_when_host_unreachable(
-        self, gateway, mock_rpc_client, mock_legacy_gateway
-    ):
-        mock_rpc_client.make_rpc_request = AsyncMock(
-            side_effect=DeviceUnreachableError("192.168.1.250", "connect timeout")
-        )
-
-        result = await gateway.discover_device("192.168.1.250")
-
-        assert result is not None
-        assert result.status == Status.UNREACHABLE
-        mock_legacy_gateway.discover_device.assert_not_called()
-
-    async def test_it_forwards_timeout_to_rpc_and_legacy(
-        self, gateway, mock_rpc_client, mock_legacy_gateway
-    ):
-        mock_rpc_client.make_rpc_request = AsyncMock(side_effect=Exception("RPC fail"))
-        mock_legacy_gateway.discover_device.return_value = None
-
-        await gateway.discover_device("192.168.1.42", timeout=2.5)
-
-        assert mock_rpc_client.make_rpc_request.call_args_list[0] == (
-            ("192.168.1.42", "Shelly.GetDeviceInfo"),
-            {"timeout": 2.5},
-        )
-        mock_legacy_gateway.discover_device.assert_awaited_once_with(
-            "192.168.1.42", timeout=2.5
-        )
 
     async def test_it_gets_device_status_with_updates(self, gateway, mock_rpc_client):
         components_data = {
@@ -341,86 +288,6 @@ class TestShellyDeviceGateway:
         assert calls[2] == (("192.168.1.100", "Shelly.GetStatus"), {"timeout": 10.0})
         assert calls[3] == (("192.168.1.100", "Shelly.ListMethods"), {"timeout": 10.0})
 
-    async def test_it_gets_legacy_status_when_rpc_not_supported(
-        self, gateway, mock_rpc_client, mock_legacy_gateway
-    ):
-        mock_rpc_client.make_rpc_request = AsyncMock(side_effect=Exception("RPC fail"))
-
-        legacy_status = DeviceStatus(
-            device_ip="192.168.1.200",
-            components=[],
-            total_components=0,
-            device_name="Legacy Switch",
-        )
-        mock_legacy_gateway.get_device_status.return_value = legacy_status
-
-        result = await gateway.get_device_status("192.168.1.200")
-
-        assert result is legacy_status
-        mock_legacy_gateway.get_device_status.assert_awaited_once_with("192.168.1.200")
-
-    async def test_it_executes_legacy_switch_action(self, gateway, mock_legacy_gateway):
-        from core.domain.value_objects.action_result import ActionResult
-
-        expected_result = ActionResult(
-            device_ip="192.168.1.200",
-            action_type="switch:0.Legacy.Toggle",
-            success=True,
-            message="Relay toggled successfully",
-        )
-        mock_legacy_gateway.execute_action.return_value = expected_result
-
-        result = await gateway.execute_component_action(
-            "192.168.1.200", "switch:0", "Legacy.Toggle"
-        )
-
-        assert result is expected_result
-        mock_legacy_gateway.execute_action.assert_awaited_once_with(
-            "192.168.1.200", "switch:0", "Legacy.Toggle", {}
-        )
-
-    async def test_it_handles_unsupported_legacy_action(
-        self, gateway, mock_rpc_client, mock_legacy_gateway
-    ):
-        from core.domain.value_objects.action_result import ActionResult
-
-        mock_legacy_gateway.execute_action.return_value = ActionResult(
-            device_ip="192.168.1.200",
-            action_type="wifi.Legacy.Toggle",
-            success=False,
-            message="Legacy action Legacy.Toggle not supported for wifi",
-            error="Legacy action Legacy.Toggle not supported for wifi",
-        )
-
-        result = await gateway.execute_component_action(
-            "192.168.1.200", "wifi", "Legacy.Toggle"
-        )
-
-        assert result.success is False
-        assert "not supported" in result.message
-
-    async def test_it_executes_legacy_input_mode_change(
-        self, gateway, mock_legacy_gateway
-    ):
-        from core.domain.value_objects.action_result import ActionResult
-
-        expected_result = ActionResult(
-            device_ip="192.168.1.200",
-            action_type="input:0.Legacy.InputMomentary",
-            success=True,
-            message="Input set to momentary",
-        )
-        mock_legacy_gateway.execute_action.return_value = expected_result
-
-        result = await gateway.execute_component_action(
-            "192.168.1.200", "input:0", "Legacy.InputMomentary"
-        )
-
-        assert result is expected_result
-        mock_legacy_gateway.execute_action.assert_awaited_once_with(
-            "192.168.1.200", "input:0", "Legacy.InputMomentary", {}
-        )
-
     async def test_it_handles_update_check_failure_gracefully(
         self, gateway, mock_rpc_client
     ):
@@ -508,6 +375,45 @@ class TestShellyDeviceGateway:
 
         with pytest.raises(DeviceAuthenticationError):
             await gateway.get_device_status("192.168.1.100")
+
+    async def test_it_marks_auth_required_before_a_later_read_can_fail(
+        self, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.auth_state_cache = MagicMock()
+        gateway = ShellyDeviceGateway(
+            rpc_client=mock_rpc_client, legacy_gateway=mock_legacy_gateway
+        )
+        mock_legacy_gateway.get_device_status.return_value = None
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                ({"auth_en": True}, 0.1),
+                (None, 0.1),
+                ({}, 0.1),
+                ({"methods": []}, 0.05),
+            ]
+        )
+
+        await gateway.get_device_status("192.168.1.100")
+
+        mock_rpc_client.auth_state_cache.mark_auth_required.assert_called_once()
+
+    async def test_it_does_not_propagate_an_auth_error_from_device_info_alone(
+        self, gateway, mock_rpc_client
+    ):
+        components_data = {"components": [], "cfg_rev": 1, "total": 0}
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                DeviceAuthenticationError("192.168.1.100", "No credentials stored"),
+                (components_data, 0.1),
+                ({"sys": {}}, 0.1),
+                ({"methods": ["Switch.Toggle"]}, 0.05),
+            ]
+        )
+
+        result = await gateway.get_device_status("192.168.1.100")
+
+        assert isinstance(result, DeviceStatus)
+        assert result.device_name is None
 
     async def test_it_continues_on_generic_error_in_get_device_status(
         self, gateway, mock_rpc_client
@@ -1091,20 +997,6 @@ class TestActionNameResolution:
             "192.168.1.100", "Switch.Toggle", params={"id": 0}, timeout=10.0
         )
 
-    async def test_it_routes_a_qualified_legacy_action_to_the_legacy_gateway(
-        self, gateway, mock_rpc_client
-    ):
-        mock_rpc_client.make_rpc_request = AsyncMock()
-
-        await gateway.execute_component_action(
-            "192.168.1.100", "switch:0", "Legacy.Toggle"
-        )
-
-        gateway._legacy_gateway.execute_action.assert_awaited_once_with(
-            "192.168.1.100", "switch:0", "Legacy.Toggle", {}
-        )
-        mock_rpc_client.make_rpc_request.assert_not_called()
-
     @pytest.mark.parametrize("action", ["Reboot", "Shelly.Reboot"])
     async def test_it_accepts_bulk_actions_bare_or_qualified(
         self, gateway, mock_rpc_client, action
@@ -1241,7 +1133,7 @@ class TestComponentOwnershipOnExecute:
         sent = [c.args[1] for c in mock_rpc_client.make_rpc_request.call_args_list]
         assert sent == ["Shelly.ListMethods"]
 
-    async def test_a_bare_action_still_runs_when_list_methods_fails(
+    async def test_it_still_runs_a_bare_action_when_list_methods_fails(
         self, gateway, mock_rpc_client
     ):
         mock_rpc_client.make_rpc_request = AsyncMock(
@@ -1285,7 +1177,7 @@ class TestUnreadableMethodLists:
 
         assert await gateway.get_available_methods("192.168.1.100") == expected
 
-    async def test_a_list_of_non_names_does_not_break_execution(
+    async def test_it_does_not_break_execution_on_a_list_of_non_names(
         self, gateway, mock_rpc_client
     ):
         mock_rpc_client.make_rpc_request = AsyncMock(
@@ -1352,3 +1244,208 @@ class TestBulkAllowlistCasing:
     ):
         with pytest.raises(ValueError):
             await gateway.execute_bulk_action(["192.168.1.100"], component_key, action)
+
+
+class TestLegacyRouting:
+    """The one seam between the RPC path and the Gen1 HTTP path."""
+
+    @pytest.fixture
+    def mock_rpc_client(self):
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_legacy_gateway(self):
+        return AsyncMock(spec=LegacyDeviceGateway)
+
+    @pytest.fixture
+    def gateway(self, mock_rpc_client, mock_legacy_gateway):
+        return ShellyDeviceGateway(
+            rpc_client=mock_rpc_client, legacy_gateway=mock_legacy_gateway
+        )
+
+    @pytest.fixture
+    def rpc_only_gateway(self, mock_rpc_client):
+        return ShellyDeviceGateway(rpc_client=mock_rpc_client)
+
+    async def test_it_discovers_over_the_legacy_path_when_rpc_fails(
+        self, gateway, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(side_effect=Exception("RPC fail"))
+        legacy_device = DiscoveredDevice(
+            ip="192.168.1.200",
+            status=Status.UPDATE_AVAILABLE,
+            device_id="legacy-001",
+            device_type="SHSW-1",
+            last_seen=datetime.now(),
+            has_update=True,
+        )
+        mock_legacy_gateway.discover_device.return_value = legacy_device
+
+        result = await gateway.discover_device("192.168.1.200")
+
+        assert result is legacy_device
+        mock_legacy_gateway.discover_device.assert_awaited_once_with(
+            "192.168.1.200", timeout=10.0
+        )
+
+    async def test_it_skips_the_legacy_path_when_the_host_is_unreachable(
+        self, gateway, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=DeviceUnreachableError("192.168.1.250", "connect timeout")
+        )
+
+        result = await gateway.discover_device("192.168.1.250")
+
+        assert result.status == Status.UNREACHABLE
+        mock_legacy_gateway.discover_device.assert_not_called()
+
+    async def test_it_forwards_the_timeout_to_both_paths(
+        self, gateway, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(side_effect=Exception("RPC fail"))
+        mock_legacy_gateway.discover_device.return_value = None
+
+        await gateway.discover_device("192.168.1.42", timeout=2.5)
+
+        assert mock_rpc_client.make_rpc_request.call_args_list[0] == (
+            ("192.168.1.42", "Shelly.GetDeviceInfo"),
+            {"timeout": 2.5},
+        )
+        mock_legacy_gateway.discover_device.assert_awaited_once_with(
+            "192.168.1.42", timeout=2.5
+        )
+
+    async def test_it_reads_status_over_the_legacy_path_when_no_read_answers(
+        self, gateway, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(side_effect=Exception("RPC fail"))
+        legacy_status = DeviceStatus(
+            device_ip="192.168.1.200",
+            components=[],
+            total_components=0,
+            device_name="Legacy Switch",
+        )
+        mock_legacy_gateway.get_device_status.return_value = legacy_status
+
+        result = await gateway.get_device_status("192.168.1.200")
+
+        assert result is legacy_status
+        mock_legacy_gateway.get_device_status.assert_awaited_once_with("192.168.1.200")
+
+    async def test_it_keeps_the_rpc_status_when_a_single_read_answers(
+        self, gateway, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                Exception("no device info"),
+                ({"components": [], "cfg_rev": 1, "total": 0}, 0.1),
+                Exception("no status"),
+                Exception("no methods"),
+            ]
+        )
+
+        result = await gateway.get_device_status("192.168.1.100")
+
+        assert isinstance(result, DeviceStatus)
+        mock_legacy_gateway.get_device_status.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "component_key,action,success",
+        [
+            ("switch:0", "Legacy.Toggle", True),
+            ("input:0", "Legacy.InputMomentary", True),
+            ("wifi", "Legacy.SetConfig", True),
+            ("wifi", "Legacy.Toggle", False),
+        ],
+    )
+    async def test_it_hands_a_legacy_action_to_the_legacy_gateway_untouched(
+        self,
+        gateway,
+        mock_rpc_client,
+        mock_legacy_gateway,
+        component_key,
+        action,
+        success,
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock()
+        expected = ActionResult(
+            device_ip="192.168.1.200",
+            action_type=f"{component_key}.{action}",
+            success=success,
+            message="done" if success else f"Legacy action {action} not supported",
+            error=None if success else "Unsupported legacy action",
+        )
+        mock_legacy_gateway.execute_action.return_value = expected
+
+        result = await gateway.execute_component_action(
+            "192.168.1.200", component_key, action
+        )
+
+        assert result is expected
+        mock_legacy_gateway.execute_action.assert_awaited_once_with(
+            "192.168.1.200", component_key, action, {}
+        )
+        mock_rpc_client.make_rpc_request.assert_not_called()
+
+    async def test_it_reads_legacy_settings_through_the_route(
+        self, gateway, mock_legacy_gateway
+    ):
+        mock_legacy_gateway.fetch_settings.return_value = {"name": "Gen1"}
+
+        assert await gateway.get_legacy_settings("192.168.1.200") == {"name": "Gen1"}
+
+    async def test_it_invalidates_legacy_credentials_through_the_route(
+        self, gateway, mock_legacy_gateway
+    ):
+        gateway.invalidate_legacy_credential_cache("AA:BB:CC:DD:EE:FF")
+
+        mock_legacy_gateway.invalidate_credential_cache.assert_called_once_with(
+            "AA:BB:CC:DD:EE:FF"
+        )
+
+    async def test_it_reports_unreachable_when_there_is_no_legacy_path(
+        self, rpc_only_gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(side_effect=Exception("RPC fail"))
+
+        result = await rpc_only_gateway.discover_device("192.168.1.200")
+
+        assert result.status == Status.UNREACHABLE
+        assert result.error_message == "RPC fail"
+
+    async def test_it_has_no_status_when_there_is_no_legacy_path(
+        self, rpc_only_gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(side_effect=Exception("RPC fail"))
+
+        assert await rpc_only_gateway.get_device_status("192.168.1.200") is None
+
+    async def test_it_refuses_a_legacy_action_when_there_is_no_legacy_path(
+        self, rpc_only_gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock()
+
+        result = await rpc_only_gateway.execute_component_action(
+            "192.168.1.200", "switch:0", "Legacy.Toggle"
+        )
+
+        assert result.success is False
+        assert result.action_type == "switch:0.Legacy.Toggle"
+        assert result.message == "Legacy gateway not available"
+        assert result.error == "Legacy operations require legacy gateway injection"
+        mock_rpc_client.make_rpc_request.assert_not_called()
+
+    async def test_it_has_no_legacy_settings_when_there_is_no_legacy_path(
+        self, rpc_only_gateway
+    ):
+        assert await rpc_only_gateway.get_legacy_settings("192.168.1.200") is None
+
+    async def test_it_invalidates_nothing_when_there_is_no_legacy_path(
+        self, rpc_only_gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock()
+
+        rpc_only_gateway.invalidate_legacy_credential_cache("AA:BB:CC:DD:EE:FF")
+
+        mock_rpc_client.make_rpc_request.assert_not_called()

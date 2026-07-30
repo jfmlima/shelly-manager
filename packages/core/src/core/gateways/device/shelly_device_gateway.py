@@ -19,9 +19,12 @@ from ...domain.value_objects.action_name import ActionName
 from ...domain.value_objects.action_result import ActionResult
 from ...utils.validation import normalize_mac
 from ..network.network import RpcNetworkGateway
+from .action_envelope import ActionEnvelope
 from .device import DeviceGateway
 from .legacy_device_gateway import LegacyDeviceGateway
+from .legacy_route import LegacyRoute
 from .rpc_methods import RpcMethods
+from .rpc_read import RpcRead
 
 logger = logging.getLogger(__name__)
 
@@ -38,16 +41,13 @@ class ShellyDeviceGateway(DeviceGateway):
     ) -> None:
         self._rpc_client = rpc_client
         self.timeout = timeout
-        self._legacy_gateway = legacy_gateway
+        self._legacy = LegacyRoute(legacy_gateway)
 
     def invalidate_legacy_credential_cache(self, mac: str) -> None:
-        if self._legacy_gateway:
-            self._legacy_gateway.invalidate_credential_cache(mac)
+        self._legacy.invalidate_credentials(mac)
 
     async def get_legacy_settings(self, ip: str) -> dict[str, Any] | None:
-        if self._legacy_gateway:
-            return await self._legacy_gateway.fetch_settings(ip)
-        return None
+        return await self._legacy.get_settings(ip)
 
     async def discover_device(
         self, ip: str, timeout: float | None = None
@@ -136,12 +136,9 @@ class ShellyDeviceGateway(DeviceGateway):
                 ip,
                 e,
             )
-            if self._legacy_gateway:
-                legacy_device = await self._legacy_gateway.discover_device(
-                    ip, timeout=effective_timeout
-                )
-                if legacy_device:
-                    return legacy_device
+            legacy_device = await self._legacy.discover_device(ip, effective_timeout)
+            if legacy_device:
+                return legacy_device
 
             return DiscoveredDevice(
                 ip=ip,
@@ -161,78 +158,10 @@ class ShellyDeviceGateway(DeviceGateway):
             DeviceStatus with all component data, or None if unreachable
         """
         try:
-            # The device is already known to exist here, so these independent
-            # reads are issued concurrently rather than one round-trip at a time.
-            device_info_res, components_res, status_res, available_methods = (
-                await asyncio.gather(
-                    self._rpc_client.make_rpc_request(
-                        ip, RpcMethods.GET_DEVICE_INFO, timeout=self.timeout
-                    ),
-                    self._rpc_client.make_rpc_request(
-                        ip,
-                        RpcMethods.GET_COMPONENTS,
-                        params={"offset": 0},
-                        timeout=self.timeout,
-                    ),
-                    self._rpc_client.make_rpc_request(
-                        ip, RpcMethods.GET_STATUS, timeout=self.timeout
-                    ),
-                    self.get_available_methods(ip),
-                    return_exceptions=True,
-                )
-            )
-
-            # Authentication failures from components/status must surface to the
-            # caller (preserving the original sequential behaviour).
-            for res in (components_res, status_res):
-                if isinstance(res, DeviceAuthenticationError):
-                    raise res
-
-            rpc_success = False
-            device_info_data = None
-            if isinstance(device_info_res, BaseException):
-                logger.error(f"Error getting device info: {device_info_res}")
-            else:
-                device_info_data = device_info_res[0].get("result", device_info_res[0])
-                rpc_success = True
-                if (
-                    device_info_data
-                    and device_info_data.get("auth_en", False)
-                    and hasattr(self._rpc_client, "auth_state_cache")
-                    and self._rpc_client.auth_state_cache
-                ):
-                    self._rpc_client.auth_state_cache.mark_auth_required(
-                        normalize_mac(ip)
-                    )
-
-            components_data: Any = {}
-            if isinstance(components_res, BaseException):
-                logger.error(f"Error getting components: {components_res}")
-            else:
-                components_data = components_res[0].get("result", components_res[0])
-                rpc_success = True
-
-            status_response = None
-            if isinstance(status_res, BaseException):
-                logger.error(f"Error getting device status: {status_res}")
-            else:
-                status_response = status_res[0].get("result", status_res[0])
-                rpc_success = True
-
-            if isinstance(available_methods, BaseException):
-                available_methods = []
-
-            if not rpc_success:
-                raise RuntimeError("RPC status retrieval failed; use legacy path")
-
-            return DeviceStatus.from_raw_response(
-                ip,
-                components_data,
-                available_methods=available_methods,
-                device_info_data=device_info_data,
-                status_data=status_response,
-            )
-
+            status = await self._read_status_over_rpc(ip)
+            if status is not None:
+                return status
+            logger.debug("No RPC read answered for %s, attempting legacy fallback", ip)
         except DeviceAuthenticationError:
             raise
         except Exception as e:
@@ -240,11 +169,8 @@ class ShellyDeviceGateway(DeviceGateway):
                 f"Error getting device status via RPC, attempting legacy fallback: {e}",
                 exc_info=True,
             )
-            if self._legacy_gateway:
-                legacy_status = await self._legacy_gateway.get_device_status(ip)
-                if legacy_status:
-                    return legacy_status
-            return None
+
+        return await self._legacy.get_device_status(ip)
 
     async def get_component_keys(self, ip: str, component_type: str) -> list[str]:
         """Get component keys for a given type using a single RPC call."""
@@ -309,31 +235,21 @@ class ShellyDeviceGateway(DeviceGateway):
             ActionResult with success/failure details
         """
         action_name = ActionName.of(action)
-        action_type = f"{component_key}.{action_name.method}"
+        envelope = ActionEnvelope(
+            device_ip=ip, action_type=f"{component_key}.{action_name.method}"
+        )
 
         try:
             if action_name.is_legacy:
-                if self._legacy_gateway:
-                    return await self._legacy_gateway.execute_action(
-                        ip, component_key, action, parameters or {}
-                    )
-                else:
-                    return ActionResult(
-                        device_ip=ip,
-                        action_type=f"{component_key}.{action}",
-                        success=False,
-                        message="Legacy gateway not available",
-                        error="Legacy operations require legacy gateway injection",
-                    )
+                return await self._legacy.execute_action(
+                    ip, component_key, action, parameters
+                )
 
             available_methods = await self.get_available_methods(ip)
             rpc_method = action_name.resolve(component_key, available_methods)
 
             if rpc_method is None:
-                return ActionResult(
-                    device_ip=ip,
-                    action_type=action_type,
-                    success=False,
+                return envelope.failed(
                     message=f"Action {action} not supported by {component_key}",
                     error=f"Component {component_key} has no method {action}",
                 )
@@ -341,13 +257,9 @@ class ShellyDeviceGateway(DeviceGateway):
             params: dict[str, Any] = {}
             if ":" in component_key and component_key != "sys":
                 try:
-                    component_id = int(component_key.split(":")[1])
-                    params["id"] = component_id
+                    params["id"] = int(component_key.split(":")[1])
                 except (IndexError, ValueError):
-                    return ActionResult(
-                        device_ip=ip,
-                        action_type=action_type,
-                        success=False,
+                    return envelope.failed(
                         message=f"Invalid component key format: {component_key}",
                         error=f"Could not parse component ID from {component_key}",
                     )
@@ -355,16 +267,14 @@ class ShellyDeviceGateway(DeviceGateway):
             if parameters:
                 params.update(parameters)
 
-            rpc_params: dict[str, Any] | None = params if params else None
             response, _ = await self._rpc_client.make_rpc_request(
-                ip, rpc_method, params=rpc_params, timeout=self.timeout
+                ip, rpc_method, params=params or None, timeout=self.timeout
             )
 
-            return ActionResult(
-                device_ip=ip,
-                action_type=action_type,
-                success=True,
-                message=f"{action_name.method} executed successfully on {component_key}",
+            return envelope.succeeded(
+                message=(
+                    f"{action_name.method} executed successfully on {component_key}"
+                ),
                 data=response,
             )
 
@@ -375,10 +285,7 @@ class ShellyDeviceGateway(DeviceGateway):
             else:
                 error_message = DeviceCommunicationError(ip, err, err).message
 
-            return ActionResult(
-                device_ip=ip,
-                action_type=action_type,
-                success=False,
+            return envelope.failed(
                 message=f"Action failed: {err}",
                 error=error_message,
             )
@@ -430,3 +337,64 @@ class ShellyDeviceGateway(DeviceGateway):
         ]
 
         return await asyncio.gather(*tasks, return_exceptions=False)
+
+    async def _read_status_over_rpc(self, ip: str) -> DeviceStatus | None:
+        """Ask the device for its status every way at once.
+
+        The device is already known to exist here, so these independent reads
+        are issued concurrently rather than one round-trip at a time, and each
+        one is optional: a device that answers only some of them still has a
+        status worth reporting. None means it answered none of them, which is
+        what a Gen1 device looks like from this side.
+        """
+        device_info_res, components_res, status_res, methods_res = await asyncio.gather(
+            self._rpc_client.make_rpc_request(
+                ip, RpcMethods.GET_DEVICE_INFO, timeout=self.timeout
+            ),
+            self._rpc_client.make_rpc_request(
+                ip,
+                RpcMethods.GET_COMPONENTS,
+                params={"offset": 0},
+                timeout=self.timeout,
+            ),
+            self._rpc_client.make_rpc_request(
+                ip, RpcMethods.GET_STATUS, timeout=self.timeout
+            ),
+            self.get_available_methods(ip),
+            return_exceptions=True,
+        )
+
+        # Only these two: a device info read that fails still leaves a status
+        # worth building, so it is logged rather than raised.
+        for res in (components_res, status_res):
+            if isinstance(res, DeviceAuthenticationError):
+                raise res
+
+        device_info = RpcRead.of(device_info_res, "device info")
+        self._remember_auth_requirement(ip, device_info.body)
+
+        components = RpcRead.of(components_res, "components", missing={})
+        status = RpcRead.of(status_res, "device status")
+
+        # The method list cannot join them: it comes back empty both when the
+        # device has none to report and when the read failed.
+        if not (device_info.answered or components.answered or status.answered):
+            return None
+
+        return DeviceStatus.from_raw_response(
+            ip,
+            components.body,
+            available_methods=(
+                [] if isinstance(methods_res, BaseException) else methods_res
+            ),
+            device_info_data=device_info.body,
+            status_data=status.body,
+        )
+
+    def _remember_auth_requirement(self, ip: str, device_info: Any) -> None:
+        """Record that a device asks for credentials, so later calls send them."""
+        if not device_info or not device_info.get("auth_en", False):
+            return
+        auth_state_cache = getattr(self._rpc_client, "auth_state_cache", None)
+        if auth_state_cache:
+            auth_state_cache.mark_auth_required(normalize_mac(ip))
