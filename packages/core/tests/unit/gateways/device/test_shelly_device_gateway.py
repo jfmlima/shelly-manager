@@ -289,6 +289,63 @@ class TestShellyDeviceGateway:
         assert calls[2] == (("192.168.1.100", "Shelly.GetStatus"), {"timeout": 10.0})
         assert calls[3] == (("192.168.1.100", "Shelly.ListMethods"), {"timeout": 10.0})
 
+    async def test_it_returns_the_rpc_payload_not_the_response_frame(
+        self, gateway, mock_rpc_client
+    ):
+        # Frame captured verbatim from a Gen4 device: the config a caller wants
+        # sits under "result", alongside the request id and the device id.
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                ({"methods": ["Switch.GetConfig"]}, 0.1),
+                (
+                    {
+                        "id": "68ef3f1a-b13a-490b-9ab0-d4b8f21d5580",
+                        "src": "shelly1pmminig4-7c2c676d30d4",
+                        "result": {"id": 0, "name": None, "in_mode": "flip"},
+                    },
+                    0.1,
+                ),
+            ]
+        )
+
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "switch:0", "GetConfig"
+        )
+
+        assert result.success is True
+        assert result.data == {"id": 0, "name": None, "in_mode": "flip"}
+
+    async def test_it_reports_a_device_rejection_as_a_failed_action(
+        self, gateway, mock_rpc_client
+    ):
+        # Devices answer a rejected call with HTTP 200 and an "error" member,
+        # so a frame that is never opened reads as a success.
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                ({"methods": ["Switch.GetConfig"]}, 0.1),
+                (
+                    {
+                        "id": "b036bb7f-91f8-4b4b-b81b-0376cafedee0",
+                        "src": "shelly1pmminig4-7c2c676d30d4",
+                        "error": {
+                            "code": -105,
+                            "message": "Argument 'id', value 99 not found!",
+                        },
+                    },
+                    0.1,
+                ),
+            ]
+        )
+
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "switch:99", "GetConfig"
+        )
+
+        assert result.success is False
+        assert result.data is None
+        assert "value 99 not found" in result.error
+        assert "-105" in result.error
+
     async def test_it_handles_update_check_failure_gracefully(
         self, gateway, mock_rpc_client
     ):
