@@ -42,6 +42,7 @@ class ShellyDeviceGateway(DeviceGateway):
         self._rpc_client = rpc_client
         self.timeout = timeout
         self._legacy = LegacyRoute(legacy_gateway)
+        self._method_lists: dict[str, list[str]] = {}
 
     def invalidate_legacy_credential_cache(self, mac: str) -> None:
         self._legacy.invalidate_credentials(mac)
@@ -201,20 +202,14 @@ class ShellyDeviceGateway(DeviceGateway):
             against, whether the device could not be asked or answered with
             something unreadable; callers treat both as "unvalidated" rather
             than as proof that a method does not exist.
-        """
-        try:
-            methods_response, _ = await self._rpc_client.make_rpc_request(
-                ip, RpcMethods.LIST_METHODS, timeout=self.timeout
-            )
-            result = methods_response.get("result", methods_response)
-            if isinstance(result, dict) and isinstance(result.get("methods"), list):
-                return [m for m in result["methods"] if isinstance(m, str)]
 
-            logger.warning("Unreadable method list from %s: %r", ip, result)
-            return []
-        except Exception as e:
-            logger.warning(f"Failed to get available methods for {ip}: {e}")
-            return []
+        A list this asks for is always read fresh from the device, and is what
+        _remembered_methods hands to the next action on the same device.
+        """
+        methods = await self._fetch_available_methods(ip)
+        if methods:
+            self._method_lists[ip] = list(methods)
+        return methods
 
     async def execute_component_action(
         self,
@@ -245,8 +240,7 @@ class ShellyDeviceGateway(DeviceGateway):
                     ip, component_key, action, parameters
                 )
 
-            available_methods = await self.get_available_methods(ip)
-            rpc_method = action_name.resolve(component_key, available_methods)
+            rpc_method = await self._resolve_method(ip, component_key, action_name)
 
             if rpc_method is None:
                 return envelope.failed(
@@ -398,3 +392,45 @@ class ShellyDeviceGateway(DeviceGateway):
         auth_state_cache = getattr(self._rpc_client, "auth_state_cache", None)
         if auth_state_cache:
             auth_state_cache.mark_auth_required(normalize_mac(ip))
+
+    async def _fetch_available_methods(self, ip: str) -> list[str]:
+        try:
+            methods_response, _ = await self._rpc_client.make_rpc_request(
+                ip, RpcMethods.LIST_METHODS, timeout=self.timeout
+            )
+            result = methods_response.get("result", methods_response)
+            if isinstance(result, dict) and isinstance(result.get("methods"), list):
+                return [m for m in result["methods"] if isinstance(m, str)]
+
+            logger.warning("Unreadable method list from %s: %r", ip, result)
+            return []
+        except Exception as e:
+            logger.warning(f"Failed to get available methods for {ip}: {e}")
+            return []
+
+    async def _resolve_method(
+        self, ip: str, component_key: str, action_name: ActionName
+    ) -> str | None:
+        """The method to send, spending a round trip only when one would help.
+
+        Reading a device's status fetches its method list, so an action taken
+        from a status page already has the answer and need not ask again.
+
+        A remembered list that refuses is asked again before the refusal
+        stands, which is the round trip the device would have been asked for
+        anyway, so an action the device has gained since is never wrongly
+        refused. A remembered list that accepts is taken at its word: a method
+        the device has since dropped is sent and rejected by the device rather
+        than refused here, and the next status read corrects the list.
+        """
+        remembered = self._method_lists.get(ip)
+        if remembered is None:
+            return action_name.resolve(
+                component_key, await self.get_available_methods(ip)
+            )
+
+        rpc_method = action_name.resolve(component_key, remembered)
+        if rpc_method is not None:
+            return rpc_method
+
+        return action_name.resolve(component_key, await self.get_available_methods(ip))

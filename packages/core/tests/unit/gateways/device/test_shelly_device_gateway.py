@@ -1449,3 +1449,181 @@ class TestLegacyRouting:
         rpc_only_gateway.invalidate_legacy_credential_cache("AA:BB:CC:DD:EE:FF")
 
         mock_rpc_client.make_rpc_request.assert_not_called()
+
+
+class TestMethodListReuse:
+
+    STATUS_READS = [
+        ({"name": "Test Device"}, 0.05),
+        ({"components": [], "cfg_rev": 1, "total": 0}, 0.1),
+        ({"sys": {}}, 0.1),
+        ({"methods": ["Switch.Toggle"]}, 0.05),
+    ]
+
+    @pytest.fixture
+    def mock_rpc_client(self):
+        return MagicMock()
+
+    @pytest.fixture
+    def gateway(self, mock_rpc_client):
+        return ShellyDeviceGateway(rpc_client=mock_rpc_client)
+
+    @staticmethod
+    def _methods_sent(mock_rpc_client):
+        return [c.args[1] for c in mock_rpc_client.make_rpc_request.call_args_list]
+
+    async def test_it_asks_a_device_for_its_method_list_once(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            return_value=({"methods": ["Switch.Toggle"]}, 0.1)
+        )
+
+        await gateway.execute_component_action("192.168.1.100", "switch:0", "Toggle")
+        await gateway.execute_component_action("192.168.1.100", "switch:0", "Toggle")
+
+        assert self._methods_sent(mock_rpc_client) == [
+            "Shelly.ListMethods",
+            "Switch.Toggle",
+            "Switch.Toggle",
+        ]
+
+    async def test_it_asks_each_device_for_its_own_method_list(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            return_value=({"methods": ["Switch.Toggle"]}, 0.1)
+        )
+
+        await gateway.execute_component_action("192.168.1.100", "switch:0", "Toggle")
+        await gateway.execute_component_action("192.168.1.101", "switch:0", "Toggle")
+
+        assert self._methods_sent(mock_rpc_client).count("Shelly.ListMethods") == 2
+
+    async def test_it_saves_the_next_action_a_round_trip_after_a_status_read(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[*self.STATUS_READS, ({}, 0.1)]
+        )
+
+        await gateway.get_device_status("192.168.1.100")
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "switch:0", "Toggle"
+        )
+
+        assert result.success is True
+        assert self._methods_sent(mock_rpc_client).count("Shelly.ListMethods") == 1
+
+    async def test_it_asks_the_device_again_on_every_status_read(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[*self.STATUS_READS, *self.STATUS_READS]
+        )
+
+        await gateway.get_device_status("192.168.1.100")
+        await gateway.get_device_status("192.168.1.100")
+
+        assert self._methods_sent(mock_rpc_client).count("Shelly.ListMethods") == 2
+
+    async def test_it_does_not_let_a_caller_grow_a_remembered_list(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            return_value=({"methods": ["Switch.Toggle"]}, 0.1)
+        )
+
+        reported = await gateway.get_available_methods("192.168.1.100")
+        reported.append("Switch.Nonsense")
+
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "switch:0", "Switch.Nonsense"
+        )
+
+        assert result.success is False
+
+    async def test_it_asks_the_device_again_before_refusing_a_remembered_miss(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                ({"methods": ["Switch.Toggle"]}, 0.1),
+                ({}, 0.1),
+                ({"methods": ["Switch.Set"]}, 0.1),
+                ({}, 0.1),
+            ]
+        )
+
+        await gateway.execute_component_action("192.168.1.100", "switch:0", "Toggle")
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "switch:0", "Set"
+        )
+
+        assert result.success is True
+        assert self._methods_sent(mock_rpc_client) == [
+            "Shelly.ListMethods",
+            "Switch.Toggle",
+            "Shelly.ListMethods",
+            "Switch.Set",
+        ]
+
+    async def test_it_sends_a_remembered_method_the_device_has_since_dropped(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                ({"methods": ["Switch.Toggle"]}, 0.1),
+                ({}, 0.1),
+                Exception("unknown method"),
+            ]
+        )
+
+        await gateway.execute_component_action("192.168.1.100", "switch:0", "Toggle")
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "switch:0", "Toggle"
+        )
+
+        assert result.success is False
+        assert "unknown method" in result.message
+        assert self._methods_sent(mock_rpc_client) == [
+            "Shelly.ListMethods",
+            "Switch.Toggle",
+            "Switch.Toggle",
+        ]
+
+    async def test_it_asks_only_once_when_a_remembered_list_already_refuses(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            return_value=({"methods": ["Switch.Toggle"]}, 0.1)
+        )
+
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "switch:0", "Nonsense"
+        )
+
+        assert result.success is False
+        assert self._methods_sent(mock_rpc_client) == ["Shelly.ListMethods"]
+
+    async def test_it_does_not_remember_an_unanswered_method_list(
+        self, gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                Exception("ListMethods timed out"),
+                ({}, 0.1),
+                ({"methods": ["Switch.Toggle"]}, 0.1),
+                ({}, 0.1),
+            ]
+        )
+
+        await gateway.execute_component_action("192.168.1.100", "switch:0", "Toggle")
+        await gateway.execute_component_action("192.168.1.100", "switch:0", "Toggle")
+
+        assert self._methods_sent(mock_rpc_client) == [
+            "Shelly.ListMethods",
+            "Switch.Toggle",
+            "Shelly.ListMethods",
+            "Switch.Toggle",
+        ]
