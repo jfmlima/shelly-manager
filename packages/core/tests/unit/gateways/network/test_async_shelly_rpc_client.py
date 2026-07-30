@@ -9,6 +9,7 @@ from core.domain.entities.exceptions import (
     DeviceUnreachableError,
 )
 from core.gateways.network.async_shelly_rpc_client import AsyncShellyRPCClient
+from core.services.auth_state_cache import AuthStateCache
 
 
 class TestAsyncShellyRPCClient:
@@ -251,3 +252,31 @@ class TestAsyncShellyRPCClient:
         assert isinstance(timeout_arg, httpx.Timeout)
         assert timeout_arg.read == 3.0
         assert timeout_arg.connect == 2.0
+
+
+class TestAuthStateCacheGating:
+    """An empty AuthStateCache is falsy, so presence must decide these paths."""
+
+    async def test_it_clears_auth_state_while_the_cache_is_still_empty(self):
+        auth_state_cache = AuthStateCache()
+        client = AsyncShellyRPCClient(
+            session=AsyncMock(spec=httpx.AsyncClient),
+            auth_state_cache=auth_state_cache,
+        )
+
+        client._invalidate_auth_cache("192.168.1.100")
+
+        assert auth_state_cache.is_known("192.168.1.100") is True
+        assert auth_state_cache.requires_auth("192.168.1.100") is False
+
+    async def test_it_clears_auth_state_for_a_known_mac_while_the_cache_is_empty(self):
+        auth_state_cache = AuthStateCache()
+        client = AsyncShellyRPCClient(
+            session=AsyncMock(spec=httpx.AsyncClient),
+            auth_state_cache=auth_state_cache,
+        )
+        client._ip_to_mac["192.168.1.100"] = "AABBCCDDEEFF"
+
+        client._invalidate_auth_cache("192.168.1.100")
+
+        assert auth_state_cache.is_known("AABBCCDDEEFF") is True

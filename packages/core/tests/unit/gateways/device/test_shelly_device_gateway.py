@@ -76,18 +76,18 @@ class TestShellyDeviceGateway:
             side_effect=[(device_info, 0.2), (update_info, 0.05)]
         )
 
-        result = await gateway.discover_device("192.168.1.100")
+        result = await gateway.discover_device("192.168.1.100", timeout=2.5)
 
         assert result is not None
         assert mock_rpc_client.make_rpc_request.call_count == 2
         calls = mock_rpc_client.make_rpc_request.call_args_list
         assert calls[0] == (
             ("192.168.1.100", "Shelly.GetDeviceInfo"),
-            {"timeout": 10.0},
+            {"timeout": 2.5},
         )
         assert calls[1] == (
             ("192.168.1.100", "Shelly.CheckForUpdate"),
-            {"timeout": 10.0},
+            {"timeout": 2.5},
         )
 
     async def test_it_handles_device_discovery_failure(
@@ -374,6 +374,8 @@ class TestShellyDeviceGateway:
             side_effect=[
                 ({"name": "Test", "model": "SAWD-0A1XX10EU1"}, 0.05),
                 DeviceAuthenticationError("192.168.1.100", "No credentials stored"),
+                ({"sys": {}}, 0.1),
+                ({"methods": []}, 0.05),
             ]
         )
 
@@ -399,6 +401,28 @@ class TestShellyDeviceGateway:
         result = await gateway.discover_device("192.168.1.100")
 
         assert result.auth_required is True
+        assert auth_state_cache.requires_auth("192.168.1.100") is True
+
+    async def test_it_marks_auth_required_from_a_status_read_on_an_empty_cache(
+        self, mock_rpc_client, mock_legacy_gateway
+    ):
+        auth_state_cache = AuthStateCache()
+        gateway = ShellyDeviceGateway(
+            rpc_client=mock_rpc_client,
+            legacy_gateway=mock_legacy_gateway,
+            auth_state_cache=auth_state_cache,
+        )
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                ({"auth_en": True}, 0.05),
+                ({"components": [], "cfg_rev": 1, "total": 0}, 0.1),
+                ({"sys": {}}, 0.1),
+                ({"methods": []}, 0.05),
+            ]
+        )
+
+        await gateway.get_device_status("192.168.1.100")
+
         assert auth_state_cache.requires_auth("192.168.1.100") is True
 
     async def test_it_marks_auth_required_before_a_later_read_can_fail(
