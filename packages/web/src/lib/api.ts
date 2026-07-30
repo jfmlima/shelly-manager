@@ -150,13 +150,8 @@ export const deviceApi = {
     return response.data;
   },
 
-  getDeviceStatus: async (
-    ip: string,
-    includeUpdates = true,
-  ): Promise<DeviceStatus> => {
-    const response = await apiClient.get(`/devices/${ip}/status`, {
-      params: { include_updates: includeUpdates },
-    });
+  getDeviceStatus: async (ip: string): Promise<DeviceStatus> => {
+    const response = await apiClient.get(`/devices/${ip}/status`);
     return response.data;
   },
 

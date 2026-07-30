@@ -7,7 +7,6 @@ from .bulk_action_request import BulkActionRequest
 from .bulk_configuration_request import BulkConfigurationRequest
 from .bulk_device_request import BulkDeviceRequest
 from .bulk_reboot_request import BulkRebootRequest
-from .bulk_status_request import BulkStatusRequest
 from .check_device_status_request import CheckDeviceStatusRequest
 from .component_action_request import ComponentActionRequest
 from .component_namespace import ComponentNamespace
@@ -30,5 +29,4 @@ __all__ = [
     "BulkDeviceRequest",
     "BulkRebootRequest",
     "BulkConfigurationRequest",
-    "BulkStatusRequest",
 ]

@@ -1,8 +1,6 @@
 """Capture strategy for Gen1 (legacy HTTP) devices."""
 
-from typing import Any
-
-from core.domain.entities.device_backup import LEGACY_SETTINGS_KEY
+from core.domain.entities.config_snapshot import LEGACY_SETTINGS_KEY, ComponentSnapshot
 from core.domain.entities.device_status import DeviceStatus
 from core.gateways.device import DeviceGateway
 
@@ -12,9 +10,10 @@ class Gen1CaptureStrategy:
 
     Gen1 has no /rpc: GetConfig and Schedule.List 404, so the mapped configs
     already on the ``DeviceStatus`` are captured instead. The
-    ``legacy_settings`` entry is the source of truth a Gen1 restore replays;
-    it is omitted when the raw fetch fails, and the mapped configs alone still
-    make the backup valid.
+    ``legacy_settings`` entry is the source of truth a Gen1 restore replays, and
+    it is omitted when the raw fetch fails. Capture reports that omission rather
+    than judging it; whether a snapshot without it is worth storing is the
+    caller's call (``BackupDeviceConfig`` refuses, since it could not restore).
     """
 
     def __init__(self, device_gateway: DeviceGateway):
@@ -22,25 +21,25 @@ class Gen1CaptureStrategy:
 
     async def capture_components(
         self, device_ip: str, status: DeviceStatus, component_types: list[str]
-    ) -> dict[str, Any]:
-        components: dict[str, Any] = {}
+    ) -> dict[str, ComponentSnapshot]:
+        components: dict[str, ComponentSnapshot] = {}
 
         for component in status.components:
             if component.component_type in component_types:
-                components[component.key] = {
-                    "type": component.component_type,
-                    "success": True,
-                    "config": component.config,
-                    "error": None,
-                }
+                components[component.key] = ComponentSnapshot(
+                    key=component.key,
+                    component_type=component.component_type,
+                    success=True,
+                    config=component.config,
+                )
 
         legacy_settings = await self._device_gateway.get_legacy_settings(device_ip)
         if legacy_settings is not None:
-            components[LEGACY_SETTINGS_KEY] = {
-                "type": LEGACY_SETTINGS_KEY,
-                "success": True,
-                "config": legacy_settings,
-                "error": None,
-            }
+            components[LEGACY_SETTINGS_KEY] = ComponentSnapshot(
+                key=LEGACY_SETTINGS_KEY,
+                component_type=LEGACY_SETTINGS_KEY,
+                success=True,
+                config=legacy_settings,
+            )
 
         return components

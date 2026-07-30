@@ -5,19 +5,14 @@ from typing import Any
 
 from core.utils.validation import normalize_mac
 
-# The raw Gen1 /settings entry captured alongside the mapped components in a
-# snapshot. It is the data source a Gen1 restore replays, never a restore
-# target itself.
-LEGACY_SETTINGS_KEY = "legacy_settings"
-
 
 @dataclass
 class DeviceBackup:
     """A full configuration snapshot of a single Shelly device.
 
-    The ``snapshot`` holds the decrypted export blob for one device, in the
-    same shape produced by ``BulkOperationsUseCase.export_bulk_config`` for a
-    single IP: ``{"device_info": {...}, "components": {key: {...}}}``.
+    The ``snapshot`` holds the decrypted capture for one device, serialized by
+    :class:`~core.domain.entities.config_snapshot.DeviceSnapshot`; parse it
+    back through that type rather than reading its keys by hand.
     """
 
     device_mac: str

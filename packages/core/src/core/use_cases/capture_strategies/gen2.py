@@ -2,8 +2,12 @@
 
 from typing import Any
 
+from core.domain.entities.config_snapshot import SCHEDULES_KEY, ComponentSnapshot
 from core.domain.entities.device_status import DeviceStatus
 from core.gateways.device import DeviceGateway
+
+# The RPC component behind the "schedules" snapshot entry.
+SCHEDULE_COMPONENT = "schedule"
 
 
 class Gen2CaptureStrategy:
@@ -14,8 +18,8 @@ class Gen2CaptureStrategy:
 
     async def capture_components(
         self, device_ip: str, status: DeviceStatus, component_types: list[str]
-    ) -> dict[str, Any]:
-        components: dict[str, Any] = {}
+    ) -> dict[str, ComponentSnapshot]:
+        components: dict[str, ComponentSnapshot] = {}
 
         for component in status.components:
             if component.component_type in component_types:
@@ -24,25 +28,23 @@ class Gen2CaptureStrategy:
                     device_ip, component.key, "GetConfig", {}
                 )
 
-                component_export = {
-                    "type": component.component_type,
-                    "success": config_result.success,
-                    "config": config_result.data if config_result.success else None,
-                    "error": (
-                        config_result.error if not config_result.success else None
-                    ),
-                }
-
+                code = None
                 if component.component_type == "script" and config_result.success:
-                    code_data = await self._fetch_script_code(device_ip, component.key)
-                    if code_data is not None:
-                        component_export["code"] = code_data
+                    code = await self._fetch_script_code(device_ip, component.key)
 
-                components[component.key] = component_export
+                components[component.key] = ComponentSnapshot(
+                    key=component.key,
+                    component_type=component.component_type,
+                    success=config_result.success,
+                    config=config_result.data if config_result.success else None,
+                    error=config_result.error if not config_result.success else None,
+                    code=code,
+                )
 
-        if "schedules" in component_types:
+        if SCHEDULES_KEY in component_types:
             schedules = await self._fetch_schedules(device_ip)
-            components.update(schedules)
+            if schedules is not None:
+                components[SCHEDULES_KEY] = schedules
 
         return components
 
@@ -61,26 +63,29 @@ class Gen2CaptureStrategy:
 
         return None
 
-    async def _fetch_schedules(self, device_ip: str) -> dict[str, Any]:
-        schedule_export = {}
+    async def _fetch_schedules(self, device_ip: str) -> ComponentSnapshot | None:
+        """Capture the device's schedule jobs.
 
+        Returns ``None`` when the listing succeeded but came back empty: that
+        leaves the entry out of the snapshot entirely, which restore reports
+        differently from a listing that failed.
+        """
         list_result = await self._device_gateway.execute_component_action(
-            device_ip, "schedule", "List", {}
+            device_ip, SCHEDULE_COMPONENT, "List", {}
         )
         schedule_data = list_result.data
         if list_result.success and schedule_data:
-            schedule_export["schedules"] = {
-                "type": "schedule",
-                "success": True,
-                "config": schedule_data,
-                "error": None,
-            }
-        elif not list_result.success:
-            schedule_export["schedules"] = {
-                "type": "schedule",
-                "success": False,
-                "config": None,
-                "error": list_result.error,
-            }
-
-        return schedule_export
+            return ComponentSnapshot(
+                key=SCHEDULES_KEY,
+                component_type=SCHEDULE_COMPONENT,
+                success=True,
+                config=schedule_data,
+            )
+        if not list_result.success:
+            return ComponentSnapshot(
+                key=SCHEDULES_KEY,
+                component_type=SCHEDULE_COMPONENT,
+                success=False,
+                error=list_result.error,
+            )
+        return None

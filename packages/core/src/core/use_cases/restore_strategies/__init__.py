@@ -6,9 +6,9 @@ aggregation); everything a generation does differently on the wire lives behind
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Protocol
 
-from core.domain.entities.device_backup import DeviceBackup
+from core.domain.entities.config_snapshot import ComponentSnapshot, DeviceSnapshot
 from core.domain.entities.device_status import DeviceStatus
 from core.domain.value_objects.restore_result import ComponentRestoreResult
 
@@ -35,14 +35,13 @@ class ComponentRestoreStrategy(Protocol):
     """One device generation's side of a restore."""
 
     async def prepare(
-        self, device_ip: str, backup: DeviceBackup, status: DeviceStatus
+        self, device_ip: str, snapshot: DeviceSnapshot, status: DeviceStatus
     ) -> PrepareOutcome: ...
 
     async def restore_component(
         self,
         device_ip: str,
-        key: str,
-        entry: dict[str, Any],
+        entry: ComponentSnapshot,
         present_keys: set[str],
     ) -> ComponentRestoreResult: ...
 

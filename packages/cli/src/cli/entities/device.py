@@ -26,9 +26,6 @@ class DeviceStatusRequest(BaseModel):
     targets: list[str] = Field(
         default_factory=list, description="List of device IP targets to check"
     )
-    include_updates: bool = Field(
-        default=True, description="Whether to include firmware update information"
-    )
     timeout: float = Field(default=3.0, gt=0)
     workers: int = Field(default=50, gt=0, le=200)
     verbose: bool = Field(

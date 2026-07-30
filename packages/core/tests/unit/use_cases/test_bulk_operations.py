@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
@@ -201,37 +202,6 @@ class TestBulkOperationsUseCase:
 
         assert update_result == []
         assert reboot_result == []
-
-    async def test_it_gets_bulk_status_for_multiple_devices(
-        self, use_case, mock_device_gateway
-    ):
-        statuses = [
-            DeviceStatus(device_ip="192.168.1.100"),
-            DeviceStatus(device_ip="192.168.1.101"),
-        ]
-        mock_device_gateway.get_device_status = AsyncMock(side_effect=statuses)
-
-        results = await use_case.get_bulk_status(["192.168.1.100", "192.168.1.101"])
-
-        assert results == statuses
-
-    async def test_it_logs_warning_and_skips_device_on_status_failure(
-        self, use_case, mock_device_gateway, caplog
-    ):
-        status = DeviceStatus(device_ip="192.168.1.101")
-        mock_device_gateway.get_device_status = AsyncMock(
-            side_effect=[Exception("Connection refused"), status]
-        )
-
-        with caplog.at_level("WARNING", logger="core.use_cases.bulk_operations"):
-            results = await use_case.get_bulk_status(["192.168.1.100", "192.168.1.101"])
-
-        assert results == [status]
-        assert any(
-            "192.168.1.100" in record.getMessage()
-            and "Connection refused" in record.getMessage()
-            for record in caplog.records
-        )
 
     @pytest.fixture
     def mock_device_status_with_components(self):
@@ -927,3 +897,144 @@ class TestBulkOperationsUseCase:
             "SetConfig",
             {"config": config},
         )
+
+    async def test_it_exports_devices_concurrently(self, use_case, mock_device_gateway):
+        # The first device's status fetch only completes once the second has
+        # run, so a sequential export deadlocks and times out here.
+        first_started = asyncio.Event()
+        second_done = asyncio.Event()
+
+        async def get_status(device_ip):
+            if device_ip == "192.168.1.100":
+                first_started.set()
+                await asyncio.wait_for(second_done.wait(), timeout=1)
+            else:
+                await first_started.wait()
+                second_done.set()
+            return DeviceStatus(device_ip=device_ip, components=[])
+
+        mock_device_gateway.get_device_status = AsyncMock(side_effect=get_status)
+
+        result = await use_case.export_bulk_config(
+            ["192.168.1.100", "192.168.1.101"], []
+        )
+
+        assert list(result["devices"]) == ["192.168.1.100", "192.168.1.101"]
+
+    async def test_it_lets_every_capture_finish_before_a_failure_surfaces(
+        self, use_case, mock_device_gateway
+    ):
+        # A device that raises must not leave its siblings running against real
+        # hardware with nobody awaiting them.
+        finished = []
+
+        async def get_status(device_ip):
+            if device_ip == "192.168.1.100":
+                raise RuntimeError("boom")
+            await asyncio.sleep(0.05)
+            finished.append(device_ip)
+            return None
+
+        mock_device_gateway.get_device_status = AsyncMock(side_effect=get_status)
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await use_case.export_bulk_config(["192.168.1.100", "192.168.1.101"], [])
+
+        assert finished == ["192.168.1.101"]
+
+    async def test_it_applies_config_concurrently_and_keeps_device_order(
+        self, use_case, mock_device_gateway
+    ):
+        first_started = asyncio.Event()
+        second_done = asyncio.Event()
+
+        async def get_component_keys(device_ip, component_type):
+            if device_ip == "192.168.1.100":
+                first_started.set()
+                await asyncio.wait_for(second_done.wait(), timeout=1)
+            else:
+                await first_started.wait()
+                second_done.set()
+            return [f"{component_type}:0"]
+
+        mock_device_gateway.get_component_keys = AsyncMock(
+            side_effect=get_component_keys
+        )
+        mock_device_gateway.execute_component_action = AsyncMock(
+            side_effect=lambda device_ip, key, action, parameters: ActionResult(
+                success=True,
+                action_type=f"{key}.SetConfig",
+                device_ip=device_ip,
+                message="Config applied",
+            )
+        )
+
+        results = await use_case.apply_bulk_config(
+            ["192.168.1.100", "192.168.1.101"], "switch", {}
+        )
+
+        assert [result.device_ip for result in results] == [
+            "192.168.1.100",
+            "192.168.1.101",
+        ]
+
+    async def test_it_configures_a_repeated_device_only_once(
+        self, use_case, mock_device_gateway
+    ):
+        # Overlapping targets expand to the same IP twice; configuring it twice
+        # concurrently would put two writes on one device at the same time.
+        mock_device_gateway.get_component_keys = AsyncMock(return_value=["switch:0"])
+        mock_device_gateway.execute_component_action = AsyncMock(
+            return_value=ActionResult(
+                success=True,
+                action_type="switch:0.SetConfig",
+                device_ip="192.168.1.100",
+                message="Config applied",
+            )
+        )
+
+        results = await use_case.apply_bulk_config(
+            ["192.168.1.100", "192.168.1.100"], "switch", {}
+        )
+
+        assert len(results) == 1
+        assert mock_device_gateway.execute_component_action.await_count == 1
+
+    async def test_it_exports_a_repeated_device_only_once(
+        self, use_case, mock_device_gateway
+    ):
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=DeviceStatus(device_ip="192.168.1.100", components=[])
+        )
+
+        result = await use_case.export_bulk_config(
+            ["192.168.1.100", "192.168.1.100"], []
+        )
+
+        assert mock_device_gateway.get_device_status.await_count == 1
+        assert result["export_metadata"]["total_devices"] == 1
+
+    async def test_it_lets_every_apply_finish_before_a_failure_surfaces(
+        self, use_case, mock_device_gateway
+    ):
+        # Same rule as the capture path: a device that raises must not leave its
+        # siblings still writing to hardware with nobody awaiting them.
+        finished = []
+
+        async def get_component_keys(device_ip, component_type):
+            if device_ip == "192.168.1.100":
+                raise RuntimeError("boom")
+            await asyncio.sleep(0.05)
+            finished.append(device_ip)
+            return []
+
+        mock_device_gateway.get_component_keys = AsyncMock(
+            side_effect=get_component_keys
+        )
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await use_case.apply_bulk_config(
+                ["192.168.1.100", "192.168.1.101"], "switch", {}
+            )
+
+        assert finished == ["192.168.1.101"]

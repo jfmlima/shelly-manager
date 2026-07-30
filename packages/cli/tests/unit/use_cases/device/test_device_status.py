@@ -40,7 +40,6 @@ class TestDeviceStatusUseCase:
     def basic_status_request(self):
         return DeviceStatusRequest(
             targets=["192.168.1.100", "192.168.1.101"],
-            include_updates=True,
             timeout=3.0,
             workers=10,
         )
@@ -49,7 +48,6 @@ class TestDeviceStatusUseCase:
     def config_status_request(self):
         return DeviceStatusRequest(
             targets=["10.0.0.1"],
-            include_updates=False,
             timeout=5.0,
             workers=20,
             verbose=True,

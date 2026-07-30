@@ -99,9 +99,7 @@ class DeviceExportUseCase:
 
         for ip in device_ips:
             try:
-                status_request = CheckDeviceStatusRequest(
-                    device_ip=ip, include_updates=True
-                )
+                status_request = CheckDeviceStatusRequest(device_ip=ip)
                 device = await status_interactor.execute(status_request)
                 if device is not None:
                     devices.append(device)

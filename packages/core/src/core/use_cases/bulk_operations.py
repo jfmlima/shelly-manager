@@ -1,17 +1,43 @@
-import logging
+import asyncio
+from collections.abc import Coroutine, Iterable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, TypeVar
 
-from ..domain.entities.device_status import DeviceStatus
+from ..domain.entities.config_snapshot import DeviceSnapshot
 from ..domain.entities.exceptions import BulkOperationError
 from ..domain.value_objects.action_result import ActionResult
-from ..domain.value_objects.generation import Generation
 from ..gateways.device import DeviceGateway
-from .capture_strategies import ComponentCaptureStrategy
-from .capture_strategies.gen1 import Gen1CaptureStrategy
-from .capture_strategies.gen2 import Gen2CaptureStrategy
+from .capture_device_config import CaptureDeviceConfig
 
-logger = logging.getLogger(__name__)
+T = TypeVar("T")
+
+
+def _unique(device_ips: list[str]) -> list[str]:
+    """The given IPs in order, without repeats.
+
+    Overlapping targets ("-t 10.0.0.5 -t 10.0.0.0/24") expand to the same device
+    more than once. Handling devices concurrently would then put two overlapping
+    requests on one device, which is the thing the per-device sequencing exists
+    to avoid.
+    """
+    return list(dict.fromkeys(device_ips))
+
+
+async def _gather_settled(coroutines: Iterable[Coroutine[Any, Any, T]]) -> list[T]:
+    """Run every device to completion, in order, then surface the first failure.
+
+    Plain ``asyncio.gather`` raises the moment one device fails and does not
+    cancel its siblings, leaving them issuing requests to real hardware with
+    nobody awaiting them. Letting every task settle first keeps one bad device
+    from doing that.
+    """
+    results = await asyncio.gather(*coroutines, return_exceptions=True)
+    settled: list[T] = []
+    for result in results:
+        if isinstance(result, BaseException):
+            raise result
+        settled.append(result)
+    return settled
 
 
 class BulkOperationsUseCase:
@@ -21,8 +47,7 @@ class BulkOperationsUseCase:
         device_gateway: DeviceGateway,
     ):
         self._device_gateway = device_gateway
-        self._gen1_capture = Gen1CaptureStrategy(device_gateway)
-        self._gen2_capture = Gen2CaptureStrategy(device_gateway)
+        self._capture = CaptureDeviceConfig(device_gateway)
 
     async def execute_bulk_update(
         self, device_ips: list[str], channel: str = "stable"
@@ -37,14 +62,9 @@ class BulkOperationsUseCase:
         Returns:
             List of action results
         """
-        try:
-            return await self._device_gateway.execute_bulk_action(
-                device_ips, "shelly", "Update", {"channel": channel}
-            )
-        except Exception as e:
-            raise BulkOperationError(
-                "bulk_update", device_ips, f"Bulk update failed: {str(e)}"
-            ) from e
+        return await self._execute_shelly_action(
+            device_ips, "Update", {"channel": channel}, "bulk_update", "Bulk update"
+        )
 
     async def execute_bulk_reboot(self, device_ips: list[str]) -> list[ActionResult]:
         """
@@ -56,14 +76,9 @@ class BulkOperationsUseCase:
         Returns:
             List of action results
         """
-        try:
-            return await self._device_gateway.execute_bulk_action(
-                device_ips, "shelly", "Reboot", {}
-            )
-        except Exception as e:
-            raise BulkOperationError(
-                "bulk_reboot", device_ips, f"Bulk reboot failed: {str(e)}"
-            ) from e
+        return await self._execute_shelly_action(
+            device_ips, "Reboot", {}, "bulk_reboot", "Bulk reboot"
+        )
 
     async def execute_bulk_factory_reset(
         self, device_ips: list[str]
@@ -77,39 +92,30 @@ class BulkOperationsUseCase:
         Returns:
             List of action results
         """
+        return await self._execute_shelly_action(
+            device_ips, "FactoryReset", {}, "bulk_factory_reset", "Bulk factory reset"
+        )
+
+    async def _execute_shelly_action(
+        self,
+        device_ips: list[str],
+        action: str,
+        parameters: dict[str, Any],
+        operation: str,
+        label: str,
+    ) -> list[ActionResult]:
+        """Run one action on the shelly component of every device.
+
+        ``operation`` and ``label`` only shape the error a failure raises.
+        """
         try:
             return await self._device_gateway.execute_bulk_action(
-                device_ips, "shelly", "FactoryReset", {}
+                device_ips, "shelly", action, parameters
             )
         except Exception as e:
             raise BulkOperationError(
-                "bulk_factory_reset", device_ips, f"Bulk factory reset failed: {str(e)}"
+                operation, device_ips, f"{label} failed: {str(e)}"
             ) from e
-
-    async def get_bulk_status(
-        self, device_ips: list[str], include_updates: bool = True
-    ) -> list[DeviceStatus]:
-        """
-        Get status of multiple devices.
-
-        Args:
-            device_ips: List of device IP addresses
-            include_updates: Include update information (parameter kept for compatibility but not used)
-
-        Returns:
-            List of device statuses
-        """
-        results = []
-
-        for ip in device_ips:
-            try:
-                device = await self._device_gateway.get_device_status(ip)
-                if device:
-                    results.append(device)
-            except Exception as e:
-                logger.warning("Error getting status for %s: %s", ip, e)
-
-        return results
 
     async def export_bulk_config(
         self,
@@ -119,6 +125,9 @@ class BulkOperationsUseCase:
         """
         Export component configurations organized per device.
 
+        Devices are captured concurrently, each at most once. Unreachable
+        devices are left out of the export rather than failing it.
+
         Args:
             device_ips: List of device IP addresses
             component_types: List of component types to export
@@ -126,43 +135,31 @@ class BulkOperationsUseCase:
         Returns:
             Dictionary containing export metadata and device configurations
         """
-        result = {
+        targets = _unique(device_ips)
+        snapshots = await _gather_settled(
+            self._capture_device(ip, component_types) for ip in targets
+        )
+
+        return {
             "export_metadata": {
                 "timestamp": datetime.now(UTC).isoformat() + "Z",
-                "total_devices": len(device_ips),
+                "total_devices": len(targets),
                 "component_types": component_types,
             },
-            "devices": {},
+            "devices": {
+                device_ip: snapshot.to_dict()
+                for device_ip, snapshot in zip(targets, snapshots, strict=True)
+                if snapshot is not None
+            },
         }
 
-        for device_ip in device_ips:
-
-            device_status = await self._device_gateway.get_device_status(device_ip)
-            if not device_status:
-                continue
-
-            strategy = self._capture_strategy(device_status)
-            device_data: dict[str, Any] = {
-                "device_info": {
-                    "device_name": device_status.device_name,
-                    "device_type": device_status.device_type,
-                    "firmware_version": device_status.firmware_version,
-                    "mac_address": device_status.mac_address,
-                    "app_name": device_status.app_name,
-                },
-                "components": await strategy.capture_components(
-                    device_ip, device_status, component_types
-                ),
-            }
-
-            result["devices"][device_ip] = device_data
-
-        return result
-
-    def _capture_strategy(self, status: DeviceStatus) -> ComponentCaptureStrategy:
-        if Generation.from_device_gen(status.gen) is Generation.GEN1:
-            return self._gen1_capture
-        return self._gen2_capture
+    async def _capture_device(
+        self, device_ip: str, component_types: list[str]
+    ) -> DeviceSnapshot | None:
+        status = await self._device_gateway.get_device_status(device_ip)
+        if not status:
+            return None
+        return await self._capture.capture(device_ip, status, component_types)
 
     async def apply_bulk_config(
         self,
@@ -172,6 +169,10 @@ class BulkOperationsUseCase:
     ) -> list[ActionResult]:
         """
         Apply component configuration to multiple devices.
+
+        Devices are handled concurrently and each is configured at most once;
+        the components of a single device are configured one at a time. Results
+        stay in device order.
 
         Resolves actual component keys (e.g. cover:0) per device to ensure
         the RPC call includes the required component ID.
@@ -184,30 +185,35 @@ class BulkOperationsUseCase:
         Returns:
             List of action results
         """
-        all_results = []
+        per_device = await _gather_settled(
+            self._apply_device_config(device_ip, component_type, config)
+            for device_ip in _unique(device_ips)
+        )
+        return [result for results in per_device for result in results]
 
-        for device_ip in device_ips:
-            keys = await self._device_gateway.get_component_keys(
-                device_ip, component_type
+    async def _apply_device_config(
+        self,
+        device_ip: str,
+        component_type: str,
+        config: dict[str, Any],
+    ) -> list[ActionResult]:
+        keys = await self._device_gateway.get_component_keys(device_ip, component_type)
+
+        if not keys:
+            return [
+                ActionResult(
+                    device_ip=device_ip,
+                    action_type=f"{component_type}.SetConfig",
+                    success=False,
+                    message=f"No {component_type} components found on device",
+                    error=f"Component type {component_type} not present"
+                    " or device unreachable",
+                )
+            ]
+
+        return [
+            await self._device_gateway.execute_component_action(
+                device_ip, key, "SetConfig", {"config": config}
             )
-
-            if not keys:
-                all_results.append(
-                    ActionResult(
-                        device_ip=device_ip,
-                        action_type=f"{component_type}.SetConfig",
-                        success=False,
-                        message=f"No {component_type} components found on device",
-                        error=f"Component type {component_type} not present"
-                        " or device unreachable",
-                    )
-                )
-                continue
-
-            for key in keys:
-                result = await self._device_gateway.execute_component_action(
-                    device_ip, key, "SetConfig", {"config": config}
-                )
-                all_results.append(result)
-
-        return all_results
+            for key in keys
+        ]
