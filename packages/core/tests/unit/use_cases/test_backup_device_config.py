@@ -135,9 +135,10 @@ class TestBackupDeviceConfig:
         assert backup.snapshot == _snapshot().to_dict()
 
     async def test_it_detects_gen1_from_gen_field(
-        self, use_case, mock_device_gateway, mock_repository
+        self, use_case, mock_device_gateway, mock_capture, mock_repository
     ):
         mock_device_gateway.get_device_status = AsyncMock(return_value=_status(gen=1))
+        mock_capture.capture = AsyncMock(return_value=_gen1_snapshot())
         mock_repository.create = AsyncMock(side_effect=lambda backup: backup)
 
         backup = await use_case.create_backup("192.168.1.100")
@@ -158,6 +159,31 @@ class TestBackupDeviceConfig:
         assert "legacy_settings" in components
         assert components["legacy_settings"]["config"] == {"relays": [{"auto_off": 30}]}
         mock_repository.create.assert_awaited_once()
+
+    async def test_it_refuses_a_gen1_backup_without_raw_settings(
+        self, use_case, mock_device_gateway, mock_capture, mock_repository
+    ):
+        # A Gen1 restore replays /settings and nothing else, so the mapped
+        # component configs on their own would promise a recovery that the
+        # restore path always aborts.
+        mock_device_gateway.get_device_status = AsyncMock(return_value=_status(gen=1))
+        mock_capture.capture = AsyncMock(return_value=_snapshot())
+
+        with pytest.raises(BackupError, match="Gen1 settings"):
+            await use_case.create_backup("192.168.1.100")
+
+        mock_repository.create.assert_not_awaited()
+
+    async def test_it_stores_a_gen2_backup_without_raw_settings(
+        self, use_case, mock_device_gateway, mock_repository
+    ):
+        # The Gen1 rule must not leak into Gen2, which never captures /settings.
+        mock_device_gateway.get_device_status = AsyncMock(return_value=_status(gen=2))
+        mock_repository.create = AsyncMock(side_effect=lambda backup: backup)
+
+        backup = await use_case.create_backup("192.168.1.100")
+
+        assert backup.generation == "gen2"
 
     async def test_it_raises_when_generation_unknown(
         self, use_case, mock_device_gateway

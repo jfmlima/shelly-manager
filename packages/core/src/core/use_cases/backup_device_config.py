@@ -58,7 +58,8 @@ class BackupDeviceConfig:
 
         Raises:
             DeviceNotFoundError: If the device is unreachable.
-            BackupError: If the device MAC cannot be determined.
+            BackupError: If the device MAC or generation cannot be determined,
+                or if nothing a restore could apply was captured.
         """
         status = await self._device_gateway.get_device_status(device_ip)
         if status is None:
@@ -69,18 +70,6 @@ class BackupDeviceConfig:
             | {SCHEDULES_KEY}
         )
         snapshot = await self._capture.capture(device_ip, status, component_types)
-        if not snapshot.has_restorable_payload:
-            raise BackupError(
-                f"No restorable configuration captured for {device_ip}; "
-                "backup aborted"
-            )
-
-        mac = status.mac_address or snapshot.device_info.mac_address
-        if not mac:
-            raise BackupError(
-                f"Could not determine MAC address for device {device_ip}; "
-                "backup aborted"
-            )
 
         # Generation comes from the device's explicit `gen` field (Gen2+ RPC) or
         # the legacy gateway's gen=1 stamp, never inferred from a missing field.
@@ -88,6 +77,29 @@ class BackupDeviceConfig:
         if generation is None:
             raise BackupError(
                 f"Could not determine device generation for {device_ip}; "
+                "backup aborted"
+            )
+
+        if not snapshot.has_restorable_payload:
+            raise BackupError(
+                f"No restorable configuration captured for {device_ip}; "
+                "backup aborted"
+            )
+
+        # A Gen1 restore replays the raw /settings and nothing else, so a Gen1
+        # snapshot without them cannot be restored at all. The mapped component
+        # configs left behind look like a healthy backup but are Gen2-shaped and
+        # unwritable, so storing one would promise a recovery it cannot deliver.
+        if generation is Generation.GEN1 and snapshot.legacy_settings is None:
+            raise BackupError(
+                f"No raw Gen1 settings captured for {device_ip}; a Gen1 backup "
+                "cannot be restored without them, so it was not stored"
+            )
+
+        mac = status.mac_address or snapshot.device_info.mac_address
+        if not mac:
+            raise BackupError(
+                f"Could not determine MAC address for device {device_ip}; "
                 "backup aborted"
             )
 

@@ -10,9 +10,10 @@ class Gen1CaptureStrategy:
 
     Gen1 has no /rpc: GetConfig and Schedule.List 404, so the mapped configs
     already on the ``DeviceStatus`` are captured instead. The
-    ``legacy_settings`` entry is the source of truth a Gen1 restore replays;
-    it is omitted when the raw fetch fails, and the mapped configs alone still
-    make the backup valid.
+    ``legacy_settings`` entry is the source of truth a Gen1 restore replays, and
+    it is omitted when the raw fetch fails. Capture reports that omission rather
+    than judging it; whether a snapshot without it is worth storing is the
+    caller's call (``BackupDeviceConfig`` refuses, since it could not restore).
     """
 
     def __init__(self, device_gateway: DeviceGateway):
