@@ -1013,3 +1013,28 @@ class TestBulkOperationsUseCase:
 
         assert mock_device_gateway.get_device_status.await_count == 1
         assert result["export_metadata"]["total_devices"] == 1
+
+    async def test_it_lets_every_apply_finish_before_a_failure_surfaces(
+        self, use_case, mock_device_gateway
+    ):
+        # Same rule as the capture path: a device that raises must not leave its
+        # siblings still writing to hardware with nobody awaiting them.
+        finished = []
+
+        async def get_component_keys(device_ip, component_type):
+            if device_ip == "192.168.1.100":
+                raise RuntimeError("boom")
+            await asyncio.sleep(0.05)
+            finished.append(device_ip)
+            return []
+
+        mock_device_gateway.get_component_keys = AsyncMock(
+            side_effect=get_component_keys
+        )
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await use_case.apply_bulk_config(
+                ["192.168.1.100", "192.168.1.101"], "switch", {}
+            )
+
+        assert finished == ["192.168.1.101"]

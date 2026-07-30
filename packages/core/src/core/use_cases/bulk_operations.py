@@ -1,12 +1,15 @@
 import asyncio
+from collections.abc import Coroutine, Iterable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, TypeVar
 
 from ..domain.entities.config_snapshot import DeviceSnapshot
 from ..domain.entities.exceptions import BulkOperationError
 from ..domain.value_objects.action_result import ActionResult
 from ..gateways.device import DeviceGateway
 from .capture_device_config import CaptureDeviceConfig
+
+T = TypeVar("T")
 
 
 def _unique(device_ips: list[str]) -> list[str]:
@@ -18,6 +21,23 @@ def _unique(device_ips: list[str]) -> list[str]:
     to avoid.
     """
     return list(dict.fromkeys(device_ips))
+
+
+async def _gather_settled(coroutines: Iterable[Coroutine[Any, Any, T]]) -> list[T]:
+    """Run every device to completion, in order, then surface the first failure.
+
+    Plain ``asyncio.gather`` raises the moment one device fails and does not
+    cancel its siblings, leaving them issuing requests to real hardware with
+    nobody awaiting them. Letting every task settle first keeps one bad device
+    from doing that.
+    """
+    results = await asyncio.gather(*coroutines, return_exceptions=True)
+    settled: list[T] = []
+    for result in results:
+        if isinstance(result, BaseException):
+            raise result
+        settled.append(result)
+    return settled
 
 
 class BulkOperationsUseCase:
@@ -116,7 +136,9 @@ class BulkOperationsUseCase:
             Dictionary containing export metadata and device configurations
         """
         targets = _unique(device_ips)
-        snapshots = await self._capture_all(targets, component_types)
+        snapshots = await _gather_settled(
+            self._capture_device(ip, component_types) for ip in targets
+        )
 
         return {
             "export_metadata": {
@@ -130,26 +152,6 @@ class BulkOperationsUseCase:
                 if snapshot is not None
             },
         }
-
-    async def _capture_all(
-        self, device_ips: list[str], component_types: list[str]
-    ) -> list[DeviceSnapshot | None]:
-        """Capture every device concurrently, in the order they were asked for.
-
-        Gathering with ``return_exceptions`` lets every capture finish before a
-        failure surfaces, so one bad device does not leave the others running
-        against real hardware with nobody awaiting them.
-        """
-        results = await asyncio.gather(
-            *(self._capture_device(ip, component_types) for ip in device_ips),
-            return_exceptions=True,
-        )
-        snapshots: list[DeviceSnapshot | None] = []
-        for result in results:
-            if isinstance(result, BaseException):
-                raise result
-            snapshots.append(result)
-        return snapshots
 
     async def _capture_device(
         self, device_ip: str, component_types: list[str]
@@ -183,11 +185,9 @@ class BulkOperationsUseCase:
         Returns:
             List of action results
         """
-        per_device = await asyncio.gather(
-            *(
-                self._apply_device_config(device_ip, component_type, config)
-                for device_ip in _unique(device_ips)
-            )
+        per_device = await _gather_settled(
+            self._apply_device_config(device_ip, component_type, config)
+            for device_ip in _unique(device_ips)
         )
         return [result for results in per_device for result in results]
 
