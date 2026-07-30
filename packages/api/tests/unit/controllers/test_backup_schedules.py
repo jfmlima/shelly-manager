@@ -1,6 +1,7 @@
 """Tests for the backup schedules API controller."""
 
 from api.controllers.backup_schedules import BackupSchedulesController
+from api.presentation.handlers import EXCEPTION_HANDLERS
 from core.domain.entities.backup_schedule import BackupSchedule
 from core.use_cases.manage_backup_schedules import (
     ManageBackupSchedulesUseCase,
@@ -39,6 +40,7 @@ class TestBackupSchedulesController:
 
         with create_test_client(
             route_handlers=[BackupSchedulesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_manage_provider(Mock()),
         ) as client:
             response = client.get("/")
@@ -59,6 +61,7 @@ class TestBackupSchedulesController:
 
         with create_test_client(
             route_handlers=[BackupSchedulesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_manage_provider(Mock()),
         ) as client:
             response = client.post(
@@ -80,6 +83,7 @@ class TestBackupSchedulesController:
 
         with create_test_client(
             route_handlers=[BackupSchedulesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_manage_provider(Mock()),
         ) as client:
             response = client.post("/", json={"name": "no-targets", "every": "daily"})
@@ -92,6 +96,7 @@ class TestBackupSchedulesController:
 
         with create_test_client(
             route_handlers=[BackupSchedulesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_manage_provider(Mock()),
         ) as client:
             response = client.post(
@@ -115,6 +120,7 @@ class TestBackupSchedulesController:
 
         with create_test_client(
             route_handlers=[BackupSchedulesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_manage_provider(Mock()),
         ) as client:
             response = client.post(
@@ -137,6 +143,7 @@ class TestBackupSchedulesController:
 
         with create_test_client(
             route_handlers=[BackupSchedulesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_manage_provider(Mock()),
         ) as client:
             response = client.get("/99")
@@ -156,6 +163,7 @@ class TestBackupSchedulesController:
 
         with create_test_client(
             route_handlers=[BackupSchedulesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_manage_provider(Mock()),
         ) as client:
             response = client.put(
@@ -178,6 +186,7 @@ class TestBackupSchedulesController:
 
         with create_test_client(
             route_handlers=[BackupSchedulesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_manage_provider(Mock()),
         ) as client:
             response = client.post("/1/disable")
@@ -201,6 +210,7 @@ class TestBackupSchedulesController:
 
         with create_test_client(
             route_handlers=[BackupSchedulesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_run_provider(Mock()),
         ) as client:
             response = client.post("/1/run")
@@ -219,6 +229,7 @@ class TestBackupSchedulesController:
 
         with create_test_client(
             route_handlers=[BackupSchedulesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_run_provider(Mock()),
         ) as client:
             response = client.post("/99/run")

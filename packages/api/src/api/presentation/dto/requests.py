@@ -2,18 +2,19 @@
 Request models for API validation.
 """
 
-import ipaddress
-import re
 from typing import Any
 
+from core.domain.entities.backup_schedule import EVERY_PRESETS, MIN_INTERVAL_SECONDS
+from core.domain.entities.config_snapshot import (
+    CONFIGURABLE_COMPONENT_TYPES,
+    EXPORTABLE_COMPONENT_TYPES,
+)
+from core.utils.validation import (
+    validate_ip_address,
+    validate_ip_address_list,
+    validate_mac,
+)
 from pydantic import BaseModel, Field, field_validator, model_validator
-
-EVERY_PRESETS: dict[str, int] = {
-    "hourly": 3600,
-    "daily": 86400,
-    "weekly": 604800,
-}
-MIN_INTERVAL_SECONDS = 60
 
 
 class CredentialCreateRequest(BaseModel):
@@ -25,122 +26,9 @@ class CredentialCreateRequest(BaseModel):
 
     @field_validator("mac")
     @classmethod
-    def validate_mac(cls, v: str) -> str:
+    def validate_mac_address(cls, v: str) -> str:
         """Validate and normalize MAC address."""
-        if v == "*":
-            return v
-        mac_clean = v.upper().replace(":", "").replace("-", "")
-        if not re.match(r"^[0-9A-F]{12}$", mac_clean):
-            raise ValueError(
-                "Invalid MAC address format. Expected format: AA:BB:CC:DD:EE:FF or AABBCCDDEEFF"
-            )
-        return mac_clean  # Return normalized form (uppercase, no separators)
-
-
-class ScanDevicesRequest(BaseModel):
-    targets: list[str] = Field(
-        default_factory=list,
-        description="IP targets: individual IPs ('192.168.1.1'), ranges ('192.168.1.1-254'), or CIDR ('192.168.1.0/24')",
-    )
-    use_mdns: bool = Field(
-        False,
-        description="Use mDNS to discover devices (ignores targets)",
-    )
-    timeout: float = Field(
-        3.0,
-        ge=0.1,
-        le=30.0,
-        description="Timeout for each device scan",
-    )
-    max_workers: int = Field(
-        50,
-        ge=1,
-        le=200,
-        description="Maximum concurrent workers",
-    )
-
-    @field_validator("targets")
-    @classmethod
-    def validate_targets(cls, v: list[str]) -> list[str]:
-        if not v:
-            return v
-
-        from core.utils.target_parser import validate_target
-
-        for target in v:
-            try:
-                validate_target(target)
-            except ValueError as e:
-                raise ValueError(f"Invalid target '{target}': {str(e)}") from e
-
-        return v
-
-
-class DeviceActionRequest(BaseModel):
-    action_type: str = Field(..., description="Type of action to perform")
-    parameters: dict[str, Any] = Field(
-        default_factory=dict, description="Action parameters"
-    )
-
-    @field_validator("action_type")
-    @classmethod
-    def validate_action_type(cls, v: str) -> str:
-        valid_actions = [
-            "list",
-            "update",
-            "reboot",
-            "config-get",
-            "config-set",
-            "status",
-        ]
-        if v not in valid_actions:
-            raise ValueError(f"Invalid action type. Must be one of: {valid_actions}")
-        return v
-
-
-class BulkActionRequest(BaseModel):
-    action_type: str = Field(..., description="Type of action to perform")
-    device_ips: list[str] = Field(
-        ..., min_length=1, description="List of device IP addresses"
-    )
-    parameters: dict[str, Any] = Field(
-        default_factory=dict, description="Action parameters"
-    )
-
-    @field_validator("action_type")
-    @classmethod
-    def validate_action_type(cls, v: str) -> str:
-        valid_actions = ["update", "reboot", "config-set"]
-        if v not in valid_actions:
-            raise ValueError(
-                f"Invalid bulk action type. Must be one of: {valid_actions}"
-            )
-        return v
-
-    @field_validator("device_ips")
-    @classmethod
-    def validate_ips(cls, v: list[str]) -> list[str]:
-        return _validate_ip_addresses(v)
-
-
-class UpdateConfigRequest(BaseModel):
-    predefined_ips: list[str] | None = Field(
-        None, description="List of predefined IP addresses"
-    )
-    scan_settings: dict[str, Any] | None = Field(None, description="Scan configuration")
-    export_settings: dict[str, Any] | None = Field(
-        None, description="Export configuration"
-    )
-    default_credentials: dict[str, str] | None = Field(
-        None, description="Default device credentials"
-    )
-
-    @field_validator("predefined_ips")
-    @classmethod
-    def validate_predefined_ips(cls, v: list[str] | None) -> list[str] | None:
-        if v is not None:
-            _validate_ip_addresses(v)
-        return v
+        return validate_mac(v, allow_wildcard=True)
 
 
 class AddIPRequest(BaseModel):
@@ -149,7 +37,7 @@ class AddIPRequest(BaseModel):
     @field_validator("ip")
     @classmethod
     def validate_ip(cls, v: str) -> str:
-        return _validate_ip_address(v)
+        return validate_ip_address(v)
 
 
 class RemoveIPRequest(BaseModel):
@@ -158,7 +46,7 @@ class RemoveIPRequest(BaseModel):
     @field_validator("ip")
     @classmethod
     def validate_ip(cls, v: str) -> str:
-        return _validate_ip_address(v)
+        return validate_ip_address(v)
 
 
 class UpdateDeviceConfigRequest(BaseModel):
@@ -178,7 +66,7 @@ class BulkExportConfigRequest(BaseModel):
     @field_validator("device_ips")
     @classmethod
     def validate_device_ips(cls, v: list[str]) -> list[str]:
-        return _validate_ip_addresses(v)
+        return validate_ip_address_list(v)
 
     @field_validator("component_types")
     @classmethod
@@ -200,7 +88,7 @@ class BulkApplyConfigRequest(BaseModel):
     @field_validator("device_ips")
     @classmethod
     def validate_device_ips(cls, v: list[str]) -> list[str]:
-        return _validate_ip_addresses(v)
+        return validate_ip_address_list(v)
 
     @field_validator("component_type")
     @classmethod
@@ -267,7 +155,7 @@ class ProvisionDeviceAPIRequest(BaseModel):
     @field_validator("device_ip")
     @classmethod
     def validate_device_ip(cls, v: str) -> str:
-        return _validate_ip_address(v)
+        return validate_ip_address(v)
 
 
 class DetectDeviceAPIRequest(BaseModel):
@@ -282,7 +170,7 @@ class DetectDeviceAPIRequest(BaseModel):
     @field_validator("device_ip")
     @classmethod
     def validate_device_ip(cls, v: str) -> str:
-        return _validate_ip_address(v)
+        return validate_ip_address(v)
 
 
 class VerifyProvisionRequest(BaseModel):
@@ -297,84 +185,6 @@ class VerifyProvisionRequest(BaseModel):
     timeout: float = Field(default=30.0, ge=5.0, le=120.0)
 
 
-def _validate_targets(targets: list[str]) -> list[str]:
-    """Validate IP / range / CIDR target strings without expanding them."""
-    from core.utils.target_parser import validate_target
-
-    for target in targets:
-        try:
-            validate_target(target)
-        except ValueError as e:
-            raise ValueError(f"Invalid target '{target}': {e}") from e
-    return targets
-
-
-def _normalize_mac(mac: str) -> str:
-    mac_clean = mac.upper().replace(":", "").replace("-", "")
-    if not re.match(r"^[0-9A-F]{12}$", mac_clean):
-        raise ValueError(
-            "Invalid MAC address format. Expected AA:BB:CC:DD:EE:FF or AABBCCDDEEFF"
-        )
-    return mac_clean
-
-
-def _normalize_macs(macs: list[str]) -> list[str]:
-    return [_normalize_mac(mac) for mac in macs]
-
-
-def _validate_ip_address(ip: str) -> str:
-    try:
-        ipaddress.IPv4Address(ip)
-    except ipaddress.AddressValueError as e:
-        raise ValueError(f"Invalid IP address: {ip}") from e
-    return ip
-
-
-def _validate_ip_addresses(ips: list[str]) -> list[str]:
-    for ip in ips:
-        _validate_ip_address(ip)
-    return ips
-
-
-def _get_valid_component_types() -> list[str]:
-    return [
-        "switch",
-        "input",
-        "cover",
-        "sys",
-        "cloud",
-        "wifi",
-        "ble",
-        "mqtt",
-        "ws",
-        "script",
-        "knx",
-        "modbus",
-        "zigbee",
-        "button",
-        "text",
-        "number",
-        "group",
-        "enum",
-        "boolean",
-    ]
-
-
-def _validate_component_type(component_type: str) -> str:
-    valid_components = _get_valid_component_types()
-    if component_type not in valid_components:
-        raise ValueError(f"Invalid component type: {component_type}")
-    return component_type
-
-
-def _validate_component_types(component_types: list[str]) -> list[str]:
-    valid_components = _get_valid_component_types()
-    invalid_types = [comp for comp in component_types if comp not in valid_components]
-    if invalid_types:
-        raise ValueError(f"Invalid component types: {invalid_types}")
-    return component_types
-
-
 class CreateBackupRequest(BaseModel):
     """Request model for capturing a device configuration backup."""
 
@@ -384,11 +194,7 @@ class CreateBackupRequest(BaseModel):
     @field_validator("device_ip")
     @classmethod
     def validate_device_ip(cls, v: str) -> str:
-        try:
-            ipaddress.IPv4Address(v)
-        except ipaddress.AddressValueError as e:
-            raise ValueError(f"Invalid IP address: {v}") from e
-        return v
+        return validate_ip_address(v)
 
 
 class CreateBackupScheduleRequest(BaseModel):
@@ -429,14 +235,9 @@ class CreateBackupScheduleRequest(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def validate_cadence_and_targets(self) -> "CreateBackupScheduleRequest":
+    def validate_cadence(self) -> "CreateBackupScheduleRequest":
         if (self.every is None) == (self.interval_seconds is None):
             raise ValueError("Provide exactly one of 'every' or 'interval_seconds'")
-        if not (self.target_ips or self.target_macs or self.all_credentialed):
-            raise ValueError(
-                "A schedule needs at least one target "
-                "(target_ips, target_macs, or all_credentialed)"
-            )
         return self
 
     def resolved_interval_seconds(self) -> int:
@@ -511,8 +312,35 @@ class RestoreBackupRequest(BaseModel):
     @field_validator("device_ip")
     @classmethod
     def validate_device_ip(cls, v: str) -> str:
+        return validate_ip_address(v)
+
+
+def _validate_targets(targets: list[str]) -> list[str]:
+    """Validate IP / range / CIDR target strings without expanding them."""
+    from core.utils.target_parser import validate_target
+
+    for target in targets:
         try:
-            ipaddress.IPv4Address(v)
-        except ipaddress.AddressValueError as e:
-            raise ValueError(f"Invalid IP address: {v}") from e
-        return v
+            validate_target(target)
+        except ValueError as e:
+            raise ValueError(f"Invalid target '{target}': {e}") from e
+    return targets
+
+
+def _normalize_macs(macs: list[str]) -> list[str]:
+    return [validate_mac(mac) for mac in macs]
+
+
+def _validate_component_type(component_type: str) -> str:
+    if component_type not in CONFIGURABLE_COMPONENT_TYPES:
+        raise ValueError(f"Invalid component type: {component_type}")
+    return component_type
+
+
+def _validate_component_types(component_types: list[str]) -> list[str]:
+    invalid_types = [
+        comp for comp in component_types if comp not in EXPORTABLE_COMPONENT_TYPES
+    ]
+    if invalid_types:
+        raise ValueError(f"Invalid component types: {invalid_types}")
+    return component_types

@@ -7,6 +7,7 @@ from core.repositories.models import Base
 from core.settings import settings as core_settings
 from litestar import Litestar, Router
 from litestar.config.cors import CORSConfig
+from litestar.logging import LoggingConfig
 from litestar.openapi import OpenAPIConfig
 from litestar.openapi.config import Contact, License, Server, Tag
 from sqlalchemy import text
@@ -120,6 +121,8 @@ def create_app() -> Litestar:
         dependencies=get_dependencies(_container),
         debug=os.getenv("DEBUG", "false").lower() == "true",
         lifespan=[lifespan],
+        # The 500 body redacts the cause, so the log is the only place it lives.
+        logging_config=LoggingConfig(log_exceptions="always"),
     )
 
     return app

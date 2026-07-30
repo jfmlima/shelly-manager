@@ -9,7 +9,7 @@ from api.controllers.devices import (
     get_device_status,
     scan_devices,
 )
-from api.presentation.exceptions import DeviceNotFoundHTTPException
+from api.presentation.handlers import EXCEPTION_HANDLERS
 from core.domain.entities.device_status import DeviceStatus
 from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.enums.enums import Status
@@ -57,6 +57,33 @@ class TestDevicesController:
             assert len(data) == 1
             assert data[0]["ip"] == "192.168.1.100"
             assert data[0]["status"] == "detected"
+
+    def test_scan_without_targets_returns_400(self):
+        from core.domain.entities.exceptions import ValidationError
+
+        class MockScanDevicesUseCase(ScanDevicesUseCase):
+            def __init__(self):
+                pass
+
+            async def execute(self, scan_request):
+                raise ValidationError(
+                    "targets",
+                    "At least one target is required when not using mDNS",
+                )
+
+        with create_test_client(
+            route_handlers=[scan_devices],
+            dependencies={
+                "scan_interactor": Provide(
+                    lambda: MockScanDevicesUseCase(), sync_to_thread=False
+                )
+            },
+            exception_handlers=EXCEPTION_HANDLERS,
+        ) as client:
+            response = client.get("/scan")
+
+            assert response.status_code == 400
+            assert response.json()["error"] == "Validation Error"
 
     def test_update_device_successfully(self):
         class MockExecuteComponentActionUseCase(ExecuteComponentActionUseCase):
@@ -368,24 +395,6 @@ class TestDevicesController:
             assert "Unsupported operation: invalid" in response.json()["detail"]
 
     def test_get_device_status_returns_404_when_device_not_found(self):
-        from datetime import datetime
-
-        from litestar.response import Response
-
-        def handle_device_not_found_exception(
-            request, exc: DeviceNotFoundHTTPException
-        ) -> Response:
-            return Response(
-                content={
-                    "error": "Device Not Found",
-                    "message": exc.detail,
-                    "timestamp": datetime.now().isoformat(),
-                    "ip": exc.device_ip,
-                },
-                status_code=404,
-                media_type="application/json",
-            )
-
         class MockCheckDeviceStatusUseCase(CheckDeviceStatusUseCase):
             def __init__(self):
                 pass
@@ -400,9 +409,7 @@ class TestDevicesController:
                     lambda: MockCheckDeviceStatusUseCase(), sync_to_thread=False
                 )
             },
-            exception_handlers={
-                DeviceNotFoundHTTPException: handle_device_not_found_exception,
-            },
+            exception_handlers=EXCEPTION_HANDLERS,
         ) as client:
             response = client.get("/192.168.1.200/status")
 
@@ -479,6 +486,42 @@ class TestDevicesController:
             assert device_data["device_info"]["device_name"] == "Test Device"
             assert "switch:0" in device_data["components"]
             assert device_data["components"]["switch:0"]["success"] is True
+
+    def test_it_exports_the_schedules_component_type(self):
+
+        class MockBulkOperationsUseCase(BulkOperationsUseCase):
+            def __init__(self):
+                pass
+
+            async def export_bulk_config(self, device_ips, component_types):
+                return {
+                    "export_metadata": {
+                        "timestamp": "2024-01-01T12:00:00Z",
+                        "total_devices": len(device_ips),
+                        "component_types": component_types,
+                    },
+                    "devices": {},
+                }
+
+        with create_test_client(
+            route_handlers=[bulk_export_config],
+            dependencies={
+                "bulk_operations_use_case": Provide(
+                    lambda: MockBulkOperationsUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.post(
+                "/bulk/config/export",
+                json={
+                    "device_ips": ["192.168.1.100"],
+                    "component_types": ["schedules"],
+                },
+            )
+
+            assert response.status_code == 201
+            data = response.json()
+            assert data["export_metadata"]["component_types"] == ["schedules"]
 
     def test_it_validates_bulk_export_config_errors(self):
 
@@ -732,6 +775,7 @@ class TestDevicesController:
                     lambda: MockBulkOperationsUseCase(), sync_to_thread=False
                 )
             },
+            exception_handlers=EXCEPTION_HANDLERS,
         ) as client:
             # Test export error
             response = client.post(
@@ -739,12 +783,7 @@ class TestDevicesController:
                 json={"device_ips": ["192.168.1.100"], "component_types": ["switch"]},
             )
             assert response.status_code == 500
-            # Response might be text or JSON, so check both
-            try:
-                detail = response.json()["detail"]
-            except Exception:
-                detail = response.text
-            assert "Internal error" in detail
+            assert response.json()["error"] == "Internal Server Error"
 
             # Test apply error
             response = client.post(
@@ -756,9 +795,4 @@ class TestDevicesController:
                 },
             )
             assert response.status_code == 500
-            # Response might be text or JSON, so check both
-            try:
-                detail = response.json()["detail"]
-            except Exception:
-                detail = response.text
-            assert "Internal error" in detail
+            assert response.json()["error"] == "Internal Server Error"

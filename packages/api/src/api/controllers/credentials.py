@@ -1,9 +1,5 @@
-from core.use_cases.manage_credentials import (
-    CredentialNotFoundError,
-    ManageCredentialsUseCase,
-)
+from core.use_cases.manage_credentials import ManageCredentialsUseCase
 from litestar import Controller, Router, delete, get, post
-from litestar.exceptions import NotFoundException
 
 from api.presentation.dto.requests import CredentialCreateRequest
 from api.presentation.dto.responses import CredentialResponse
@@ -50,12 +46,7 @@ class CredentialsController(Controller):
         credentials_use_case: ManageCredentialsUseCase,
     ) -> None:
         """Delete credentials for a device."""
-        try:
-            await credentials_use_case.delete_credential(mac)
-        except CredentialNotFoundError as err:
-            raise NotFoundException(
-                detail=f"Credential not found for MAC: {mac}"
-            ) from err
+        await credentials_use_case.delete_credential(mac)
 
 
 credentials_router = Router(

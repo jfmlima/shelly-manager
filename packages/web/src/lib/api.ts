@@ -448,11 +448,11 @@ export const handleApiError = (error: unknown): string => {
         response.data !== null
       ) {
         const data = response.data as Record<string, unknown>;
-        if (typeof data.error === "string") {
-          return data.error;
-        }
         if (typeof data.message === "string") {
           return data.message;
+        }
+        if (typeof data.error === "string") {
+          return data.error;
         }
       }
     }

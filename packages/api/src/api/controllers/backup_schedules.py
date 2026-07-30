@@ -1,15 +1,9 @@
 """Controller for automated backup schedules."""
 
 from core.domain.entities.backup_schedule import BackupSchedule
-from core.use_cases.manage_backup_schedules import (
-    ManageBackupSchedulesUseCase,
-    ScheduleAlreadyExistsError,
-    ScheduleNotFoundError,
-)
+from core.use_cases.manage_backup_schedules import ManageBackupSchedulesUseCase
 from core.use_cases.run_due_backups import RunDueBackupsUseCase
 from litestar import Controller, Router, delete, get, post, put
-from litestar.exceptions import HTTPException, NotFoundException
-from litestar.status_codes import HTTP_400_BAD_REQUEST, HTTP_409_CONFLICT
 
 from api.presentation.dto.requests import (
     CreateBackupScheduleRequest,
@@ -51,13 +45,7 @@ class BackupSchedulesController(Controller):
             retention_keep_last=data.retention_keep_last,
             retention_max_age_days=data.retention_max_age_days,
         )
-        try:
-            created = await manage_schedules_use_case.create_schedule(schedule)
-        except ScheduleAlreadyExistsError as err:
-            raise HTTPException(
-                status_code=HTTP_409_CONFLICT,
-                detail=f"Schedule already exists: {data.name}",
-            ) from err
+        created = await manage_schedules_use_case.create_schedule(schedule)
         return _to_response(created)
 
     @get("/{schedule_id:int}")
@@ -67,12 +55,7 @@ class BackupSchedulesController(Controller):
         manage_schedules_use_case: ManageBackupSchedulesUseCase,
     ) -> BackupScheduleResponse:
         """Get a backup schedule by ID."""
-        try:
-            schedule = await manage_schedules_use_case.get_schedule(schedule_id)
-        except ScheduleNotFoundError as err:
-            raise NotFoundException(
-                detail=f"Schedule not found: {schedule_id}"
-            ) from err
+        schedule = await manage_schedules_use_case.get_schedule(schedule_id)
         return _to_response(schedule)
 
     @put("/{schedule_id:int}")
@@ -83,61 +66,17 @@ class BackupSchedulesController(Controller):
         manage_schedules_use_case: ManageBackupSchedulesUseCase,
     ) -> BackupScheduleResponse:
         """Partially update a backup schedule."""
-        try:
-            existing = await manage_schedules_use_case.get_schedule(schedule_id)
-        except ScheduleNotFoundError as err:
-            raise NotFoundException(
-                detail=f"Schedule not found: {schedule_id}"
-            ) from err
-
-        interval = data.resolved_interval_seconds()
-        updated = BackupSchedule(
-            id=schedule_id,
-            name=data.name if data.name is not None else existing.name,
-            interval_seconds=(
-                interval if interval is not None else existing.interval_seconds
-            ),
-            target_ips=(
-                data.target_ips if data.target_ips is not None else existing.target_ips
-            ),
-            target_macs=(
-                data.target_macs
-                if data.target_macs is not None
-                else existing.target_macs
-            ),
-            all_credentialed=(
-                data.all_credentialed
-                if data.all_credentialed is not None
-                else existing.all_credentialed
-            ),
-            enabled=data.enabled if data.enabled is not None else existing.enabled,
-            retention_keep_last=(
-                data.retention_keep_last
-                if data.retention_keep_last is not None
-                else existing.retention_keep_last
-            ),
-            retention_max_age_days=(
-                data.retention_max_age_days
-                if data.retention_max_age_days is not None
-                else existing.retention_max_age_days
-            ),
-            next_run_at=existing.next_run_at,
+        result = await manage_schedules_use_case.apply_schedule_update(
+            schedule_id,
+            name=data.name,
+            interval_seconds=data.resolved_interval_seconds(),
+            target_ips=data.target_ips,
+            target_macs=data.target_macs,
+            all_credentialed=data.all_credentialed,
+            enabled=data.enabled,
+            retention_keep_last=data.retention_keep_last,
+            retention_max_age_days=data.retention_max_age_days,
         )
-        if not (updated.target_ips or updated.target_macs or updated.all_credentialed):
-            raise HTTPException(
-                status_code=HTTP_400_BAD_REQUEST,
-                detail=(
-                    "A schedule needs at least one target "
-                    "(target_ips, target_macs, or all_credentialed)"
-                ),
-            )
-        try:
-            result = await manage_schedules_use_case.update_schedule(updated)
-        except ScheduleAlreadyExistsError as err:
-            raise HTTPException(
-                status_code=HTTP_409_CONFLICT,
-                detail=f"Schedule name already exists: {data.name}",
-            ) from err
         return _to_response(result)
 
     @delete("/{schedule_id:int}")
@@ -147,12 +86,7 @@ class BackupSchedulesController(Controller):
         manage_schedules_use_case: ManageBackupSchedulesUseCase,
     ) -> None:
         """Delete a backup schedule."""
-        try:
-            await manage_schedules_use_case.delete_schedule(schedule_id)
-        except ScheduleNotFoundError as err:
-            raise NotFoundException(
-                detail=f"Schedule not found: {schedule_id}"
-            ) from err
+        await manage_schedules_use_case.delete_schedule(schedule_id)
 
     @post("/{schedule_id:int}/enable")
     async def enable_schedule(
@@ -179,12 +113,7 @@ class BackupSchedulesController(Controller):
         run_due_backups_use_case: RunDueBackupsUseCase,
     ) -> ScheduleRunResultResponse:
         """Run a backup schedule now, ignoring its next run time."""
-        try:
-            result = await run_due_backups_use_case.run_schedule(schedule_id)
-        except ScheduleNotFoundError as err:
-            raise NotFoundException(
-                detail=f"Schedule not found: {schedule_id}"
-            ) from err
+        result = await run_due_backups_use_case.run_schedule(schedule_id)
         return ScheduleRunResultResponse(
             schedule_id=result.schedule_id,
             schedule_name=result.schedule_name,
@@ -202,12 +131,7 @@ class BackupSchedulesController(Controller):
         schedule_id: int,
         enabled: bool,
     ) -> BackupScheduleResponse:
-        try:
-            updated = await use_case.set_enabled(schedule_id, enabled)
-        except ScheduleNotFoundError as err:
-            raise NotFoundException(
-                detail=f"Schedule not found: {schedule_id}"
-            ) from err
+        updated = await use_case.set_enabled(schedule_id, enabled)
         return _to_response(updated)
 
 

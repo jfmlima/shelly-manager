@@ -4,6 +4,8 @@ Device management API routes using core interactors.
 
 from typing import TypeVar
 
+from core.domain.entities.exceptions import DeviceNotFoundError
+from core.domain.enums.enums import UpdateChannel
 from core.domain.value_objects.check_device_status_request import (
     CheckDeviceStatusRequest,
 )
@@ -26,7 +28,6 @@ from ..presentation.dto.responses import (
     BulkApplyConfigResponse,
     BulkExportConfigResponse,
 )
-from ..presentation.exceptions import DeviceNotFoundHTTPException
 
 T = TypeVar("T")
 
@@ -226,7 +227,7 @@ async def get_device_status(
             "total_components": device_status.total_components,
         }
     else:
-        raise DeviceNotFoundHTTPException(ip)
+        raise DeviceNotFoundError(ip)
 
 
 @post(
@@ -257,14 +258,13 @@ async def update_device(
         "execute_component_action_interactor", execute_component_action_interactor
     )
 
-    channel = data.get("channel", "stable")
-    parameters = {"channel": channel} if channel != "stable" else {}
+    channel = UpdateChannel(data.get("channel", "stable"))
 
     request = ComponentActionRequest(
         device_ip=ip,
         component_key="shelly",
         action="Update",
-        parameters=parameters,
+        parameters=channel.to_update_parameters(),
     )
 
     result = await execute_component_action_interactor.execute(request)
@@ -275,7 +275,7 @@ async def update_device(
         "message": result.message,
         "error": result.error,
         "action_type": result.action_type,
-        "channel": channel,
+        "channel": channel.value,
     }
 
 
@@ -356,37 +356,30 @@ async def execute_bulk_operations(
             detail=f"Unsupported operation: {operation}. Supported: update, reboot, factory_reset",
         )
 
-    try:
-        if operation == "update":
-            channel = data.get("channel", "stable")
-            results = await bulk_operations_use_case.execute_bulk_update(
-                device_ips, channel
-            )
-        elif operation == "reboot":
-            results = await bulk_operations_use_case.execute_bulk_reboot(device_ips)
-        elif operation == "factory_reset":
-            results = await bulk_operations_use_case.execute_bulk_factory_reset(
-                device_ips
-            )
+    if operation == "update":
+        channel = data.get("channel", "stable")
+        results = await bulk_operations_use_case.execute_bulk_update(
+            device_ips, channel
+        )
+    elif operation == "reboot":
+        results = await bulk_operations_use_case.execute_bulk_reboot(device_ips)
+    elif operation == "factory_reset":
+        results = await bulk_operations_use_case.execute_bulk_factory_reset(device_ips)
 
-        parameters = {
-            k: v for k, v in data.items() if k not in ["device_ips", "operation"]
+    parameters = {k: v for k, v in data.items() if k not in ["device_ips", "operation"]}
+
+    return [
+        {
+            "ip": result.device_ip,
+            "success": result.success,
+            "message": result.message,
+            "error": result.error,
+            "action_type": result.action_type,
+            "operation": operation,
+            **parameters,
         }
-
-        return [
-            {
-                "ip": result.device_ip,
-                "success": result.success,
-                "message": result.message,
-                "error": result.error,
-                "action_type": result.action_type,
-                "operation": operation,
-                **parameters,
-            }
-            for result in results
-        ]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        for result in results
+    ]
 
 
 @post("/bulk/config/export")
@@ -399,15 +392,12 @@ async def bulk_export_config(
         "bulk_operations_use_case", bulk_operations_use_case
     )
 
-    try:
-        result = await bulk_operations_use_case.export_bulk_config(
-            data.device_ips, data.component_types
-        )
-        return BulkExportConfigResponse(
-            export_metadata=result["export_metadata"], devices=result["devices"]
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    result = await bulk_operations_use_case.export_bulk_config(
+        data.device_ips, data.component_types
+    )
+    return BulkExportConfigResponse(
+        export_metadata=result["export_metadata"], devices=result["devices"]
+    )
 
 
 @post("/bulk/config/apply")
@@ -420,26 +410,21 @@ async def bulk_apply_config(
         "bulk_operations_use_case", bulk_operations_use_case
     )
 
-    try:
-        results = await bulk_operations_use_case.apply_bulk_config(
-            data.device_ips, data.component_type, data.config
+    results = await bulk_operations_use_case.apply_bulk_config(
+        data.device_ips, data.component_type, data.config
+    )
+    return [
+        BulkApplyConfigResponse(
+            ip=result.device_ip,
+            component_key=(
+                result.action_type.split(".")[0] if "." in result.action_type else ""
+            ),
+            success=result.success,
+            message=result.message,
+            error=result.error,
         )
-        return [
-            BulkApplyConfigResponse(
-                ip=result.device_ip,
-                component_key=(
-                    result.action_type.split(".")[0]
-                    if "." in result.action_type
-                    else ""
-                ),
-                success=result.success,
-                message=result.message,
-                error=result.error,
-            )
-            for result in results
-        ]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        for result in results
+    ]
 
 
 devices_router = Router(
