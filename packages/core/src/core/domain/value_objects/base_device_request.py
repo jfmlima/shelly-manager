@@ -15,7 +15,7 @@ class BaseDeviceRequest(BaseModel):
     @field_validator("device_ip")
     @classmethod
     def validate_device_ip(cls, v: str) -> str:
-        return validate_ip_address(cls, v)
+        return validate_ip_address(v)
 
 
 class BaseBulkDeviceRequest(BaseModel):
@@ -28,4 +28,4 @@ class BaseBulkDeviceRequest(BaseModel):
     @field_validator("device_ips")
     @classmethod
     def validate_device_ips(cls, v: list[str]) -> list[str]:
-        return validate_ip_address_list(cls, v)
+        return validate_ip_address_list(v)

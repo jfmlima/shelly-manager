@@ -63,6 +63,49 @@ class TestManageProvisioningProfilesUseCase:
         with pytest.raises(ProfileNotFoundError):
             await use_case.get_profile(999)
 
+    async def test_it_gets_profile_by_name(
+        self, use_case, mock_repository, sample_profile
+    ):
+        mock_repository.get_by_name.return_value = sample_profile
+
+        result = await use_case.get_profile_by_name("default")
+
+        assert result.id == 1
+        mock_repository.get_by_name.assert_called_once_with("default")
+
+    async def test_it_raises_when_profile_name_not_found(
+        self, use_case, mock_repository
+    ):
+        mock_repository.get_by_name.return_value = None
+
+        with pytest.raises(ProfileNotFoundError):
+            await use_case.get_profile_by_name("missing")
+
+    async def test_it_merges_provided_fields_onto_the_stored_profile(
+        self, use_case, mock_repository, sample_profile
+    ):
+        mock_repository.get.return_value = sample_profile
+        mock_repository.get_by_name.return_value = None
+        mock_repository.update.side_effect = lambda p: p
+
+        result = await use_case.apply_profile_update(
+            1, name="renamed", timezone="Europe/Lisbon"
+        )
+
+        assert result.name == "renamed"
+        assert result.timezone == "Europe/Lisbon"
+        assert result.wifi_ssid == "TestNetwork"
+        assert result.wifi_password == "pass123"
+        assert result.is_default is True
+
+    async def test_it_rejects_a_partial_update_of_a_missing_profile(
+        self, use_case, mock_repository
+    ):
+        mock_repository.get.return_value = None
+
+        with pytest.raises(ProfileNotFoundError):
+            await use_case.apply_profile_update(999, name="renamed")
+
     async def test_it_gets_default_profile(
         self, use_case, mock_repository, sample_profile
     ):

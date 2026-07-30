@@ -4,6 +4,7 @@ from api.controllers.provisioning import (
     ProvisioningController,
     ProvisioningProfilesController,
 )
+from api.presentation.handlers import EXCEPTION_HANDLERS
 from core.domain.entities.provisioning_profile import ProvisioningProfile
 from core.domain.value_objects.provision_request import (
     APDeviceInfo,
@@ -31,6 +32,7 @@ class TestProvisioningProfilesController:
 
         with create_test_client(
             route_handlers=[ProvisioningProfilesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "manage_profiles_use_case": Provide(
                     lambda: MockManageProfiles(), sync_to_thread=False
@@ -68,6 +70,7 @@ class TestProvisioningProfilesController:
 
         with create_test_client(
             route_handlers=[ProvisioningProfilesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "manage_profiles_use_case": Provide(
                     lambda: MockManageProfiles(), sync_to_thread=False
@@ -106,6 +109,7 @@ class TestProvisioningProfilesController:
 
         with create_test_client(
             route_handlers=[ProvisioningProfilesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "manage_profiles_use_case": Provide(
                     lambda: MockManageProfiles(), sync_to_thread=False
@@ -140,6 +144,7 @@ class TestProvisioningProfilesController:
 
         with create_test_client(
             route_handlers=[ProvisioningProfilesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "manage_profiles_use_case": Provide(
                     lambda: MockManageProfiles(), sync_to_thread=False
@@ -169,6 +174,7 @@ class TestProvisioningProfilesController:
 
         with create_test_client(
             route_handlers=[ProvisioningProfilesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "manage_profiles_use_case": Provide(
                     lambda: MockManageProfiles(), sync_to_thread=False
@@ -193,6 +199,7 @@ class TestProvisioningProfilesController:
 
         with create_test_client(
             route_handlers=[ProvisioningProfilesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "manage_profiles_use_case": Provide(
                     lambda: MockManageProfiles(), sync_to_thread=False
@@ -227,6 +234,7 @@ class TestProvisioningProfilesController:
 
         with create_test_client(
             route_handlers=[ProvisioningProfilesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "manage_profiles_use_case": Provide(
                     lambda: MockManageProfiles(), sync_to_thread=False
@@ -253,6 +261,7 @@ class TestProvisioningProfilesController:
 
         with create_test_client(
             route_handlers=[ProvisioningProfilesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "manage_profiles_use_case": Provide(
                     lambda: MockManageProfiles(), sync_to_thread=False
@@ -276,6 +285,7 @@ class TestProvisioningProfilesController:
 
         with create_test_client(
             route_handlers=[ProvisioningProfilesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "manage_profiles_use_case": Provide(
                     lambda: MockManageProfiles(), sync_to_thread=False
@@ -296,6 +306,7 @@ class TestProvisioningProfilesController:
 
         with create_test_client(
             route_handlers=[ProvisioningProfilesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "manage_profiles_use_case": Provide(
                     lambda: MockManageProfiles(), sync_to_thread=False
@@ -323,6 +334,7 @@ class TestProvisioningProfilesController:
 
         with create_test_client(
             route_handlers=[ProvisioningProfilesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "manage_profiles_use_case": Provide(
                     lambda: MockManageProfiles(), sync_to_thread=False
@@ -345,6 +357,7 @@ class TestProvisioningProfilesController:
 
         with create_test_client(
             route_handlers=[ProvisioningProfilesController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "manage_profiles_use_case": Provide(
                     lambda: MockManageProfiles(), sync_to_thread=False
@@ -376,6 +389,7 @@ class TestProvisioningController:
 
         with create_test_client(
             route_handlers=[ProvisioningController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "provision_device_use_case": Provide(
                     lambda: MockProvisionDevice(), sync_to_thread=False
@@ -412,6 +426,7 @@ class TestProvisioningController:
 
         with create_test_client(
             route_handlers=[ProvisioningController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "provision_device_use_case": Provide(
                     lambda: MockProvisionDevice(), sync_to_thread=False
@@ -425,8 +440,8 @@ class TestProvisioningController:
 
             assert response.status_code == 404
             data = response.json()
-            assert "192.168.33.1" in data["detail"]
-            assert "did not respond" in data["detail"]
+            assert "192.168.33.1" in data["message"]
+            assert "did not respond" in data["message"]
 
     def test_detect_device_communication_error(self):
         class MockProvisionDevice(ProvisionDeviceUseCase):
@@ -446,6 +461,7 @@ class TestProvisioningController:
 
         with create_test_client(
             route_handlers=[ProvisioningController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "provision_device_use_case": Provide(
                     lambda: MockProvisionDevice(), sync_to_thread=False
@@ -459,7 +475,7 @@ class TestProvisioningController:
 
             assert response.status_code == 502
             data = response.json()
-            assert "192.168.33.1" in data["detail"]
+            assert "192.168.33.1" in data["message"]
 
     def test_provision_device_successfully(self):
         class MockProvisionDevice(ProvisionDeviceUseCase):
@@ -502,6 +518,7 @@ class TestProvisioningController:
 
         with create_test_client(
             route_handlers=[ProvisioningController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "provision_device_use_case": Provide(
                     lambda: MockProvisionDevice(), sync_to_thread=False
@@ -557,6 +574,7 @@ class TestProvisioningController:
 
         with create_test_client(
             route_handlers=[ProvisioningController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "provision_device_use_case": Provide(
                     lambda: MockProvisionDevice(), sync_to_thread=False
@@ -586,6 +604,7 @@ class TestProvisioningController:
 
         with create_test_client(
             route_handlers=[ProvisioningController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "provision_device_use_case": Provide(
                     lambda: MockProvisionDevice(), sync_to_thread=False
@@ -617,6 +636,7 @@ class TestProvisioningController:
 
         with create_test_client(
             route_handlers=[ProvisioningController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "provision_device_use_case": Provide(
                     lambda: MockProvisionDevice(), sync_to_thread=False
@@ -644,6 +664,7 @@ class TestProvisioningController:
 
         with create_test_client(
             route_handlers=[ProvisioningController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies={
                 "provision_device_use_case": Provide(
                     lambda: MockProvisionDevice(), sync_to_thread=False

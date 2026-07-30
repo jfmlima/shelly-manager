@@ -20,6 +20,7 @@ from cli.dependencies.container import CLIContainer
 from cli.entities import (
     ExportRequest,
 )
+from cli.exceptions import OperationCancelledError
 
 
 class DeviceExportUseCase:
@@ -49,14 +50,14 @@ class DeviceExportUseCase:
 
         Raises:
             ValueError: If invalid parameters provided
-            RuntimeError: If user cancels operation
+            OperationCancelledError: If user cancels operation
         """
         output_file = request.output or f"devices.{request.format}"
         output_path = Path(output_file)
 
         if not self._check_file_overwrite(output_path, request.force):
             self._console.print("[yellow]Export cancelled[/yellow]")
-            raise RuntimeError("Export cancelled by user")
+            raise OperationCancelledError("Export cancelled by user")
 
         devices = await self._get_devices(request)
 
@@ -127,8 +128,6 @@ class DeviceExportUseCase:
             return []
 
         return await self._get_detailed_status_for_devices(target_ips)
-
-    # _scan_for_devices and _get_devices_by_ips merged into _get_devices and _get_all_target_ips
 
     async def _get_configurations_for_devices(
         self, devices: list[DeviceStatus]

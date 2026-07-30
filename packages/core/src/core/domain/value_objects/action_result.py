@@ -2,11 +2,12 @@
 ActionResult domain model.
 """
 
-import ipaddress
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
+
+from ...utils.validation import validate_ip_address
 
 
 class ActionResult(BaseModel):
@@ -23,9 +24,5 @@ class ActionResult(BaseModel):
 
     @field_validator("device_ip")
     @classmethod
-    def validate_ip_address(cls, v: str) -> str:
-        try:
-            ipaddress.IPv4Address(v)
-        except ipaddress.AddressValueError as e:
-            raise ValueError(f"Invalid IP address: {v}") from e
-        return v
+    def validate_device_ip(cls, v: str) -> str:
+        return validate_ip_address(v)

@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from cli.commands.bulk_commands import bulk
+from cli.exceptions import EXIT_VALIDATION
 from click.testing import CliRunner
 
 
@@ -61,6 +62,47 @@ class TestBulkCommands:
         assert "--channel" in result.output
         assert "--force" in result.output
         assert "--workers" in result.output
+
+    def test_bulk_config_apply_rejects_non_configurable_component_types(
+        self, runner, mock_context
+    ):
+        result = runner.invoke(
+            bulk,
+            [
+                "config",
+                "apply",
+                "-t",
+                "192.168.1.10",
+                "--component",
+                "schedules",
+                "--config",
+                '{"jobs": []}',
+                "--force",
+            ],
+            obj=mock_context.obj,
+        )
+
+        assert result.exit_code == EXIT_VALIDATION
+
+    def test_bulk_config_export_rejects_unknown_component_types(
+        self, runner, mock_context
+    ):
+        result = runner.invoke(
+            bulk,
+            [
+                "config",
+                "export",
+                "-t",
+                "192.168.1.10",
+                "--components",
+                "swich",
+                "--output",
+                "out.json",
+            ],
+            obj=mock_context.obj,
+        )
+
+        assert result.exit_code == EXIT_VALIDATION
 
     def test_bulk_reboot_command_structure(self, runner):
         """Test bulk reboot command structure and options."""

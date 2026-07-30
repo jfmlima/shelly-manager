@@ -5,6 +5,7 @@ Common Click utilities, decorators, and options.
 import asyncio
 import inspect
 import ipaddress
+import sys
 from collections.abc import Callable
 from functools import wraps
 from typing import Any
@@ -12,9 +13,11 @@ from typing import Any
 import click
 from core.domain.value_objects.scan_request import ScanRequest
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
-from ..presentation.styles import format_device_status
+from ..exceptions import OperationCancelledError, exit_code_for
+from ..presentation.styles import Messages, format_device_status
 
 
 def common_options(func: Callable) -> Callable:
@@ -46,40 +49,25 @@ def device_targeting_options(func: Callable) -> Callable:
     return wrapper
 
 
-async def _close_container(container: Any) -> None:
-    """Close a CLI container's async resources, skipping mock containers.
-
-    The container's HTTP clients (httpx pools) are created inside the running
-    event loop, so they must be closed from within it. Guarded on a real async
-    ``close`` so unit tests using mock containers are unaffected.
-    """
-    close = getattr(container, "close", None)
-    if inspect.iscoroutinefunction(close):
-        try:
-            await close()
-        except Exception:
-            pass
-
-
-def _container_from_args(args: Any) -> Any:
-    if not args:
-        return None
-    return getattr(getattr(args[0], "obj", None), "container", None)
-
-
-async def _run_then_close(func: Callable, args: Any, kwargs: Any) -> Any:
-    try:
-        return await func(*args, **kwargs)
-    finally:
-        await _close_container(_container_from_args(args))
-
-
 def async_command(func: Callable) -> Callable:
-    """Decorator to run async functions in Click commands."""
+    """Run an async Click command, closing the container and mapping errors.
+
+    Click's own control-flow exceptions pass through untouched. A declined
+    confirmation ends the command quietly with exit code 0. Anything else is
+    printed as a styled error and exits with the code its type maps to.
+    """
 
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        return asyncio.run(_run_then_close(func, args, kwargs))
+        try:
+            return asyncio.run(_run_then_close(func, args, kwargs))
+        except (click.ClickException, click.Abort, click.exceptions.Exit):
+            raise
+        except OperationCancelledError:
+            return None
+        except Exception as e:
+            _report_error(args, e)
+            sys.exit(exit_code_for(e))
 
     return wrapper
 
@@ -165,3 +153,42 @@ def format_device_table(devices: list[Any], console: Console) -> None:
 
 def confirm_action(message: str, default: bool = False) -> bool:
     return click.confirm(message, default=default)
+
+
+async def _close_container(container: Any) -> None:
+    """Close a CLI container's async resources, skipping mock containers.
+
+    The container's HTTP clients (httpx pools) are created inside the running
+    event loop, so they must be closed from within it. Guarded on a real async
+    ``close`` so unit tests using mock containers are unaffected.
+    """
+    close = getattr(container, "close", None)
+    if inspect.iscoroutinefunction(close):
+        try:
+            await close()
+        except Exception:
+            pass
+
+
+def _container_from_args(args: Any) -> Any:
+    if not args:
+        return None
+    return getattr(getattr(args[0], "obj", None), "container", None)
+
+
+async def _run_then_close(func: Callable, args: Any, kwargs: Any) -> Any:
+    try:
+        return await func(*args, **kwargs)
+    finally:
+        await _close_container(_container_from_args(args))
+
+
+def _report_error(args: Any, error: Exception) -> None:
+    obj = getattr(args[0], "obj", None) if args else None
+    console = getattr(obj, "console", None)
+    if console is None:
+        click.echo(str(error), err=True)
+        return
+    console.print(Messages.error(escape(str(error))))
+    if getattr(obj, "verbose", False):
+        console.print_exception()

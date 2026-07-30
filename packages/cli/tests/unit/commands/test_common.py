@@ -11,6 +11,7 @@ from cli.commands.common import (
     create_scan_request,
     parse_ip_list,
 )
+from cli.exceptions import EXIT_VALIDATION, OperationCancelledError
 
 
 class TestCommonUtilities:
@@ -106,11 +107,45 @@ class TestCommonUtilities:
 
         assert result == "result: test"
 
-    def test_async_command_decorator_handles_exceptions(self):
+    def test_async_command_decorator_maps_exceptions_to_exit_codes(self):
         @async_command
         async def test_async_function_with_exception():
             await asyncio.sleep(0.001)
             raise ValueError("Test exception")
 
-        with pytest.raises(ValueError, match="Test exception"):
+        with pytest.raises(SystemExit) as excinfo:
             test_async_function_with_exception()
+
+        assert excinfo.value.code == EXIT_VALIDATION
+
+    def test_async_command_decorator_returns_quietly_on_cancel(self):
+        @async_command
+        async def test_async_function_with_cancel():
+            await asyncio.sleep(0.001)
+            raise OperationCancelledError("Operation cancelled by user")
+
+        assert test_async_function_with_cancel() is None
+
+    def test_async_command_decorator_escapes_markup_in_error_text(self):
+        import io
+        from types import SimpleNamespace
+
+        from rich.console import Console
+
+        buffer = io.StringIO()
+        ctx = SimpleNamespace(
+            obj=SimpleNamespace(
+                console=Console(file=buffer, force_terminal=False), verbose=False
+            )
+        )
+
+        @async_command
+        async def test_async_function_with_bracketed_error(ctx):
+            await asyncio.sleep(0.001)
+            raise ValueError("RPC error at [/rpc/Shelly.GetStatus]: 404")
+
+        with pytest.raises(SystemExit) as excinfo:
+            test_async_function_with_bracketed_error(ctx)
+
+        assert excinfo.value.code == EXIT_VALIDATION
+        assert "/rpc/Shelly.GetStatus" in buffer.getvalue()

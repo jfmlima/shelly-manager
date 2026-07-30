@@ -3,6 +3,8 @@
 import logging
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
+from dataclasses import replace
+from typing import Any
 
 from core.domain.entities.provisioning_profile import ProvisioningProfile
 from core.repositories.provisioning_profile_repository import (
@@ -56,6 +58,18 @@ class ManageProvisioningProfilesUseCase:
                 raise ProfileNotFoundError(profile_id)
             return profile
 
+    async def get_profile_by_name(self, name: str) -> ProvisioningProfile:
+        """Get a profile by its unique name.
+
+        Raises:
+            ProfileNotFoundError: If no profile has that name.
+        """
+        async with self._repository_factory() as repository:
+            profile = await repository.get_by_name(name)
+            if profile is None:
+                raise ProfileNotFoundError(name)
+            return profile
+
     async def get_default_profile(self) -> ProvisioningProfile | None:
         """Get the default profile, or None if no default is set."""
         async with self._repository_factory() as repository:
@@ -72,7 +86,6 @@ class ManageProvisioningProfilesUseCase:
             if existing is not None:
                 raise ProfileAlreadyExistsError(profile.name)
 
-            # If this is the first profile, make it default
             all_profiles = await repository.list_all()
             if not all_profiles:
                 profile.is_default = True
@@ -96,7 +109,6 @@ class ManageProvisioningProfilesUseCase:
             if existing is None:
                 raise ProfileNotFoundError(profile.id)
 
-            # Check name uniqueness if name changed
             if profile.name != existing.name:
                 name_conflict = await repository.get_by_name(profile.name)
                 if name_conflict is not None:
@@ -105,6 +117,53 @@ class ManageProvisioningProfilesUseCase:
             updated = await repository.update(profile)
             logger.info("Updated provisioning profile: %s", profile.name)
             return updated
+
+    async def apply_profile_update(
+        self,
+        profile_id: int,
+        *,
+        name: str | None = None,
+        wifi_ssid: str | None = None,
+        wifi_password: str | None = None,
+        mqtt_enabled: bool | None = None,
+        mqtt_server: str | None = None,
+        mqtt_user: str | None = None,
+        mqtt_password: str | None = None,
+        mqtt_topic_prefix_template: str | None = None,
+        auth_password: str | None = None,
+        device_name_template: str | None = None,
+        timezone: str | None = None,
+        cloud_enabled: bool | None = None,
+        is_default: bool | None = None,
+    ) -> ProvisioningProfile:
+        """Merge the provided fields onto a stored profile and update it.
+
+        ``None`` means keep the stored value; no field can be cleared here.
+
+        Raises:
+            ProfileNotFoundError: If the profile does not exist.
+            ProfileAlreadyExistsError: If the new name conflicts with another profile.
+        """
+        existing = await self.get_profile(profile_id)
+        provided: dict[str, Any] = {
+            "name": name,
+            "wifi_ssid": wifi_ssid,
+            "wifi_password": wifi_password,
+            "mqtt_enabled": mqtt_enabled,
+            "mqtt_server": mqtt_server,
+            "mqtt_user": mqtt_user,
+            "mqtt_password": mqtt_password,
+            "mqtt_topic_prefix_template": mqtt_topic_prefix_template,
+            "auth_password": auth_password,
+            "device_name_template": device_name_template,
+            "timezone": timezone,
+            "cloud_enabled": cloud_enabled,
+            "is_default": is_default,
+        }
+        merged = replace(
+            existing, **{k: v for k, v in provided.items() if v is not None}
+        )
+        return await self.update_profile(merged)
 
     async def delete_profile(self, profile_id: int) -> None:
         """Delete a provisioning profile.

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from cli.credential_commands import credential_commands
+from cli.exceptions import EXIT_VALIDATION
 from click.testing import CliRunner
 from core.domain.credentials import Credential
 
@@ -43,7 +44,7 @@ class TestCredentialCommands:
         )
 
         assert result.exit_code == 0
-        repo.set.assert_awaited_once_with("AA:BB:CC:DD:EE:FF", "admin", "secret")
+        repo.set.assert_awaited_once_with("AABBCCDDEEFF", "admin", "secret")
 
     def test_it_sets_credentials_with_custom_username(self, runner):
         repo = self._repo()
@@ -55,7 +56,7 @@ class TestCredentialCommands:
         )
 
         assert result.exit_code == 0
-        repo.set.assert_awaited_once_with("AA:BB:CC:DD:EE:FF", "operator", "secret")
+        repo.set.assert_awaited_once_with("AABBCCDDEEFF", "operator", "secret")
 
     def test_it_aborts_when_set_fails(self, runner):
         repo = self._repo()
@@ -68,6 +69,18 @@ class TestCredentialCommands:
         )
 
         assert result.exit_code != 0
+
+    def test_it_rejects_an_invalid_mac(self, runner):
+        repo = self._repo()
+
+        result = runner.invoke(
+            credential_commands,
+            ["set", "not-a-mac", "secret"],
+            obj=self._obj(repo),
+        )
+
+        assert result.exit_code == EXIT_VALIDATION
+        repo.set.assert_not_awaited()
 
     def test_it_sets_global_credentials_under_wildcard_mac(self, runner):
         repo = self._repo()

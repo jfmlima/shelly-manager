@@ -2,6 +2,13 @@
 
 from dataclasses import dataclass, field
 
+EVERY_PRESETS: dict[str, int] = {
+    "hourly": 3600,
+    "daily": 86400,
+    "weekly": 604800,
+}
+MIN_INTERVAL_SECONDS = 60
+
 
 @dataclass
 class BackupSchedule:
@@ -27,6 +34,10 @@ class BackupSchedule:
     last_status: str | None = None
     created_at: int | None = None
     updated_at: int | None = None
+
+    @property
+    def has_targets(self) -> bool:
+        return bool(self.target_ips or self.target_macs or self.all_credentialed)
 
     def compute_next_run(self, from_ts: int) -> int:
         """Return the next run timestamp strictly after ``from_ts``.

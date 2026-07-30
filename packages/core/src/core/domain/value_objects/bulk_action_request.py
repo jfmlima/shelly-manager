@@ -2,10 +2,11 @@
 BulkActionRequest domain model.
 """
 
-import ipaddress
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
+
+from ...utils.validation import validate_ip_address_list
 
 
 class BulkActionRequest(BaseModel):
@@ -31,9 +32,4 @@ class BulkActionRequest(BaseModel):
     @field_validator("device_ips")
     @classmethod
     def validate_ip_addresses(cls, v: list[str]) -> list[str]:
-        for ip in v:
-            try:
-                ipaddress.IPv4Address(ip)
-            except ipaddress.AddressValueError as e:
-                raise ValueError(f"Invalid IP address: {ip}") from e
-        return v
+        return validate_ip_address_list(v)

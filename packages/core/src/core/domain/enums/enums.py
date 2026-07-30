@@ -21,3 +21,12 @@ class UpdateChannel(str, Enum):
 
     STABLE = "stable"
     BETA = "beta"
+
+    def to_update_parameters(self) -> dict[str, str]:
+        """Parameters for a firmware Update action.
+
+        Stable is the device-side default, so it sends no channel at all.
+        """
+        if self is UpdateChannel.STABLE:
+            return {}
+        return {"channel": self.value}

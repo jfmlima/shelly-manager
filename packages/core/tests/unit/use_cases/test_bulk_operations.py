@@ -47,7 +47,7 @@ class TestBulkOperationsUseCase:
         assert len(results) == 2
         assert all(result.success for result in results)
         mock_device_gateway.execute_bulk_action.assert_called_once_with(
-            device_ips, "shelly", "Update", {"channel": "stable"}
+            device_ips, "shelly", "Update", {}
         )
 
     async def test_it_updates_with_beta_channel(self, use_case, mock_device_gateway):

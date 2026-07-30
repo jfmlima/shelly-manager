@@ -60,6 +60,11 @@ class ComponentNamespace(BaseModel):
         return bool(self.actions_in([method]))
 
 
+def known_component_types() -> frozenset[str]:
+    """Every component type the namespace table knows."""
+    return frozenset(_NAMESPACES)
+
+
 def _namespace(
     *namespaces: str, discovers: tuple[str, ...] | None = None
 ) -> ComponentNamespace:

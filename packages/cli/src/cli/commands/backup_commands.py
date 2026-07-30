@@ -3,20 +3,18 @@
 from datetime import UTC, datetime
 
 import click
-from core.domain.entities.backup_schedule import BackupSchedule
+from core.domain.entities.backup_schedule import (
+    EVERY_PRESETS,
+    MIN_INTERVAL_SECONDS,
+    BackupSchedule,
+)
 from core.domain.entities.config_snapshot import DeviceSnapshot
 from core.utils.target_parser import validate_target
-from core.utils.validation import normalize_mac
+from core.utils.validation import validate_mac
 from rich.table import Table
 
 from cli.commands.common import async_command
 from cli.presentation.styles import Messages
-
-EVERY_PRESETS: dict[str, int] = {
-    "hourly": 3600,
-    "daily": 86400,
-    "weekly": 604800,
-}
 
 
 @click.group(name="backup")
@@ -35,11 +33,7 @@ async def create_backup(ctx: click.Context, target: str, name: str | None) -> No
     console = ctx.obj.console
     use_case = ctx.obj.container.get_backup_device_config_interactor()
 
-    try:
-        backup = await use_case.create_backup(device_ip=target, name=name)
-    except Exception as e:
-        console.print(Messages.error(f"Backup failed: {e}"))
-        raise click.Abort() from None
+    backup = await use_case.create_backup(device_ip=target, name=name)
 
     console.print(
         f"✅ Backup [bold]#{backup.id}[/bold] created for "
@@ -130,11 +124,7 @@ async def restore_backup(
     if restore_all and component_keys is None:
         # Explicitly opt in to network components: select everything in the backup.
         backup_uc = ctx.obj.container.get_backup_device_config_interactor()
-        try:
-            backup = await backup_uc.get_backup(backup_id)
-        except Exception as e:
-            console.print(Messages.error(f"Restore failed: {e}"))
-            raise click.Abort() from None
+        backup = await backup_uc.get_backup(backup_id)
         component_keys = list(DeviceSnapshot.from_dict(backup.snapshot).components)
 
     if not force:
@@ -144,17 +134,13 @@ async def restore_backup(
         )
         click.confirm("Continue?", abort=True)
 
-    try:
-        result = await use_case.restore(
-            backup_id,
-            target,
-            component_keys=component_keys,
-            allow_mac_mismatch=allow_mac_mismatch,
-            reboot=reboot,
-        )
-    except Exception as e:
-        console.print(Messages.error(f"Restore failed: {e}"))
-        raise click.Abort() from None
+    result = await use_case.restore(
+        backup_id,
+        target,
+        component_keys=component_keys,
+        allow_mac_mismatch=allow_mac_mismatch,
+        reboot=reboot,
+    )
 
     table = Table(show_header=True, header_style="bold magenta")
     table.add_column("Component", style="cyan")
@@ -192,12 +178,8 @@ async def delete_backup(ctx: click.Context, backup_id: int) -> None:
     console = ctx.obj.console
     use_case = ctx.obj.container.get_backup_device_config_interactor()
 
-    try:
-        await use_case.delete_backup(backup_id)
-        console.print(f"✅ Deleted backup [bold]#{backup_id}[/bold]")
-    except Exception as e:
-        console.print(Messages.error(f"Failed to delete backup: {e}"))
-        raise click.Abort() from None
+    await use_case.delete_backup(backup_id)
+    console.print(f"✅ Deleted backup [bold]#{backup_id}[/bold]")
 
 
 @backup_commands.group("schedule")
@@ -218,7 +200,7 @@ def backup_schedule() -> None:
     "--interval-seconds",
     type=int,
     default=None,
-    help="Custom cadence in seconds (minimum 60)",
+    help=f"Custom cadence in seconds (minimum {MIN_INTERVAL_SECONDS})",
 )
 @click.option(
     "--target",
@@ -270,33 +252,19 @@ async def create_schedule(
     console = ctx.obj.console
 
     if (every is None) == (interval_seconds is None):
-        console.print(
-            Messages.error("Provide exactly one of --every or --interval-seconds")
-        )
-        raise click.Abort()
-    if interval_seconds is not None and interval_seconds < 60:
-        console.print(Messages.error("--interval-seconds must be at least 60"))
-        raise click.Abort()
-    if not (targets or macs or all_credentialed):
-        console.print(
-            Messages.error(
-                "Provide at least one of --target, --mac, or --all-credentialed"
-            )
-        )
-        raise click.Abort()
+        raise ValueError("Provide exactly one of --every or --interval-seconds")
     for target in targets:
         try:
             validate_target(target)
         except ValueError as e:
-            console.print(Messages.error(f"Invalid target '{target}': {e}"))
-            raise click.Abort() from None
+            raise ValueError(f"Invalid target '{target}': {e}") from None
 
     interval = EVERY_PRESETS[every] if every is not None else interval_seconds
     schedule = BackupSchedule(
         name=name,
         interval_seconds=interval,  # type: ignore[arg-type]
         target_ips=list(targets),
-        target_macs=[normalize_mac(mac) for mac in macs],
+        target_macs=[validate_mac(mac) for mac in macs],
         all_credentialed=all_credentialed,
         enabled=not disabled,
         retention_keep_last=keep_last,
@@ -304,11 +272,7 @@ async def create_schedule(
     )
 
     use_case = ctx.obj.container.get_manage_backup_schedules_interactor()
-    try:
-        created = await use_case.create_schedule(schedule)
-    except Exception as e:
-        console.print(Messages.error(f"Failed to create schedule: {e}"))
-        raise click.Abort() from None
+    created = await use_case.create_schedule(schedule)
 
     state = "enabled" if created.enabled else "disabled"
     console.print(
@@ -383,12 +347,8 @@ async def delete_schedule(ctx: click.Context, schedule_id: int, force: bool) -> 
         click.confirm(f"Delete schedule #{schedule_id}?", abort=True)
 
     use_case = ctx.obj.container.get_manage_backup_schedules_interactor()
-    try:
-        await use_case.delete_schedule(schedule_id)
-        console.print(f"✅ Deleted schedule [bold]#{schedule_id}[/bold]")
-    except Exception as e:
-        console.print(Messages.error(f"Failed to delete schedule: {e}"))
-        raise click.Abort() from None
+    await use_case.delete_schedule(schedule_id)
+    console.print(f"✅ Deleted schedule [bold]#{schedule_id}[/bold]")
 
 
 @backup_schedule.command("run")
@@ -400,11 +360,7 @@ async def run_schedule(ctx: click.Context, schedule_id: int) -> None:
     console = ctx.obj.console
     use_case = ctx.obj.container.get_run_due_backups_interactor()
 
-    try:
-        result = await use_case.run_schedule(schedule_id)
-    except Exception as e:
-        console.print(Messages.error(f"Failed to run schedule: {e}"))
-        raise click.Abort() from None
+    result = await use_case.run_schedule(schedule_id)
 
     summary = (
         f"{result.ok} ok, {result.failed} failed, {result.skipped} skipped "
@@ -424,11 +380,7 @@ async def run_schedule(ctx: click.Context, schedule_id: int) -> None:
 async def _set_enabled(ctx: click.Context, schedule_id: int, enabled: bool) -> None:
     console = ctx.obj.console
     use_case = ctx.obj.container.get_manage_backup_schedules_interactor()
-    try:
-        updated = await use_case.set_enabled(schedule_id, enabled)
-    except Exception as e:
-        console.print(Messages.error(f"Failed to update schedule: {e}"))
-        raise click.Abort() from None
+    updated = await use_case.set_enabled(schedule_id, enabled)
     state = "enabled" if updated.enabled else "disabled"
     console.print(f"✅ Schedule [bold]#{schedule_id}[/bold] {state}")
 

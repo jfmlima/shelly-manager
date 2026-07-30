@@ -1283,7 +1283,7 @@ class TestUnreadableMethodLists:
     ):
         mock_rpc_client.make_rpc_request = AsyncMock(return_value=(payload, 0.1))
 
-        assert await gateway.get_available_methods("192.168.1.100") == expected
+        assert await gateway._get_available_methods("192.168.1.100") == expected
 
     async def test_it_does_not_break_execution_on_a_list_of_non_names(
         self, gateway, mock_rpc_client
@@ -1642,7 +1642,7 @@ class TestMethodListReuse:
             return_value=({"methods": ["Switch.Toggle"]}, 0.1)
         )
 
-        reported = await gateway.get_available_methods("192.168.1.100")
+        reported = await gateway._get_available_methods("192.168.1.100")
         reported.append("Switch.Nonsense")
 
         result = await gateway.execute_component_action(

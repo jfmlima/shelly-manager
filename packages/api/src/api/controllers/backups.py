@@ -1,18 +1,9 @@
 """Controller for device configuration backups."""
 
 from core.domain.entities.device_backup import DeviceBackup, DeviceBackupSummary
-from core.domain.entities.exceptions import DeviceNotFoundError
-from core.use_cases.backup_device_config import (
-    BackupDeviceConfig,
-    BackupError,
-    BackupNotFoundError,
-)
-from core.use_cases.restore_device_config import (
-    DeviceMismatchError,
-    RestoreDeviceConfig,
-)
+from core.use_cases.backup_device_config import BackupDeviceConfig
+from core.use_cases.restore_device_config import RestoreDeviceConfig
 from litestar import Controller, Router, delete, get, post
-from litestar.exceptions import HTTPException, NotFoundException
 
 from api.presentation.dto.requests import CreateBackupRequest, RestoreBackupRequest
 from api.presentation.dto.responses import (
@@ -22,7 +13,6 @@ from api.presentation.dto.responses import (
     PaginatedBackupsResponse,
     RestoreResultResponse,
 )
-from api.presentation.exceptions import DeviceNotFoundHTTPException
 
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
@@ -61,14 +51,9 @@ class BackupsController(Controller):
         backup_use_case: BackupDeviceConfig,
     ) -> BackupDetailResponse:
         """Capture a full configuration backup of a device."""
-        try:
-            backup = await backup_use_case.create_backup(
-                device_ip=data.device_ip, name=data.name
-            )
-        except DeviceNotFoundError as err:
-            raise DeviceNotFoundHTTPException(data.device_ip) from err
-        except BackupError as err:
-            raise HTTPException(status_code=422, detail=str(err)) from err
+        backup = await backup_use_case.create_backup(
+            device_ip=data.device_ip, name=data.name
+        )
         return _to_detail(backup)
 
     @get("/{backup_id:int}")
@@ -78,10 +63,7 @@ class BackupsController(Controller):
         backup_use_case: BackupDeviceConfig,
     ) -> BackupDetailResponse:
         """Get a backup including its full snapshot."""
-        try:
-            backup = await backup_use_case.get_backup(backup_id)
-        except BackupNotFoundError as err:
-            raise NotFoundException(detail=f"Backup not found: {backup_id}") from err
+        backup = await backup_use_case.get_backup(backup_id)
         return _to_detail(backup)
 
     @post("/{backup_id:int}/restore")
@@ -92,20 +74,13 @@ class BackupsController(Controller):
         restore_use_case: RestoreDeviceConfig,
     ) -> RestoreResultResponse:
         """Restore selected components from a backup onto a device."""
-        try:
-            result = await restore_use_case.restore(
-                backup_id,
-                data.device_ip,
-                component_keys=data.component_keys,
-                allow_mac_mismatch=data.allow_mac_mismatch,
-                reboot=data.reboot,
-            )
-        except BackupNotFoundError as err:
-            raise NotFoundException(detail=f"Backup not found: {backup_id}") from err
-        except DeviceNotFoundError as err:
-            raise DeviceNotFoundHTTPException(data.device_ip) from err
-        except DeviceMismatchError as err:
-            raise HTTPException(status_code=409, detail=str(err)) from err
+        result = await restore_use_case.restore(
+            backup_id,
+            data.device_ip,
+            component_keys=data.component_keys,
+            allow_mac_mismatch=data.allow_mac_mismatch,
+            reboot=data.reboot,
+        )
 
         return RestoreResultResponse(
             success=result.success,
@@ -136,10 +111,7 @@ class BackupsController(Controller):
         backup_use_case: BackupDeviceConfig,
     ) -> None:
         """Delete a backup."""
-        try:
-            await backup_use_case.delete_backup(backup_id)
-        except BackupNotFoundError as err:
-            raise NotFoundException(detail=f"Backup not found: {backup_id}") from err
+        await backup_use_case.delete_backup(backup_id)
 
 
 backups_router = Router(

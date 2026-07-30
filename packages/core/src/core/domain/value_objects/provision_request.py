@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 
 from pydantic import BaseModel, Field, field_validator
 
-# Default AP IP address for Shelly devices
+from ...utils.validation import validate_ip_address
+
 DEFAULT_AP_IP = "192.168.33.1"
 
 
@@ -35,13 +36,7 @@ class ProvisionDeviceRequest(BaseModel):
     @field_validator("device_ip")
     @classmethod
     def validate_ip(cls, v: str) -> str:
-        import ipaddress
-
-        try:
-            ipaddress.IPv4Address(v)
-        except ipaddress.AddressValueError as e:
-            raise ValueError(f"Invalid IP address: {v}") from e
-        return v
+        return validate_ip_address(v)
 
 
 class DetectDeviceRequest(BaseModel):
@@ -61,13 +56,7 @@ class DetectDeviceRequest(BaseModel):
     @field_validator("device_ip")
     @classmethod
     def validate_ip(cls, v: str) -> str:
-        import ipaddress
-
-        try:
-            ipaddress.IPv4Address(v)
-        except ipaddress.AddressValueError as e:
-            raise ValueError(f"Invalid IP address: {v}") from e
-        return v
+        return validate_ip_address(v)
 
 
 @dataclass

@@ -2,11 +2,11 @@
 DiscoveredDevice domain model.
 """
 
-import ipaddress
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from ...utils.validation import validate_ip_address
 from ..enums.enums import Status
 
 
@@ -31,9 +31,5 @@ class DiscoveredDevice(BaseModel):
 
     @field_validator("ip")
     @classmethod
-    def validate_ip_address(cls, v: str) -> str:
-        try:
-            ipaddress.IPv4Address(v)
-        except ipaddress.AddressValueError as e:
-            raise ValueError(f"Invalid IP address: {v}") from e
-        return v
+    def validate_ip(cls, v: str) -> str:
+        return validate_ip_address(v)

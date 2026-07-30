@@ -1,6 +1,7 @@
 """Tests for the backups API controller."""
 
 from api.controllers.backups import BackupsController
+from api.presentation.handlers import EXCEPTION_HANDLERS
 from core.domain.entities.device_backup import (
     BackupPage,
     DeviceBackup,
@@ -47,6 +48,7 @@ class TestBackupsController:
 
         with create_test_client(
             route_handlers=[BackupsController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_backup_provider(MockBackup()),
         ) as client:
             response = client.get("/")
@@ -70,6 +72,7 @@ class TestBackupsController:
 
         with create_test_client(
             route_handlers=[BackupsController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_backup_provider(MockBackup()),
         ) as client:
             response = client.get("/", params={"limit": 9999, "offset": -5})
@@ -93,6 +96,7 @@ class TestBackupsController:
 
         with create_test_client(
             route_handlers=[BackupsController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_backup_provider(MockBackup()),
         ) as client:
             response = client.post("/", json={"device_ip": "192.168.1.100"})
@@ -109,6 +113,7 @@ class TestBackupsController:
 
         with create_test_client(
             route_handlers=[BackupsController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_backup_provider(MockBackup()),
         ) as client:
             response = client.post("/", json={"device_ip": "192.168.1.100"})
@@ -124,6 +129,7 @@ class TestBackupsController:
 
         with create_test_client(
             route_handlers=[BackupsController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_backup_provider(MockBackup()),
         ) as client:
             response = client.get("/99")
@@ -150,6 +156,7 @@ class TestBackupsController:
 
         with create_test_client(
             route_handlers=[BackupsController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_restore_provider(MockRestore()),
         ) as client:
             response = client.post("/1/restore", json={"device_ip": "192.168.1.100"})
@@ -168,6 +175,7 @@ class TestBackupsController:
 
         with create_test_client(
             route_handlers=[BackupsController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_restore_provider(MockRestore()),
         ) as client:
             response = client.post("/1/restore", json={"device_ip": "192.168.1.100"})
@@ -185,6 +193,7 @@ class TestBackupsController:
 
         with create_test_client(
             route_handlers=[BackupsController],
+            exception_handlers=EXCEPTION_HANDLERS,
             dependencies=_restore_provider(MockRestore()),
         ) as client:
             response = client.post("/1/restore", json={"device_ip": "not-an-ip"})
