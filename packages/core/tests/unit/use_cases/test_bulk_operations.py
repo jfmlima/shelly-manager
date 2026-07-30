@@ -977,3 +977,39 @@ class TestBulkOperationsUseCase:
             "192.168.1.100",
             "192.168.1.101",
         ]
+
+    async def test_it_configures_a_repeated_device_only_once(
+        self, use_case, mock_device_gateway
+    ):
+        # Overlapping targets expand to the same IP twice; configuring it twice
+        # concurrently would put two writes on one device at the same time.
+        mock_device_gateway.get_component_keys = AsyncMock(return_value=["switch:0"])
+        mock_device_gateway.execute_component_action = AsyncMock(
+            return_value=ActionResult(
+                success=True,
+                action_type="switch:0.SetConfig",
+                device_ip="192.168.1.100",
+                message="Config applied",
+            )
+        )
+
+        results = await use_case.apply_bulk_config(
+            ["192.168.1.100", "192.168.1.100"], "switch", {}
+        )
+
+        assert len(results) == 1
+        assert mock_device_gateway.execute_component_action.await_count == 1
+
+    async def test_it_exports_a_repeated_device_only_once(
+        self, use_case, mock_device_gateway
+    ):
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=DeviceStatus(device_ip="192.168.1.100", components=[])
+        )
+
+        result = await use_case.export_bulk_config(
+            ["192.168.1.100", "192.168.1.100"], []
+        )
+
+        assert mock_device_gateway.get_device_status.await_count == 1
+        assert result["export_metadata"]["total_devices"] == 1

@@ -9,6 +9,17 @@ from ..gateways.device import DeviceGateway
 from .capture_device_config import CaptureDeviceConfig
 
 
+def _unique(device_ips: list[str]) -> list[str]:
+    """The given IPs in order, without repeats.
+
+    Overlapping targets ("-t 10.0.0.5 -t 10.0.0.0/24") expand to the same device
+    more than once. Handling devices concurrently would then put two overlapping
+    requests on one device, which is the thing the per-device sequencing exists
+    to avoid.
+    """
+    return list(dict.fromkeys(device_ips))
+
+
 class BulkOperationsUseCase:
 
     def __init__(
@@ -94,7 +105,8 @@ class BulkOperationsUseCase:
         """
         Export component configurations organized per device.
 
-        Unreachable devices are left out of the export rather than failing it.
+        Devices are captured concurrently, each at most once. Unreachable
+        devices are left out of the export rather than failing it.
 
         Args:
             device_ips: List of device IP addresses
@@ -103,17 +115,18 @@ class BulkOperationsUseCase:
         Returns:
             Dictionary containing export metadata and device configurations
         """
-        snapshots = await self._capture_all(device_ips, component_types)
+        targets = _unique(device_ips)
+        snapshots = await self._capture_all(targets, component_types)
 
         return {
             "export_metadata": {
                 "timestamp": datetime.now(UTC).isoformat() + "Z",
-                "total_devices": len(device_ips),
+                "total_devices": len(targets),
                 "component_types": component_types,
             },
             "devices": {
                 device_ip: snapshot.to_dict()
-                for device_ip, snapshot in zip(device_ips, snapshots, strict=True)
+                for device_ip, snapshot in zip(targets, snapshots, strict=True)
                 if snapshot is not None
             },
         }
@@ -155,8 +168,9 @@ class BulkOperationsUseCase:
         """
         Apply component configuration to multiple devices.
 
-        Devices are handled concurrently; the components of a single device are
-        configured one at a time. Results stay in device order.
+        Devices are handled concurrently and each is configured at most once;
+        the components of a single device are configured one at a time. Results
+        stay in device order.
 
         Resolves actual component keys (e.g. cover:0) per device to ensure
         the RPC call includes the required component ID.
@@ -172,7 +186,7 @@ class BulkOperationsUseCase:
         per_device = await asyncio.gather(
             *(
                 self._apply_device_config(device_ip, component_type, config)
-                for device_ip in device_ips
+                for device_ip in _unique(device_ips)
             )
         )
         return [result for results in per_device for result in results]
