@@ -188,7 +188,7 @@ class ShellyDeviceGateway(DeviceGateway):
         except Exception:
             return []
 
-    async def get_available_methods(self, ip: str) -> list[str]:
+    async def _get_available_methods(self, ip: str) -> list[str]:
         """Get available RPC methods for action validation.
 
         Args:
@@ -359,7 +359,7 @@ class ShellyDeviceGateway(DeviceGateway):
             self._rpc_client.make_rpc_request(
                 ip, RpcMethods.GET_STATUS, timeout=self.timeout
             ),
-            self.get_available_methods(ip),
+            self._get_available_methods(ip),
             return_exceptions=True,
         )
 
@@ -430,11 +430,11 @@ class ShellyDeviceGateway(DeviceGateway):
         remembered = self._method_lists.get(ip)
         if remembered is None:
             return action_name.resolve(
-                component_key, await self.get_available_methods(ip)
+                component_key, await self._get_available_methods(ip)
             )
 
         rpc_method = action_name.resolve(component_key, remembered)
         if rpc_method is not None:
             return rpc_method
 
-        return action_name.resolve(component_key, await self.get_available_methods(ip))
+        return action_name.resolve(component_key, await self._get_available_methods(ip))
