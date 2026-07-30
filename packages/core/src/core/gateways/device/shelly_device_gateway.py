@@ -15,11 +15,12 @@ from ...domain.entities.exceptions import (
     DeviceUnreachableError,
 )
 from ...domain.enums.enums import Status
+from ...domain.value_objects.action_envelope import ActionEnvelope
 from ...domain.value_objects.action_name import ActionName
 from ...domain.value_objects.action_result import ActionResult
+from ...services.auth_state_cache import AuthStateCache
 from ...utils.validation import normalize_mac
 from ..network.network import RpcNetworkGateway
-from .action_envelope import ActionEnvelope
 from .device import DeviceGateway
 from .legacy_device_gateway import LegacyDeviceGateway
 from .legacy_route import LegacyRoute
@@ -38,10 +39,12 @@ class ShellyDeviceGateway(DeviceGateway):
         rpc_client: RpcNetworkGateway,
         timeout: float = 10.0,
         legacy_gateway: LegacyDeviceGateway | None = None,
+        auth_state_cache: AuthStateCache | None = None,
     ) -> None:
         self._rpc_client = rpc_client
         self.timeout = timeout
         self._legacy = LegacyRoute(legacy_gateway)
+        self._auth_state_cache = auth_state_cache
         self._method_lists: dict[str, list[str]] = {}
 
     def invalidate_legacy_credential_cache(self, mac: str) -> None:
@@ -73,13 +76,12 @@ class ShellyDeviceGateway(DeviceGateway):
 
             auth_required = device_data.get("auth_en", False)
 
-            auth_state_cache = getattr(self._rpc_client, "auth_state_cache", None)
-            if auth_state_cache is not None:
+            if self._auth_state_cache is not None:
                 if auth_required:
-                    auth_state_cache.mark_auth_required(normalize_mac(ip))
+                    self._auth_state_cache.mark_auth_required(normalize_mac(ip))
                 else:
                     device_id = device_data.get("id") or ip
-                    auth_required = auth_state_cache.requires_auth(device_id)
+                    auth_required = self._auth_state_cache.requires_auth(device_id)
 
             device = DiscoveredDevice(
                 ip=ip,
@@ -383,9 +385,8 @@ class ShellyDeviceGateway(DeviceGateway):
         """Record that a device asks for credentials, so later calls send them."""
         if not device_info or not device_info.get("auth_en", False):
             return
-        auth_state_cache = getattr(self._rpc_client, "auth_state_cache", None)
-        if auth_state_cache is not None:
-            auth_state_cache.mark_auth_required(normalize_mac(ip))
+        if self._auth_state_cache is not None:
+            self._auth_state_cache.mark_auth_required(normalize_mac(ip))
 
     async def _fetch_available_methods(self, ip: str) -> list[str]:
         try:

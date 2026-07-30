@@ -10,8 +10,8 @@ from typing import Any
 
 from ...domain.entities.device_status import DeviceStatus
 from ...domain.entities.discovered_device import DiscoveredDevice
+from ...domain.value_objects.action_envelope import ActionEnvelope
 from ...domain.value_objects.action_result import ActionResult
-from .action_envelope import ActionEnvelope
 from .legacy_device_gateway import LegacyDeviceGateway
 
 

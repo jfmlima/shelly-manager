@@ -57,6 +57,16 @@ class TestProviderWiring:
         finally:
             await client.close()
 
+    async def test_it_gives_the_device_gateway_the_shared_auth_state_cache(self):
+        container = BaseContainer()
+
+        try:
+            gateway = container.get_device_gateway()
+
+            assert gateway._auth_state_cache is container.get_auth_state_cache()
+        finally:
+            await container.close()
+
     def test_it_wires_the_auth_service_to_the_credentials_factory(self, container):
         service = container.get_authentication_service()
 

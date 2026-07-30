@@ -308,10 +308,12 @@ class TestShellyDeviceGateway:
     async def test_it_detects_auth_required_from_auth_en(
         self, mock_rpc_client, mock_legacy_gateway
     ):
-        mock_rpc_client.auth_state_cache = MagicMock()
-        mock_rpc_client.auth_state_cache.requires_auth.return_value = False
+        auth_state_cache = MagicMock()
+        auth_state_cache.requires_auth.return_value = False
         gateway = ShellyDeviceGateway(
-            rpc_client=mock_rpc_client, legacy_gateway=mock_legacy_gateway
+            rpc_client=mock_rpc_client,
+            legacy_gateway=mock_legacy_gateway,
+            auth_state_cache=auth_state_cache,
         )
 
         device_info = {
@@ -331,15 +333,17 @@ class TestShellyDeviceGateway:
 
         assert result is not None
         assert result.auth_required is True
-        mock_rpc_client.auth_state_cache.mark_auth_required.assert_called_once()
+        auth_state_cache.mark_auth_required.assert_called_once()
 
     async def test_it_keeps_update_status_when_auth_succeeds(
         self, mock_rpc_client, mock_legacy_gateway
     ):
-        mock_rpc_client.auth_state_cache = MagicMock()
-        mock_rpc_client.auth_state_cache.requires_auth.return_value = False
+        auth_state_cache = MagicMock()
+        auth_state_cache.requires_auth.return_value = False
         gateway = ShellyDeviceGateway(
-            rpc_client=mock_rpc_client, legacy_gateway=mock_legacy_gateway
+            rpc_client=mock_rpc_client,
+            legacy_gateway=mock_legacy_gateway,
+            auth_state_cache=auth_state_cache,
         )
 
         device_info = {
@@ -362,7 +366,6 @@ class TestShellyDeviceGateway:
     async def test_it_propagates_auth_error_from_get_device_status(
         self, mock_rpc_client, mock_legacy_gateway
     ):
-        mock_rpc_client.auth_state_cache = None
         gateway = ShellyDeviceGateway(
             rpc_client=mock_rpc_client, legacy_gateway=mock_legacy_gateway
         )
@@ -380,9 +383,11 @@ class TestShellyDeviceGateway:
     async def test_it_marks_auth_required_while_the_cache_is_still_empty(
         self, mock_rpc_client, mock_legacy_gateway
     ):
-        mock_rpc_client.auth_state_cache = AuthStateCache()
+        auth_state_cache = AuthStateCache()
         gateway = ShellyDeviceGateway(
-            rpc_client=mock_rpc_client, legacy_gateway=mock_legacy_gateway
+            rpc_client=mock_rpc_client,
+            legacy_gateway=mock_legacy_gateway,
+            auth_state_cache=auth_state_cache,
         )
         mock_rpc_client.make_rpc_request = AsyncMock(
             side_effect=[
@@ -394,14 +399,16 @@ class TestShellyDeviceGateway:
         result = await gateway.discover_device("192.168.1.100")
 
         assert result.auth_required is True
-        assert mock_rpc_client.auth_state_cache.requires_auth("192.168.1.100") is True
+        assert auth_state_cache.requires_auth("192.168.1.100") is True
 
     async def test_it_marks_auth_required_before_a_later_read_can_fail(
         self, mock_rpc_client, mock_legacy_gateway
     ):
-        mock_rpc_client.auth_state_cache = MagicMock()
+        auth_state_cache = MagicMock()
         gateway = ShellyDeviceGateway(
-            rpc_client=mock_rpc_client, legacy_gateway=mock_legacy_gateway
+            rpc_client=mock_rpc_client,
+            legacy_gateway=mock_legacy_gateway,
+            auth_state_cache=auth_state_cache,
         )
         mock_legacy_gateway.get_device_status.return_value = None
         mock_rpc_client.make_rpc_request = AsyncMock(
@@ -415,7 +422,7 @@ class TestShellyDeviceGateway:
 
         await gateway.get_device_status("192.168.1.100")
 
-        mock_rpc_client.auth_state_cache.mark_auth_required.assert_called_once()
+        auth_state_cache.mark_auth_required.assert_called_once()
 
     async def test_it_does_not_propagate_an_auth_error_from_device_info_alone(
         self, gateway, mock_rpc_client

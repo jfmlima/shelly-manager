@@ -10,7 +10,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from ...domain.value_objects.action_result import ActionResult
+from .action_result import ActionResult
 
 
 class ActionEnvelope(BaseModel):
