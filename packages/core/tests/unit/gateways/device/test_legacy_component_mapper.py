@@ -94,7 +94,7 @@ class TestLegacyAutoTimerMapping:
 
 
 class TestSwitchComponentAcceptsMappedGen1Relay:
-    def test_switch_component_accepts_mapped_relay_with_timer(self, mapper):
+    def test_it_accepts_a_mapped_relay_with_a_timer(self, mapper):
         components = mapper.map(
             {"mac": "AABBCCDDEEFF", "type": "SHSW-1"},
             {"relays": [{"ison": True}]},
@@ -110,7 +110,7 @@ class TestSwitchComponentAcceptsMappedGen1Relay:
         assert component.config["auto_off_delay"] == 0.5
         assert component.config["auto_on_delay"] == 30.0
 
-    def test_raw_numeric_seconds_still_raise_at_the_component(self):
+    def test_it_still_raises_at_the_component_on_raw_numeric_seconds(self):
         # The component stays strict on purpose; only the mapper heals raw seconds.
         with pytest.raises(ValidationError):
             SwitchComponent.from_raw_data(

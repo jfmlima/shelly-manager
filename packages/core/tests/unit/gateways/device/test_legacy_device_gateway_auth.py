@@ -69,15 +69,17 @@ class TestLegacyDeviceGatewayAuth:
 
     # --- _ensure_mac ---
 
-    async def test_ensure_mac_fetches_from_shelly(self, gateway, mock_http_client):
+    async def test_it_fetches_the_mac_from_shelly(self, gateway, mock_http_client):
         mock_http_client.fetch_json.return_value = {"mac": "AA:BB:CC:DD:EE:FF"}
 
         mac = await gateway._ensure_mac("192.168.1.100")
 
         assert mac == "AABBCCDDEEFF"
-        mock_http_client.fetch_json.assert_called_once_with("192.168.1.100", "shelly")
+        mock_http_client.fetch_json.assert_called_once_with(
+            "192.168.1.100", "shelly", timeout=None
+        )
 
-    async def test_ensure_mac_caches_result(self, gateway, mock_http_client):
+    async def test_it_caches_the_mac_it_fetched(self, gateway, mock_http_client):
         mock_http_client.fetch_json.return_value = {"mac": "AABBCCDDEEFF"}
 
         await gateway._ensure_mac("192.168.1.100")
@@ -86,14 +88,16 @@ class TestLegacyDeviceGatewayAuth:
         assert mac == "AABBCCDDEEFF"
         assert mock_http_client.fetch_json.call_count == 1
 
-    async def test_ensure_mac_returns_none_on_failure(self, gateway, mock_http_client):
+    async def test_it_has_no_mac_when_the_fetch_fails(self, gateway, mock_http_client):
         mock_http_client.fetch_json.side_effect = Exception("timeout")
 
         mac = await gateway._ensure_mac("192.168.1.100")
 
         assert mac is None
 
-    async def test_ensure_mac_returns_none_when_no_mac(self, gateway, mock_http_client):
+    async def test_it_has_no_mac_when_the_device_reports_none(
+        self, gateway, mock_http_client
+    ):
         mock_http_client.fetch_json.return_value = {"type": "SHSW-1"}
 
         mac = await gateway._ensure_mac("192.168.1.100")
@@ -102,7 +106,7 @@ class TestLegacyDeviceGatewayAuth:
 
     # --- _resolve_auth ---
 
-    async def test_resolve_auth_returns_credentials(
+    async def test_it_resolves_credentials(
         self, gateway, mock_http_client, mock_auth_service, sample_credential
     ):
         mock_http_client.fetch_json.return_value = {"mac": "AABBCCDDEEFF"}
@@ -113,7 +117,7 @@ class TestLegacyDeviceGatewayAuth:
         assert auth == ("admin", "secret")
         mock_auth_service.resolve_credentials.assert_called_once_with("AABBCCDDEEFF")
 
-    async def test_resolve_auth_caches_credentials(
+    async def test_it_caches_resolved_credentials(
         self, gateway, mock_http_client, mock_auth_service, sample_credential
     ):
         mock_http_client.fetch_json.return_value = {"mac": "AABBCCDDEEFF"}
@@ -125,14 +129,14 @@ class TestLegacyDeviceGatewayAuth:
         assert auth == ("admin", "secret")
         assert mock_auth_service.resolve_credentials.call_count == 1
 
-    async def test_resolve_auth_returns_none_without_service(
+    async def test_it_resolves_nothing_without_an_authentication_service(
         self, gateway_no_auth, mock_http_client
     ):
         auth = await gateway_no_auth._resolve_auth("192.168.1.100")
 
         assert auth is None
 
-    async def test_resolve_auth_returns_none_when_no_credential(
+    async def test_it_resolves_nothing_when_no_credential_is_stored(
         self, gateway, mock_http_client, mock_auth_service
     ):
         mock_http_client.fetch_json.return_value = {"mac": "AABBCCDDEEFF"}
@@ -144,7 +148,7 @@ class TestLegacyDeviceGatewayAuth:
 
     # --- discover_device with auth ---
 
-    async def test_discover_detects_auth_and_fetches_with_credentials(
+    async def test_it_detects_auth_and_discovers_with_credentials(
         self,
         gateway,
         mock_http_client,
@@ -169,7 +173,7 @@ class TestLegacyDeviceGatewayAuth:
         for call in mock_http_client.fetch_json_optional.call_args_list:
             assert call[1].get("auth") == ("admin", "secret")
 
-    async def test_discover_no_auth_when_not_required(
+    async def test_it_discovers_without_auth_when_it_is_not_required(
         self,
         gateway,
         mock_http_client,
@@ -192,7 +196,7 @@ class TestLegacyDeviceGatewayAuth:
 
     # --- get_device_status with auth ---
 
-    async def test_get_device_status_uses_proactive_auth(
+    async def test_it_reads_status_with_proactive_auth(
         self,
         gateway,
         mock_http_client,
@@ -217,7 +221,7 @@ class TestLegacyDeviceGatewayAuth:
         status_call = mock_http_client.fetch_json.call_args_list[1]
         assert status_call[1].get("auth") == ("admin", "secret")
 
-    async def test_get_device_status_raises_on_auth_failure(
+    async def test_it_raises_on_auth_failure_while_reading_status(
         self,
         gateway,
         mock_http_client,
@@ -236,7 +240,7 @@ class TestLegacyDeviceGatewayAuth:
 
     # --- execute_action with auth ---
 
-    async def test_execute_action_sends_auth(
+    async def test_it_sends_auth_with_an_action(
         self,
         gateway,
         mock_http_client,
@@ -255,7 +259,7 @@ class TestLegacyDeviceGatewayAuth:
         call_kwargs = mock_http_client.get_with_params.call_args[1]
         assert call_kwargs.get("auth") == ("admin", "secret")
 
-    async def test_execute_action_no_auth_without_service(
+    async def test_it_sends_no_auth_with_an_action_without_a_service(
         self, gateway_no_auth, mock_http_client
     ):
         mock_http_client.get_with_params.return_value = {"ison": True}
@@ -270,13 +274,13 @@ class TestLegacyDeviceGatewayAuth:
 
     # --- invalidate_credential_cache ---
 
-    async def test_invalidate_credential_cache(self, gateway):
+    async def test_it_invalidates_the_credential_cache(self, gateway):
         gateway._basic_auth_cache["AABBCCDDEEFF"] = ("admin", "old_pass")
 
         gateway.invalidate_credential_cache("AA:BB:CC:DD:EE:FF")
 
         assert "AABBCCDDEEFF" not in gateway._basic_auth_cache
 
-    async def test_invalidate_credential_cache_noop_for_unknown(self, gateway):
+    async def test_it_invalidates_nothing_for_an_unknown_device(self, gateway):
         # Should not raise
         gateway.invalidate_credential_cache("FFFFFFFFFFFF")

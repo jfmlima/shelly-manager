@@ -24,7 +24,7 @@ class TestLegacyHttpClientAuth:
         resp.json.return_value = data
         return resp
 
-    async def test_fetch_json_passes_auth_to_session(self, client, mock_session):
+    async def test_it_passes_auth_to_the_session(self, client, mock_session):
         mock_session.get.return_value = self._mock_ok_response({"ok": True})
 
         result = await client.fetch_json(
@@ -35,7 +35,7 @@ class TestLegacyHttpClientAuth:
         call_kwargs = mock_session.get.call_args[1]
         assert call_kwargs["auth"] == ("admin", "secret")
 
-    async def test_fetch_json_passes_none_auth_by_default(self, client, mock_session):
+    async def test_it_passes_no_auth_by_default(self, client, mock_session):
         mock_session.get.return_value = self._mock_ok_response({"ok": True})
 
         await client.fetch_json("192.168.1.1", "status")
@@ -43,7 +43,7 @@ class TestLegacyHttpClientAuth:
         call_kwargs = mock_session.get.call_args[1]
         assert call_kwargs["auth"] is None
 
-    async def test_fetch_json_optional_passes_auth(self, client, mock_session):
+    async def test_it_passes_auth_on_an_optional_fetch(self, client, mock_session):
         mock_session.get.return_value = self._mock_ok_response({"ok": True})
 
         result = await client.fetch_json_optional(
@@ -54,7 +54,7 @@ class TestLegacyHttpClientAuth:
         call_kwargs = mock_session.get.call_args[1]
         assert call_kwargs["auth"] == ("admin", "pw")
 
-    async def test_get_with_params_passes_auth(self, client, mock_session):
+    async def test_it_passes_auth_with_params(self, client, mock_session):
         mock_session.get.return_value = self._mock_ok_response({"ison": True})
 
         result = await client.get_with_params(
@@ -65,7 +65,7 @@ class TestLegacyHttpClientAuth:
         call_kwargs = mock_session.get.call_args[1]
         assert call_kwargs["auth"] == ("admin", "pass")
 
-    async def test_get_with_params_none_auth_by_default(self, client, mock_session):
+    async def test_it_passes_no_auth_with_params_by_default(self, client, mock_session):
         mock_session.get.return_value = self._mock_ok_response({"ison": True})
 
         await client.get_with_params("192.168.1.1", "relay/0", {"turn": "on"})

@@ -106,6 +106,7 @@ class BaseContainer:
             self._device_gateway = ShellyDeviceGateway(
                 rpc_client=self.get_rpc_client(),
                 legacy_gateway=legacy_gateway,
+                auth_state_cache=self.get_auth_state_cache(),
             )
         return self._device_gateway
 

@@ -145,19 +145,19 @@ class TestActionsIn:
 
 
 class TestOwnershipIsNotALoosePrefix:
-    def test_zigbee_owns_its_named_shelly_method_and_nothing_else_under_shelly(self):
+    def test_it_gives_zigbee_its_named_shelly_method_and_nothing_else(self):
         namespace = ComponentNamespace.for_component_type("zigbee")
 
         assert namespace.owns("Shelly.ZigbeeClear") is True
         assert namespace.owns("Shelly.ZigbeeAnything") is False
         assert namespace.owns("Shelly.FactoryReset") is False
 
-    def test_an_exact_entry_still_matches_the_device_casing(self):
+    def test_it_matches_the_device_casing_from_an_exact_entry(self):
         namespace = ComponentNamespace.for_component_type("zigbee")
 
         assert namespace.actions_in(["shelly.zigbeeclear"]) == ["shelly.zigbeeclear"]
 
-    def test_a_namespace_prefix_entry_still_matches_a_whole_family(self):
+    def test_it_matches_a_whole_family_from_a_namespace_prefix_entry(self):
         namespace = ComponentNamespace.for_component_type("zigbee")
 
         assert namespace.actions_in(["Zigbee.GetStatus", "Zigbee.SetConfig"]) == [
