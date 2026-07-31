@@ -35,11 +35,10 @@ import {
   useDeleteBackup,
   useRestoreBackup,
 } from "@/hooks/useBackups";
+import { useComponentTypes } from "@/hooks/useComponentTypes";
 import { PAGE_SIZE, useRewindEmptyPage } from "@/hooks/useOffsetPagination";
 import { OffsetPager } from "@/components/shared/offset-pager";
 import type { BackupSummary } from "@/types/api";
-
-const NETWORK_TYPES = new Set(["wifi", "eth", "mqtt", "ws", "cloud"]);
 
 interface BackupsSectionProps {
   deviceIp: string;
@@ -210,14 +209,20 @@ function RestoreDialog({
 }) {
   const restore = useRestoreBackup();
   const { data: detail, isLoading, error } = useBackup(backup.id);
+  const { componentTypes: vocabulary } = useComponentTypes();
+
+  const networkTypes = useMemo(
+    () => new Set(vocabulary.network),
+    [vocabulary.network],
+  );
 
   const componentTypes = useMemo(() => {
     const components = detail?.snapshot.components ?? {};
     return Object.entries(components).map(([key, value]) => ({
       key,
-      network: isNetworkComponent(key, value.type),
+      network: isNetworkComponent(key, value.type, networkTypes),
     }));
-  }, [detail]);
+  }, [detail, networkTypes]);
 
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [reboot, setReboot] = useState(false);
@@ -327,9 +332,13 @@ function RestoreDialog({
 // Either signal is enough to treat a component as network: an entry can reach
 // the store untyped, and a type the device spells differently would otherwise
 // win over the key and leave wifi selected for restore.
-function isNetworkComponent(key: string, type: string | null | undefined) {
+function isNetworkComponent(
+  key: string,
+  type: string | null | undefined,
+  networkTypes: Set<string>,
+) {
   const keyType = key.split(":")[0].toLowerCase();
   return (
-    NETWORK_TYPES.has((type ?? "").toLowerCase()) || NETWORK_TYPES.has(keyType)
+    networkTypes.has((type ?? "").toLowerCase()) || networkTypes.has(keyType)
   );
 }

@@ -29,4 +29,7 @@ export const queryKeys = {
   provisioning: {
     profiles: () => ["provisioning", "profiles"] as const,
   },
+  metadata: {
+    componentTypes: () => ["metadata", "component-types"] as const,
+  },
 };

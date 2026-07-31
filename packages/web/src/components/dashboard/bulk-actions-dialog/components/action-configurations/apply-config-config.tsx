@@ -13,7 +13,8 @@ import {
   useConfiguration,
 } from "@/components/shared/configuration";
 import type { ApplyConfigActionProps } from "../../types";
-import { CONFIGURABLE_COMPONENT_TYPES, BULK_ACTION_STYLES } from "../../types";
+import { BULK_ACTION_STYLES } from "../../types";
+import { useComponentTypes } from "@/hooks/useComponentTypes";
 
 export function ApplyConfigConfig({
   selectedComponentType,
@@ -24,6 +25,7 @@ export function ApplyConfigConfig({
   onCancel,
 }: ApplyConfigActionProps) {
   const { t } = useTranslation();
+  const { componentTypes } = useComponentTypes();
 
   const configuration = useConfiguration({
     initialValue: configurationJson,
@@ -63,7 +65,7 @@ export function ApplyConfigConfig({
               <SelectValue placeholder="Select component type" />
             </SelectTrigger>
             <SelectContent>
-              {CONFIGURABLE_COMPONENT_TYPES.map((componentType) => (
+              {componentTypes.configurable.map((componentType) => (
                 <SelectItem key={componentType} value={componentType}>
                   <span className="capitalize">{componentType}</span>
                 </SelectItem>
