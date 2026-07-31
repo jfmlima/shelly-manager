@@ -211,7 +211,7 @@ function RestoreDialog({
   const { data: detail, isLoading, error } = useBackup(backup.id);
   const {
     componentTypes: vocabulary,
-    isPending: vocabularyPending,
+    isLoading: vocabularyLoading,
     isError: vocabularyFailed,
   } = useComponentTypes();
 
@@ -270,7 +270,7 @@ function RestoreDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading || vocabularyPending ? (
+        {isLoading || vocabularyLoading ? (
           <p className="text-sm text-muted-foreground">Loading components...</p>
         ) : (
           <>
