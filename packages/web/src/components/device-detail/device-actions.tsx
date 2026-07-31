@@ -261,6 +261,15 @@ export function DeviceActions({
                       )}
                     </div>
                   )}
+
+                {updateSource === "internet" &&
+                  !availableUpdates[updateChannel] && (
+                    <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
+                      {t(
+                        "deviceDetail.dialogs.updateFirmware.noReleaseOnChannel",
+                      )}
+                    </div>
+                  )}
               </div>
 
               <DialogFooter>
@@ -279,7 +288,8 @@ export function DeviceActions({
                   }
                   disabled={
                     updateMutation.isPending ||
-                    (updateSource === "internet" && !hasUpdates)
+                    (updateSource === "internet" &&
+                      !availableUpdates[updateChannel])
                   }
                 >
                   {updateMutation.isPending
