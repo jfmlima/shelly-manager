@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Save, RotateCcw, Trash2, AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -28,26 +27,24 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { backupApi } from "@/lib/api";
+import { handleApiError } from "@/lib/api";
 import {
+  useBackup,
   useBackups,
   useCreateBackup,
   useDeleteBackup,
   useRestoreBackup,
 } from "@/hooks/useBackups";
+import { PAGE_SIZE, useRewindEmptyPage } from "@/hooks/useOffsetPagination";
+import { OffsetPager } from "@/components/shared/offset-pager";
 import type { BackupSummary } from "@/types/api";
 
 const NETWORK_TYPES = new Set(["wifi", "eth", "mqtt", "ws", "cloud"]);
-const PAGE_SIZE = 50;
 
 interface BackupsSectionProps {
   deviceIp: string;
   deviceMac: string | null;
   deviceName: string | null;
-}
-
-interface SnapshotComponent {
-  type?: string;
 }
 
 export function BackupsSection({
@@ -60,6 +57,7 @@ export function BackupsSection({
     data: backups,
     isLoading,
     isSuccess,
+    error,
   } = useBackups(deviceMac, {
     limit: PAGE_SIZE,
     offset,
@@ -77,21 +75,10 @@ export function BackupsSection({
     setOffset(0);
   }, [deviceMac]);
 
-  // Step back only on a *successful* empty page, not on a transient error,
-  // which also yields items=[] and would otherwise rewind pagination state.
-  useEffect(() => {
-    if (isSuccess && items.length === 0 && offset >= PAGE_SIZE) {
-      setOffset((current) => Math.max(0, current - PAGE_SIZE));
-    }
-  }, [isSuccess, items.length, offset]);
+  useRewindEmptyPage(isSuccess, items.length, offset, setOffset);
 
   const formatDate = (ts: number | null) =>
     ts ? new Date(ts * 1000).toLocaleString() : "-";
-
-  const rangeStart = total === 0 ? 0 : offset + 1;
-  const rangeEnd = offset + items.length;
-  const canPrev = offset > 0;
-  const canNext = offset + PAGE_SIZE < total;
 
   return (
     <Card>
@@ -117,57 +104,48 @@ export function BackupsSection({
           </p>
         ) : isLoading ? (
           <p className="text-sm text-muted-foreground">Loading backups...</p>
-        ) : total === 0 ? (
-          <p className="text-sm text-muted-foreground">No backups yet.</p>
         ) : (
           <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Firmware</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((backup) => (
-                  <BackupRow
-                    key={backup.id}
-                    backup={backup}
-                    formatDate={formatDate}
-                    onRestore={() => setRestoreTarget(backup)}
+            {error && (
+              <p className="text-sm text-destructive pb-2">
+                Failed to load backups: {handleApiError(error)}
+              </p>
+            )}
+            {!error && total === 0 && (
+              <p className="text-sm text-muted-foreground">No backups yet.</p>
+            )}
+            {items.length > 0 && (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Firmware</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((backup) => (
+                      <BackupRow
+                        key={backup.id}
+                        backup={backup}
+                        formatDate={formatDate}
+                        onRestore={() => setRestoreTarget(backup)}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+                {total > PAGE_SIZE && (
+                  <OffsetPager
+                    offset={offset}
+                    itemCount={items.length}
+                    total={total}
+                    onOffsetChange={setOffset}
                   />
-                ))}
-              </TableBody>
-            </Table>
-            {total > PAGE_SIZE && (
-              <div className="flex items-center justify-between pt-4">
-                <p className="text-sm text-muted-foreground">
-                  Showing {rangeStart}–{rangeEnd} of {total}
-                </p>
-                <div className="space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setOffset((current) => Math.max(0, current - PAGE_SIZE))
-                    }
-                    disabled={!canPrev}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setOffset((current) => current + PAGE_SIZE)}
-                    disabled={!canNext}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -231,24 +209,13 @@ function RestoreDialog({
   onClose: () => void;
 }) {
   const restore = useRestoreBackup();
-  const { data: detail, isLoading } = useQuery({
-    queryKey: ["backup", backup.id],
-    queryFn: () => backupApi.getBackup(backup.id),
-    // The app sets a global `enabled: false` default, so every query must opt
-    // in explicitly; without this the snapshot never loads and the restore
-    // dialog shows no components (Restore stays disabled).
-    enabled: true,
-  });
+  const { data: detail, isLoading, error } = useBackup(backup.id);
 
   const componentTypes = useMemo(() => {
-    const components = (detail?.snapshot?.components ?? {}) as Record<
-      string,
-      SnapshotComponent
-    >;
+    const components = detail?.snapshot.components ?? {};
     return Object.entries(components).map(([key, value]) => ({
       key,
-      type: value?.type ?? "",
-      network: NETWORK_TYPES.has(value?.type ?? ""),
+      network: isNetworkComponent(key, value.type),
     }));
   }, [detail]);
 
@@ -297,29 +264,37 @@ function RestoreDialog({
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading components...</p>
         ) : (
-          <div className="max-h-72 overflow-y-auto space-y-2">
-            {componentTypes.map((c) => (
-              <div key={c.key} className="flex items-center gap-2">
-                <Checkbox
-                  id={`restore-${c.key}`}
-                  checked={effectiveSelected.has(c.key)}
-                  onCheckedChange={() => toggle(c.key)}
-                />
-                <Label
-                  htmlFor={`restore-${c.key}`}
-                  className="flex items-center gap-2 font-normal"
-                >
-                  {c.key}
-                  {c.network && (
-                    <span className="inline-flex items-center gap-1 text-xs text-amber-600">
-                      <AlertTriangle className="h-3 w-3" />
-                      network (may disconnect)
-                    </span>
-                  )}
-                </Label>
-              </div>
-            ))}
-          </div>
+          <>
+            {error && (
+              <p className="text-sm text-destructive">
+                Failed to load this backup: {handleApiError(error)}
+                {detail ? " Showing the components last loaded." : ""}
+              </p>
+            )}
+            <div className="max-h-72 overflow-y-auto space-y-2">
+              {componentTypes.map((c) => (
+                <div key={c.key} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`restore-${c.key}`}
+                    checked={effectiveSelected.has(c.key)}
+                    onCheckedChange={() => toggle(c.key)}
+                  />
+                  <Label
+                    htmlFor={`restore-${c.key}`}
+                    className="flex items-center gap-2 font-normal"
+                  >
+                    {c.key}
+                    {c.network && (
+                      <span className="inline-flex items-center gap-1 text-xs text-amber-600">
+                        <AlertTriangle className="h-3 w-3" />
+                        network (may disconnect)
+                      </span>
+                    )}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         <div className="flex items-center gap-2 pt-2">
@@ -346,5 +321,15 @@ function RestoreDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Either signal is enough to treat a component as network: an entry can reach
+// the store untyped, and a type the device spells differently would otherwise
+// win over the key and leave wifi selected for restore.
+function isNetworkComponent(key: string, type: string | null | undefined) {
+  const keyType = key.split(":")[0].toLowerCase();
+  return (
+    NETWORK_TYPES.has((type ?? "").toLowerCase()) || NETWORK_TYPES.has(keyType)
   );
 }

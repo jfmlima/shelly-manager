@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { deviceApi } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import type { ComponentActionResult } from "@/types/api";
 
 export const LEGACY_PREFIX = "Legacy.";
@@ -95,7 +96,7 @@ export function useExecuteComponentAction(
         !GET_ACTIONS.some((getAction) => variables.action.includes(getAction))
       ) {
         queryClient.invalidateQueries({
-          queryKey: ["device", "status", variables.deviceIp],
+          queryKey: queryKeys.devices.status(variables.deviceIp),
         });
       }
 

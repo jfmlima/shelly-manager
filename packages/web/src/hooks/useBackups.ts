@@ -2,23 +2,43 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { backupApi, handleApiError } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import type { RestoreBackupRequest } from "@/types/api";
+
+interface BackupPageOptions {
+  limit?: number;
+  offset?: number;
+}
 
 export function useBackups(
   deviceMac: string | null | undefined,
-  options?: { limit?: number; offset?: number },
+  options?: BackupPageOptions,
 ) {
-  const limit = options?.limit ?? 50;
-  const offset = options?.offset ?? 0;
+  const page = pageOf(options);
   return useQuery({
-    queryKey: ["backups", deviceMac, limit, offset],
+    queryKey: queryKeys.backups.list({
+      scope: "device",
+      deviceMac: deviceMac ?? null,
+      ...page,
+    }),
     queryFn: () =>
-      backupApi.listBackups({
-        deviceMac: deviceMac ?? undefined,
-        limit,
-        offset,
-      }),
+      backupApi.listBackups({ deviceMac: deviceMac ?? undefined, ...page }),
     enabled: !!deviceMac,
+  });
+}
+
+export function useAllBackups(options?: BackupPageOptions) {
+  const page = pageOf(options);
+  return useQuery({
+    queryKey: queryKeys.backups.list({ scope: "all", ...page }),
+    queryFn: () => backupApi.listBackups(page),
+  });
+}
+
+export function useBackup(backupId: number) {
+  return useQuery({
+    queryKey: queryKeys.backups.detail(backupId),
+    queryFn: () => backupApi.getBackup(backupId),
   });
 }
 
@@ -29,7 +49,7 @@ export function useCreateBackup() {
       backupApi.createBackup({ device_ip: params.deviceIp, name: params.name }),
     onSuccess: (backup) => {
       toast.success(`Backup #${backup.id} created`);
-      queryClient.invalidateQueries({ queryKey: ["backups"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.backups.all() });
     },
     onError: (error) => toast.error(handleApiError(error)),
   });
@@ -41,8 +61,10 @@ export function useDeleteBackup() {
     mutationFn: (backupId: number) => backupApi.deleteBackup(backupId),
     onSuccess: (_data, backupId) => {
       toast.success("Backup deleted");
-      queryClient.removeQueries({ queryKey: ["backup", backupId] });
-      queryClient.invalidateQueries({ queryKey: ["backups"] });
+      queryClient.removeQueries({
+        queryKey: queryKeys.backups.detail(backupId),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.backups.all() });
     },
     onError: (error) => toast.error(handleApiError(error)),
   });
@@ -62,4 +84,11 @@ export function useRestoreBackup() {
     },
     onError: (error) => toast.error(handleApiError(error)),
   });
+}
+
+function pageOf(options?: BackupPageOptions) {
+  return {
+    limit: options?.limit ?? 50,
+    offset: options?.offset ?? 0,
+  };
 }

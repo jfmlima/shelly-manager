@@ -5,8 +5,7 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef } from "react";
 import { Search } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { credentialsApi } from "@/lib/api";
+import { useCredentials } from "@/hooks/useCredentials";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -55,13 +54,7 @@ export function ScanForm({ onSubmit, isLoading = false }: ScanFormProps) {
   const scanMode = form.watch("scan_mode");
   const useAuth = form.watch("use_auth");
 
-  // Load credentials when authentication is enabled
-  const credentialsQuery = useQuery({
-    queryKey: ["credentials"],
-    queryFn: credentialsApi.listCredentials,
-    enabled: useAuth, // Only fetch when authentication is enabled
-    staleTime: 0, // Always refetch to ensure fresh data
-  });
+  const credentialsQuery = useCredentials({ enabled: useAuth });
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {

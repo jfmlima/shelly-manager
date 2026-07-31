@@ -1,7 +1,5 @@
-import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Trash2, Loader2, Save } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,9 +18,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { backupApi, handleApiError } from "@/lib/api";
-
-const PAGE_SIZE = 50;
+import { handleApiError } from "@/lib/api";
+import { useAllBackups, useDeleteBackup } from "@/hooks/useBackups";
+import { PAGE_SIZE, useRewindEmptyPage } from "@/hooks/useOffsetPagination";
+import { OffsetPager } from "@/components/shared/offset-pager";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -36,40 +35,19 @@ function formatTimestamp(ts: number | null): string {
 }
 
 export function BackupsTableSection() {
-  const queryClient = useQueryClient();
   const [offset, setOffset] = useState(0);
 
-  const { data, isLoading, isSuccess, error } = useQuery({
-    queryKey: ["backups", "all", offset],
-    queryFn: () => backupApi.listBackups({ limit: PAGE_SIZE, offset }),
-    enabled: true,
+  const { data, isLoading, isSuccess, error } = useAllBackups({
+    limit: PAGE_SIZE,
+    offset,
   });
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
 
-  // Step back only on a *successful* empty page, not on a transient error,
-  // which also yields items=[] and would otherwise rewind pagination state.
-  useEffect(() => {
-    if (isSuccess && items.length === 0 && offset >= PAGE_SIZE) {
-      setOffset((current) => Math.max(0, current - PAGE_SIZE));
-    }
-  }, [isSuccess, items.length, offset]);
+  useRewindEmptyPage(isSuccess, items.length, offset, setOffset);
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => backupApi.deleteBackup(id),
-    onSuccess: (_data, id) => {
-      toast.success("Backup deleted");
-      queryClient.removeQueries({ queryKey: ["backup", id] });
-      queryClient.invalidateQueries({ queryKey: ["backups"] });
-    },
-    onError: (err) => toast.error(handleApiError(err)),
-  });
-
-  const rangeStart = total === 0 ? 0 : offset + 1;
-  const rangeEnd = offset + items.length;
-  const canPrev = offset > 0;
-  const canNext = offset + PAGE_SIZE < total;
+  const deleteMutation = useDeleteBackup();
 
   return (
     <Card>
@@ -159,31 +137,12 @@ export function BackupsTableSection() {
                 ))}
               </TableBody>
             </Table>
-            <div className="flex items-center justify-between pt-4">
-              <p className="text-sm text-muted-foreground">
-                Showing {rangeStart}–{rangeEnd} of {total}
-              </p>
-              <div className="space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setOffset((current) => Math.max(0, current - PAGE_SIZE))
-                  }
-                  disabled={!canPrev}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setOffset((current) => current + PAGE_SIZE)}
-                  disabled={!canNext}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
+            <OffsetPager
+              offset={offset}
+              itemCount={items.length}
+              total={total}
+              onOffsetChange={setOffset}
+            />
           </>
         )}
       </CardContent>

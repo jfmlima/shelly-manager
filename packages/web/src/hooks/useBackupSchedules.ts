@@ -2,18 +2,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { backupScheduleApi, handleApiError } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import type {
   CreateBackupScheduleRequest,
   UpdateBackupScheduleRequest,
 } from "@/types/api";
 
-const QUERY_KEY = ["backup-schedules"];
+const QUERY_KEY = queryKeys.backupSchedules.all();
 
 export function useBackupSchedules() {
   return useQuery({
     queryKey: QUERY_KEY,
     queryFn: backupScheduleApi.listSchedules,
-    enabled: true,
   });
 }
 

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Trash2, Shield, Loader2, Globe } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { credentialsApi, handleApiError } from "@/lib/api";
+import { useDeleteCredential, useSetCredential } from "@/hooks/useCredentials";
 import type { Credential, CredentialCreateRequest } from "@/types/api";
 
 interface CredentialsManagerProps {
@@ -37,7 +36,6 @@ export function CredentialsManager({
   isLoading,
 }: CredentialsManagerProps) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [newCred, setNewCred] = useState<CredentialCreateRequest>({
     mac: "",
@@ -45,29 +43,17 @@ export function CredentialsManager({
     password: "",
   });
 
-  const setMutation = useMutation({
-    mutationFn: credentialsApi.setCredential,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["credentials"] });
-      toast.success(t("common.success"));
-      setIsOpen(false);
-      setNewCred({ mac: "", username: "admin", password: "" });
-    },
-    onError: (error) => {
-      toast.error(handleApiError(error));
-    },
-  });
+  const setMutation = useSetCredential();
+  const deleteMutation = useDeleteCredential();
 
-  const deleteMutation = useMutation({
-    mutationFn: credentialsApi.deleteCredential,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["credentials"] });
-      toast.success(t("common.success"));
-    },
-    onError: (error) => {
-      toast.error(handleApiError(error));
-    },
-  });
+  const saveCredential = (credential: CredentialCreateRequest) => {
+    setMutation.mutate(credential, {
+      onSuccess: () => {
+        setIsOpen(false);
+        setNewCred({ mac: "", username: "admin", password: "" });
+      },
+    });
+  };
 
   const handleAdd = () => {
     if (!newCred.mac || !newCred.password) {
@@ -76,7 +62,7 @@ export function CredentialsManager({
     }
     // Ensure MAC is uppercase
     const mac = newCred.mac.trim().toUpperCase();
-    setMutation.mutate({ ...newCred, mac });
+    saveCredential({ ...newCred, mac });
   };
 
   const handleSetGlobal = () => {
@@ -84,7 +70,7 @@ export function CredentialsManager({
       toast.error("Password is required for global fallback");
       return;
     }
-    setMutation.mutate({ ...newCred, mac: "*" });
+    saveCredential({ ...newCred, mac: "*" });
   };
 
   return (

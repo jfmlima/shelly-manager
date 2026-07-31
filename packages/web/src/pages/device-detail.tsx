@@ -9,6 +9,7 @@ import { DeviceActions } from "@/components/device-detail/device-actions";
 import { DeviceComponents } from "@/components/device-detail/device-components";
 import { BackupsSection } from "@/components/device-detail/backups-section";
 import { deviceApi, handleApiError } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 
 export function DeviceDetail() {
   const { t } = useTranslation();
@@ -21,7 +22,7 @@ export function DeviceDetail() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["device", "status", ip],
+    queryKey: queryKeys.devices.status(ip),
     queryFn: () => deviceApi.getDeviceStatus(ip!),
     enabled: !!ip,
   });

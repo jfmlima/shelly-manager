@@ -591,31 +591,13 @@ export function isEM1DataComponent(
   return component.type === "em1data";
 }
 
-export interface BackupSummary {
-  id: number;
-  device_mac: string;
-  device_ip: string | null;
-  device_name: string | null;
-  device_type: string | null;
-  firmware_version: string | null;
-  generation: string;
-  name: string | null;
-  source: string;
-  sha256: string | null;
-  size_bytes: number;
-  created_at: number | null;
-}
-
-export interface BackupDetail extends BackupSummary {
-  snapshot: Record<string, unknown>;
-}
-
-export interface PaginatedBackups {
-  items: BackupSummary[];
-  total: number;
-  limit: number;
-  offset: number;
-}
+export type {
+  BackupSummary,
+  BackupDetail,
+  ComponentSnapshot,
+  DeviceSnapshot,
+  PaginatedBackups,
+} from "@/lib/schemas/backups";
 
 export interface CreateBackupRequest {
   device_ip: string;
@@ -629,14 +611,10 @@ export interface RestoreBackupRequest {
   reboot?: boolean;
 }
 
-export interface ComponentRestoreResult {
-  key: string;
-  action: string;
-  success: boolean;
-  skipped: boolean;
-  skipped_reason: string | null;
-  error: string | null;
-}
+export type {
+  ComponentRestoreResult,
+  RestoreResult,
+} from "@/lib/schemas/backups";
 
 export interface BackupSchedule {
   id: number;
@@ -688,16 +666,4 @@ export interface ScheduleRunResult {
   failed: number;
   skipped: number;
   message: string;
-}
-
-export interface RestoreResult {
-  success: boolean;
-  device_ip: string;
-  backup_id: number;
-  total: number;
-  succeeded: number;
-  failed: number;
-  skipped: number;
-  message: string | null;
-  components: ComponentRestoreResult[];
 }
