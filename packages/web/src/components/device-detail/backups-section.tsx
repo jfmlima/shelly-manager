@@ -104,42 +104,48 @@ export function BackupsSection({
           </p>
         ) : isLoading ? (
           <p className="text-sm text-muted-foreground">Loading backups...</p>
-        ) : error && items.length === 0 ? (
-          <p className="text-sm text-destructive">
-            Failed to load backups: {handleApiError(error)}
-          </p>
-        ) : total === 0 ? (
-          <p className="text-sm text-muted-foreground">No backups yet.</p>
         ) : (
           <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Firmware</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((backup) => (
-                  <BackupRow
-                    key={backup.id}
-                    backup={backup}
-                    formatDate={formatDate}
-                    onRestore={() => setRestoreTarget(backup)}
+            {error && (
+              <p className="text-sm text-destructive pb-2">
+                Failed to load backups: {handleApiError(error)}
+              </p>
+            )}
+            {!error && total === 0 && (
+              <p className="text-sm text-muted-foreground">No backups yet.</p>
+            )}
+            {items.length > 0 && (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Firmware</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((backup) => (
+                      <BackupRow
+                        key={backup.id}
+                        backup={backup}
+                        formatDate={formatDate}
+                        onRestore={() => setRestoreTarget(backup)}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+                {total > PAGE_SIZE && (
+                  <OffsetPager
+                    offset={offset}
+                    itemCount={items.length}
+                    total={total}
+                    onOffsetChange={setOffset}
                   />
-                ))}
-              </TableBody>
-            </Table>
-            {total > PAGE_SIZE && (
-              <OffsetPager
-                offset={offset}
-                itemCount={items.length}
-                total={total}
-                onOffsetChange={setOffset}
-              />
+                )}
+              </>
             )}
           </>
         )}
@@ -209,8 +215,7 @@ function RestoreDialog({
     const components = detail?.snapshot.components ?? {};
     return Object.entries(components).map(([key, value]) => ({
       key,
-      type: value.type ?? "",
-      network: NETWORK_TYPES.has(value.type ?? ""),
+      network: isNetworkComponent(key, value.type),
     }));
   }, [detail]);
 
@@ -258,34 +263,38 @@ function RestoreDialog({
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading components...</p>
-        ) : error ? (
-          <p className="text-sm text-destructive">
-            Failed to load this backup: {handleApiError(error)}
-          </p>
         ) : (
-          <div className="max-h-72 overflow-y-auto space-y-2">
-            {componentTypes.map((c) => (
-              <div key={c.key} className="flex items-center gap-2">
-                <Checkbox
-                  id={`restore-${c.key}`}
-                  checked={effectiveSelected.has(c.key)}
-                  onCheckedChange={() => toggle(c.key)}
-                />
-                <Label
-                  htmlFor={`restore-${c.key}`}
-                  className="flex items-center gap-2 font-normal"
-                >
-                  {c.key}
-                  {c.network && (
-                    <span className="inline-flex items-center gap-1 text-xs text-amber-600">
-                      <AlertTriangle className="h-3 w-3" />
-                      network (may disconnect)
-                    </span>
-                  )}
-                </Label>
-              </div>
-            ))}
-          </div>
+          <>
+            {error && (
+              <p className="text-sm text-destructive">
+                Failed to load this backup: {handleApiError(error)}
+                {detail ? " Showing the components last loaded." : ""}
+              </p>
+            )}
+            <div className="max-h-72 overflow-y-auto space-y-2">
+              {componentTypes.map((c) => (
+                <div key={c.key} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`restore-${c.key}`}
+                    checked={effectiveSelected.has(c.key)}
+                    onCheckedChange={() => toggle(c.key)}
+                  />
+                  <Label
+                    htmlFor={`restore-${c.key}`}
+                    className="flex items-center gap-2 font-normal"
+                  >
+                    {c.key}
+                    {c.network && (
+                      <span className="inline-flex items-center gap-1 text-xs text-amber-600">
+                        <AlertTriangle className="h-3 w-3" />
+                        network (may disconnect)
+                      </span>
+                    )}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         <div className="flex items-center gap-2 pt-2">
@@ -312,5 +321,15 @@ function RestoreDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Either signal is enough to treat a component as network: an entry can reach
+// the store untyped, and a type the device spells differently would otherwise
+// win over the key and leave wifi selected for restore.
+function isNetworkComponent(key: string, type: string | null | undefined) {
+  const keyType = key.split(":")[0].toLowerCase();
+  return (
+    NETWORK_TYPES.has((type ?? "").toLowerCase()) || NETWORK_TYPES.has(keyType)
   );
 }
