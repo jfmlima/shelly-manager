@@ -58,6 +58,8 @@ services:
       context: .
       dockerfile: packages/cli/dev.Dockerfile
     environment:
+      SHELLY_SECRET_KEY: "${SHELLY_SECRET_KEY:?SHELLY_SECRET_KEY must be set - generate with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"}"
+    volumes:
       - ./packages/cli/src:/app/packages/cli/src:rw
       - ./packages/core/src:/app/packages/core/src:rw
     profiles:
