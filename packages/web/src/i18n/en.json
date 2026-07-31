@@ -395,8 +395,17 @@
     "dialogs": {
       "updateFirmware": {
         "title": "Update Firmware",
-        "description": "Select the update channel and confirm to start the firmware update process.",
+        "description": "Select the update source and confirm to start the firmware update process.",
         "updateChannel": "Update Channel",
+        "updateSource": "Update Source",
+        "sourceInternet": "Internet",
+        "sourceLocal": "Via manager",
+        "sourceLocalHint": "The manager downloads the official firmware once and serves it to the device over the local network. Useful for devices without internet access. Stable channel only.",
+        "internetStep1": "The device is told to update itself",
+        "internetStep2": "It downloads the firmware from Shelly and installs it",
+        "localStep1": "The manager asks Shelly which version is current",
+        "localStep2": "It downloads that firmware, unless it already has it (first time takes a moment)",
+        "localStep3": "The device downloads from the manager and installs it",
         "version": "Version",
         "firmwareUpdate": "Firmware Update",
         "startingUpdate": "Starting Update...",

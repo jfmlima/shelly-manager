@@ -141,23 +141,27 @@ shelly-manager credentials delete AABBCCDDEEFF
 #### Update Commands
 
 ```bash
-# Check for available updates
-shelly-manager update check --all
-shelly-manager update check 192.168.1.100 192.168.1.101
+# Update one device, a range, or a whole subnet
+shelly-manager device update -t 192.168.1.100
+shelly-manager device update 192.168.1.0/24 --channel beta
 
-# Apply firmware updates
-shelly-manager update apply 192.168.1.100
-shelly-manager update apply 192.168.1.100 --channel beta
-
-# Check update status
-shelly-manager update status 192.168.1.100
+# Serve the firmware from this host, for devices with no internet access
+shelly-manager device update -t 192.168.1.100 --source local
 ```
 
 **Update Options:**
 
 - `--channel`: Update channel (stable, beta) - default: stable
+- `--source`: Where the device fetches firmware from (internet, local) - default: internet
 - `--force`: Skip confirmation prompts
-- `--timeout`: Update timeout (default: 30s)
+- `--timeout`: Request timeout in seconds
+- `--workers`: Maximum concurrent workers
+
+With `--source local` the manager downloads the official firmware once and the
+device fetches it from the manager, so only this host needs internet access.
+It reads the same firmware store as the API and requires
+`SHELLY_FIRMWARE_ADVERTISED_BASE_URL` to be set to a URL your devices can
+reach; the API must serve that URL. Stable channel only.
 
 ### Configuration Management
 

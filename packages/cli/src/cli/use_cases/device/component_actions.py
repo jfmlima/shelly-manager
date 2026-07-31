@@ -5,6 +5,8 @@ Component actions CLI use case.
 import logging
 
 from core.domain.entities.discovered_device import DiscoveredDevice
+from core.domain.entities.exceptions import FirmwareConfigurationError
+from core.domain.value_objects.base_device_request import BaseDeviceRequest
 from core.domain.value_objects.component_action_request import (
     ComponentActionRequest as CoreActionRequest,
 )
@@ -121,6 +123,94 @@ class ComponentActionsUseCase:
                         action=request.action,
                         parameters=request.parameters,
                         message=f"Failed to execute {request.action}",
+                        error=str(e),
+                        action_successful=False,
+                    )
+                    results.append(result)
+
+                progress.advance()
+
+        return results
+
+    async def execute_local_update(
+        self, request: ComponentActionRequest
+    ) -> list[ComponentActionResult]:
+        """Update devices with firmware served from the manager's local store.
+
+        Same discovery, confirmation and progress flow as ``execute_action``,
+        but each device goes through the local-update interactor, which caches
+        the bundle on the manager host and points the device at it.
+        """
+        if not request.targets:
+            raise ValueError(
+                "No targets specified. Provide device IPs, ranges, or CIDR."
+            )
+
+        await self._container.initialize_database()
+
+        discovery_request = DeviceDiscoveryRequest(
+            targets=request.targets,
+            timeout=request.timeout,
+            workers=request.workers,
+        )
+        device_list: list[DiscoveredDevice] = (
+            await self._device_discovery.discover_devices(discovery_request)
+        )
+        device_ips = [d.ip for d in device_list]
+
+        if not device_ips:
+            return []
+
+        if not request.force:
+            devices = ", ".join(device_ips[:3]) + (
+                f" and {len(device_ips)-3} more" if len(device_ips) > 3 else ""
+            )
+
+            self._console.print(
+                "\n[yellow]About to execute:[/yellow] Update from local store"
+            )
+            self._console.print(f"[yellow]Target devices:[/yellow] {devices}")
+
+            if not self._console.input("\nContinue? [y/N]: ").lower().startswith("y"):
+                raise OperationCancelledError("Operation cancelled by user")
+
+        results = []
+        update_interactor = self._container.get_update_device_from_local_interactor()
+
+        async with self._progress_tracker.track_progress(
+            "Updating firmware from local store",
+            total=len(device_ips),
+        ) as progress:
+            for device_ip in device_ips:
+                try:
+                    action_result = await update_interactor.execute(
+                        BaseDeviceRequest(device_ip=device_ip)
+                    )
+
+                    result = ComponentActionResult(
+                        ip=device_ip,
+                        status="success" if action_result.success else "failed",
+                        component_key=request.component_key,
+                        action=request.action,
+                        parameters=request.parameters,
+                        message=action_result.message,
+                        error=action_result.error,
+                        action_successful=action_result.success,
+                        action_data=action_result.data,
+                    )
+                    results.append(result)
+
+                except FirmwareConfigurationError:
+                    raise
+
+                except Exception as e:
+                    result = ComponentActionResult(
+                        ip=device_ip,
+                        status="error",
+                        component_key=request.component_key,
+                        action=request.action,
+                        parameters=request.parameters,
+                        message="Failed to update from local store",
                         error=str(e),
                         action_successful=False,
                     )

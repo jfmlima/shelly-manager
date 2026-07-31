@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { deviceApi, handleApiError } from "@/lib/api";
-import type { DeviceStatus } from "@/types/api";
+import type { DeviceStatus, UpdateSource } from "@/types/api";
 
 interface DeviceActionsProps {
   ip: string;
@@ -54,13 +54,24 @@ export function DeviceActions({
   const [updateChannel, setUpdateChannel] = useState<"stable" | "beta">(
     "stable",
   );
+  const [updateSource, setUpdateSource] = useState<UpdateSource>("internet");
   const [rebootDialogOpen, setRebootDialogOpen] = useState(false);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [factoryResetDialogOpen, setFactoryResetDialogOpen] = useState(false);
 
   const updateMutation = useMutation({
-    mutationFn: (channel: "stable" | "beta") =>
-      deviceApi.updateDevice(ip, channel),
+    mutationFn: ({
+      channel,
+      source,
+    }: {
+      channel: "stable" | "beta";
+      source: UpdateSource;
+    }) =>
+      deviceApi.updateDevice(
+        ip,
+        source === "local" ? "stable" : channel,
+        source,
+      ),
     onSuccess: (result) => {
       if (result.success) {
         toast.success(
@@ -145,7 +156,6 @@ export function DeviceActions({
             <DialogTrigger asChild>
               <Button
                 variant={hasUpdates ? "default" : "outline"}
-                disabled={!hasUpdates}
                 className="flex items-center space-x-2"
               >
                 <Download className="h-4 w-4" />
@@ -163,64 +173,114 @@ export function DeviceActions({
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {t("deviceDetail.dialogs.updateFirmware.updateChannel")}
+              <div className="space-y-5">
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium">
+                    {t("deviceDetail.dialogs.updateFirmware.updateSource")}
                   </label>
                   <Select
-                    value={updateChannel}
-                    onValueChange={(value: "stable" | "beta") =>
-                      setUpdateChannel(value)
+                    value={updateSource}
+                    onValueChange={(value: UpdateSource) =>
+                      setUpdateSource(value)
                     }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="stable">
-                        <div className="space-y-1">
-                          <div>{t("bulkActions.stable")}</div>
-                          {availableUpdates.stable && (
-                            <div className="text-xs text-muted-foreground">
-                              {t("deviceDetail.dialogs.updateFirmware.version")}{" "}
-                              {availableUpdates.stable.version}
-                            </div>
-                          )}
-                        </div>
+                      <SelectItem value="internet">
+                        {t(
+                          "deviceDetail.dialogs.updateFirmware.sourceInternet",
+                        )}
                       </SelectItem>
-                      <SelectItem value="beta">
-                        <div className="space-y-1">
-                          <div>{t("bulkActions.beta")}</div>
-                          {availableUpdates.beta && (
-                            <div className="text-xs text-muted-foreground">
-                              {t("deviceDetail.dialogs.updateFirmware.version")}{" "}
-                              {availableUpdates.beta.version}
-                            </div>
-                          )}
-                        </div>
+                      <SelectItem value="local">
+                        {t("deviceDetail.dialogs.updateFirmware.sourceLocal")}
                       </SelectItem>
                     </SelectContent>
                   </Select>
+                  <ol className="text-xs text-muted-foreground space-y-1 pt-2">
+                    {(updateSource === "local"
+                      ? ["localStep1", "localStep2", "localStep3"]
+                      : ["internetStep1", "internetStep2"]
+                    ).map((step, index) => (
+                      <li key={step} className="flex gap-2">
+                        <span className="text-muted-foreground/60">
+                          {index + 1}.
+                        </span>
+                        <span>
+                          {t(`deviceDetail.dialogs.updateFirmware.${step}`)}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
 
-                {availableUpdates[updateChannel] && (
-                  <div className="p-3 bg-muted rounded-lg space-y-2">
-                    <div className="text-sm font-medium">
-                      {availableUpdates[updateChannel].name ||
-                        t("deviceDetail.dialogs.updateFirmware.firmwareUpdate")}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {t("deviceDetail.dialogs.updateFirmware.version")}:{" "}
-                      {availableUpdates[updateChannel].version}
-                    </div>
-                    {availableUpdates[updateChannel].desc && (
-                      <div className="text-xs text-muted-foreground">
-                        {availableUpdates[updateChannel].desc}
-                      </div>
-                    )}
+                {updateSource === "internet" && (
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium">
+                      {t("deviceDetail.dialogs.updateFirmware.updateChannel")}
+                    </label>
+                    <Select
+                      value={updateChannel}
+                      onValueChange={(value: "stable" | "beta") =>
+                        setUpdateChannel(value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="stable">
+                          <div className="space-y-1">
+                            <div>{t("bulkActions.stable")}</div>
+                            {availableUpdates.stable && (
+                              <div className="text-xs text-muted-foreground">
+                                {t(
+                                  "deviceDetail.dialogs.updateFirmware.version",
+                                )}{" "}
+                                {availableUpdates.stable.version}
+                              </div>
+                            )}
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="beta">
+                          <div className="space-y-1">
+                            <div>{t("bulkActions.beta")}</div>
+                            {availableUpdates.beta && (
+                              <div className="text-xs text-muted-foreground">
+                                {t(
+                                  "deviceDetail.dialogs.updateFirmware.version",
+                                )}{" "}
+                                {availableUpdates.beta.version}
+                              </div>
+                            )}
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
+
+                {updateSource === "internet" &&
+                  availableUpdates[updateChannel] && (
+                    <div className="p-3 bg-muted rounded-lg space-y-2">
+                      <div className="text-sm font-medium">
+                        {availableUpdates[updateChannel].name ||
+                          t(
+                            "deviceDetail.dialogs.updateFirmware.firmwareUpdate",
+                          )}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {t("deviceDetail.dialogs.updateFirmware.version")}:{" "}
+                        {availableUpdates[updateChannel].version}
+                      </div>
+                      {availableUpdates[updateChannel].desc && (
+                        <div className="text-xs text-muted-foreground">
+                          {availableUpdates[updateChannel].desc}
+                        </div>
+                      )}
+                    </div>
+                  )}
               </div>
 
               <DialogFooter>
@@ -231,8 +291,16 @@ export function DeviceActions({
                   {t("common.cancel")}
                 </Button>
                 <Button
-                  onClick={() => updateMutation.mutate(updateChannel)}
-                  disabled={updateMutation.isPending}
+                  onClick={() =>
+                    updateMutation.mutate({
+                      channel: updateChannel,
+                      source: updateSource,
+                    })
+                  }
+                  disabled={
+                    updateMutation.isPending ||
+                    (updateSource === "internet" && !hasUpdates)
+                  }
                 >
                   {updateMutation.isPending
                     ? t("deviceDetail.dialogs.updateFirmware.startingUpdate")

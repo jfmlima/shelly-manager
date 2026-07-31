@@ -302,11 +302,11 @@ export function ComponentActions({
         return (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="channel">Update Channel</Label>
+              <Label htmlFor="stage">Update Channel</Label>
               <Select
-                value={(actionParameters.channel as string) || "stable"}
+                value={(actionParameters.stage as string) || "stable"}
                 onValueChange={(value) =>
-                  setActionParameters({ ...actionParameters, channel: value })
+                  setActionParameters({ ...actionParameters, stage: value })
                 }
               >
                 <SelectTrigger>

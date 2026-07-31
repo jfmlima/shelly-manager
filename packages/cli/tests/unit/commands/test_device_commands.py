@@ -553,6 +553,58 @@ class TestActionsCommands:
 
         assert result.exit_code == 0
         assert "Update device firmware" in result.output
+        assert "--source" in result.output
+
+    def test_device_update_local_source(self, cli_context, sample_device):
+        """Test device update with the local source routes to the local interactor."""
+        from core.domain.value_objects.action_result import ActionResult
+
+        mock_scan_interactor = cli_context.container.get_scan_interactor.return_value
+        mock_scan_interactor.execute.return_value = [sample_device]
+        cli_context.container.initialize_database = AsyncMock()
+
+        mock_local_interactor = AsyncMock()
+        mock_local_interactor.execute.return_value = ActionResult(
+            device_ip=sample_device.ip,
+            action_type="shelly.Update",
+            success=True,
+            message="Update executed successfully on shelly",
+        )
+        cli_context.container.get_update_device_from_local_interactor.return_value = (
+            mock_local_interactor
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(
+            device_commands,
+            ["update", "-t", sample_device.ip, "--source", "local", "--force"],
+            obj=cli_context,
+        )
+
+        assert result.exit_code == 0
+        mock_local_interactor.execute.assert_called_once()
+        request = mock_local_interactor.execute.call_args.args[0]
+        assert request.device_ip == sample_device.ip
+
+    def test_device_update_local_source_rejects_beta(self, cli_context):
+        """Test that a beta local update is refused."""
+        runner = CliRunner()
+        result = runner.invoke(
+            device_commands,
+            [
+                "update",
+                "-t",
+                "192.168.1.100",
+                "--source",
+                "local",
+                "--channel",
+                "beta",
+            ],
+            obj=cli_context,
+        )
+
+        assert result.exit_code != 0
+        cli_context.container.get_update_device_from_local_interactor.assert_not_called()
 
     def test_actions_execute_help(self, cli_context):
         """Test actions execute command help."""
