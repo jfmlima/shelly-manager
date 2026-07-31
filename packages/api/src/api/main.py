@@ -102,17 +102,21 @@ def create_app() -> Litestar:
     async def lifespan(app: Litestar) -> AsyncGenerator[None, None]:
         _container.get_encryption_service()
 
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            # create_all adds new indexes only to tables it creates fresh, not
-            # to a device_backups table that predates this index. Add it
-            # explicitly so existing deployments get the paginated-list speedup.
-            await conn.execute(
-                text(
-                    "CREATE INDEX IF NOT EXISTS ix_device_backups_created_at "
-                    "ON device_backups (created_at)"
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+                # create_all adds new indexes only to tables it creates fresh,
+                # not to a device_backups table that predates this index. Add
+                # it explicitly so existing deployments get the speedup.
+                await conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS ix_device_backups_created_at "
+                        "ON device_backups (created_at)"
+                    )
                 )
-            )
+        except BaseException:
+            await engine.dispose()
+            raise
 
         scheduler = BackupScheduler(
             _container.get_run_due_backups_interactor(),
