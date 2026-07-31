@@ -5,10 +5,6 @@ import { metadataApi } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { ComponentTypeVocabulary } from "@/lib/schemas/component-types";
 
-// The list the web hardcoded for both dialogs before the API served this
-// vocabulary. It survives for two jobs, neither of which is deciding what a
-// user may pick: the order the selectors read in, and the bridge for the
-// render before the query resolves.
 const PREFERRED_ORDER = [
   "switch",
   "input",
@@ -35,9 +31,6 @@ export function useComponentTypes() {
   const query = useQuery({
     queryKey: queryKeys.metadata.componentTypes(),
     queryFn: metadataApi.getComponentTypes,
-    // The vocabulary moves only when the API is redeployed. Long rather than
-    // infinite so a tab left open across a deploy picks the new one up on the
-    // next dialog open instead of holding the old list until a reload.
     staleTime: 60 * 60 * 1000,
   });
 
@@ -55,10 +48,6 @@ export function useComponentTypes() {
   return { ...query, componentTypes };
 }
 
-// The API sorts alphabetically so its own output stays stable, which buries
-// switch below two dozen types most devices do not have. Ordering is the
-// selector's problem, so the everyday types lead and the rest follow
-// alphabetically behind them.
 function forDisplay(types: string[]): string[] {
   const rank = (type: string) => {
     const index = PREFERRED_ORDER.indexOf(type);
