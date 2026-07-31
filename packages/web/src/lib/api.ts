@@ -25,6 +25,12 @@ import type {
   ScheduleRunResult,
 } from "@/types/api";
 import { loadAppSettings } from "./settings";
+import { parseResponse } from "./schemas/parse";
+import {
+  backupDetailSchema,
+  paginatedBackupsSchema,
+  restoreResultSchema,
+} from "./schemas/backups";
 
 declare global {
   interface Window {
@@ -358,17 +364,21 @@ export const backupApi = {
         ...(params?.offset !== undefined ? { offset: params.offset } : {}),
       },
     });
-    return response.data;
+    return parseResponse(paginatedBackupsSchema, response.data, "GET /backups");
   },
 
   getBackup: async (backupId: number): Promise<BackupDetail> => {
     const response = await apiClient.get(`/backups/${backupId}`);
-    return response.data;
+    return parseResponse(
+      backupDetailSchema,
+      response.data,
+      `GET /backups/${backupId}`,
+    );
   },
 
   createBackup: async (data: CreateBackupRequest): Promise<BackupDetail> => {
     const response = await apiClient.post("/backups", data, { timeout: 60000 });
-    return response.data;
+    return parseResponse(backupDetailSchema, response.data, "POST /backups");
   },
 
   restoreBackup: async (
@@ -382,7 +392,11 @@ export const backupApi = {
         timeout: 60000,
       },
     );
-    return response.data;
+    return parseResponse(
+      restoreResultSchema,
+      response.data,
+      `POST /backups/${backupId}/restore`,
+    );
   },
 
   deleteBackup: async (backupId: number): Promise<void> => {

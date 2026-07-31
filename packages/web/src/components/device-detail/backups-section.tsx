@@ -47,10 +47,6 @@ interface BackupsSectionProps {
   deviceName: string | null;
 }
 
-interface SnapshotComponent {
-  type?: string;
-}
-
 export function BackupsSection({
   deviceIp,
   deviceMac,
@@ -108,7 +104,7 @@ export function BackupsSection({
           </p>
         ) : isLoading ? (
           <p className="text-sm text-muted-foreground">Loading backups...</p>
-        ) : error ? (
+        ) : error && items.length === 0 ? (
           <p className="text-sm text-destructive">
             Failed to load backups: {handleApiError(error)}
           </p>
@@ -207,17 +203,14 @@ function RestoreDialog({
   onClose: () => void;
 }) {
   const restore = useRestoreBackup();
-  const { data: detail, isLoading } = useBackup(backup.id);
+  const { data: detail, isLoading, error } = useBackup(backup.id);
 
   const componentTypes = useMemo(() => {
-    const components = (detail?.snapshot?.components ?? {}) as Record<
-      string,
-      SnapshotComponent
-    >;
+    const components = detail?.snapshot.components ?? {};
     return Object.entries(components).map(([key, value]) => ({
       key,
-      type: value?.type ?? "",
-      network: NETWORK_TYPES.has(value?.type ?? ""),
+      type: value.type ?? "",
+      network: NETWORK_TYPES.has(value.type ?? ""),
     }));
   }, [detail]);
 
@@ -265,6 +258,10 @@ function RestoreDialog({
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading components...</p>
+        ) : error ? (
+          <p className="text-sm text-destructive">
+            Failed to load this backup: {handleApiError(error)}
+          </p>
         ) : (
           <div className="max-h-72 overflow-y-auto space-y-2">
             {componentTypes.map((c) => (

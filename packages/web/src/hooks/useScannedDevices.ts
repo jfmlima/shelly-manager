@@ -11,12 +11,6 @@ import {
 } from "@/lib/storage";
 import type { Device, ScanRequest } from "@/types/api";
 
-/**
- * Read the devices from the most recent network scan.
- *
- * Shares the scan query key with the scan mutation, so it reflects whatever
- * was last scanned (and never triggers a scan of its own).
- */
 export function useScannedDevices() {
   return useQuery<Device[]>({
     queryKey: queryKeys.devices.scan(),
@@ -29,12 +23,6 @@ export function useScannedDevices() {
   });
 }
 
-/**
- * Scan the network and make the result the cached scan.
- *
- * The previous results are dropped before the request rather than after, so a
- * scan that fails leaves nothing stale behind claiming to be current.
- */
 export function useScanDevices() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
