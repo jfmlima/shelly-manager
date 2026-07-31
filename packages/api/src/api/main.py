@@ -127,6 +127,7 @@ def create_app() -> Litestar:
             # Stop the scheduler before tearing down the container it depends on.
             await scheduler.stop()
             await _container.close()
+            await engine.dispose()
 
     app = Litestar(
         route_handlers=[api_router],
