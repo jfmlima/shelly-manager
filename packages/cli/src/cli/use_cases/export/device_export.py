@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from core.domain.entities import DeviceStatus
+from core.domain.entities.config_snapshot import EXPORTABLE_COMPONENT_TYPES
 from core.domain.value_objects.check_device_status_request import (
     CheckDeviceStatusRequest,
 )
@@ -139,17 +140,8 @@ class DeviceExportUseCase:
             bulk_operations = self._container.get_bulk_operations_interactor()
             device_ips = [device.device_ip for device in devices]
 
-            component_types = [
-                "switch",
-                "input",
-                "cover",
-                "sys",
-                "cloud",
-                "ble",
-                "zigbee",
-            ]
             bulk_config_result = await bulk_operations.export_bulk_config(
-                device_ips, component_types
+                device_ips, sorted(EXPORTABLE_COMPONENT_TYPES)
             )
 
             devices_data = bulk_config_result.get("devices", {})
