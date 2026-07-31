@@ -17,6 +17,9 @@ Development setup guide for Shelly Manager, covering backend (Core/API/CLI) and 
 git clone https://github.com/jfmlima/shelly-manager.git
 cd shelly-manager
 
+# Every compose service needs this. Put it in a .env file to keep it.
+export SHELLY_SECRET_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+
 # Start development environment
 docker-compose up -d
 
@@ -31,8 +34,10 @@ The CLI ships as an opt-in profile, so `docker-compose up -d` does not start it.
 ```bash
 docker compose --profile cli up -d cli
 docker compose exec cli shelly-manager scan 192.168.1.0/24
-docker compose --profile cli down
+docker compose down cli
 ```
+
+`down cli` stops only that container. A bare `docker compose down` takes the whole stack with it, profile flag or not.
 
 Both source trees are bind-mounted into that container, so edits on the host take effect without a rebuild.
 
