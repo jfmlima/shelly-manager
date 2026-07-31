@@ -81,6 +81,75 @@ class BackupSettings(BaseSettings):
     )
 
 
+class FirmwareSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="SHELLY_FIRMWARE_")
+
+    dir: str = Field(
+        default="./data/firmware",
+        description="Directory for cached firmware bundles",
+    )
+    advertised_base_url: str | None = Field(
+        default=None,
+        description=(
+            "Base URL devices use to reach this API over LAN, "
+            "e.g. http://192.168.40.252:8000. Required for local updates; "
+            "it cannot be guessed from the server side."
+        ),
+    )
+    index_url: str = Field(
+        default="https://updates.shelly.cloud/update",
+        description="Shelly firmware index base URL",
+    )
+    verify_ssl: bool = Field(
+        default=False,
+        description=(
+            "Verify TLS certificates for the firmware index and CDN. Off by "
+            "default because Shelly signs updates.shelly.cloud with a private "
+            "Allterco CA that no public trust store contains; firmware "
+            "integrity is enforced by the device's own signature check."
+        ),
+    )
+    allowed_download_hosts: str = Field(
+        default="shelly.cloud",
+        description=(
+            "Comma separated hosts a firmware bundle may be downloaded from, "
+            "matched exactly or as a parent domain, and re-checked on every "
+            "redirect. The index names the download URL, and with TLS "
+            "verification off that response is worth distrusting, so this "
+            "keeps it from pointing the manager at hosts it can reach but the "
+            "internet cannot. Set it to * to accept any host; an empty value "
+            "keeps the default rather than accepting any."
+        ),
+    )
+
+    @field_validator("allowed_download_hosts", mode="before")
+    @classmethod
+    def accept_a_list_of_hosts(cls, value: Any) -> Any:
+        """Take the JSON list shape a config file invites as well as a string."""
+        if isinstance(value, list | tuple):
+            return ",".join(str(host) for host in value)
+        return value
+
+    def download_host_allow_list(self) -> list[str]:
+        """The hosts firmware may come from, empty meaning any host.
+
+        Kept as a string because a list field can only be set from the
+        environment as JSON, and this is a knob operators are invited to set;
+        a comma separated value would otherwise stop the app at import. An
+        empty value falls back to the default instead of accepting any host,
+        so a blank entry in a deployment template cannot quietly turn the
+        check off; * is how that is asked for.
+        """
+        hosts = [
+            host.strip().lower()
+            for host in self.allowed_download_hosts.split(",")
+            if host.strip()
+        ]
+        if not hosts:
+            return ["shelly.cloud"]
+        return [] if "*" in hosts else hosts
+
+
 class APISettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="API_")
 
@@ -103,6 +172,7 @@ class AppSettings(BaseSettings):
     network: NetworkSettings = Field(default_factory=NetworkSettings)
     api: APISettings = Field(default_factory=APISettings)
     backup: BackupSettings = Field(default_factory=BackupSettings)
+    firmware: FirmwareSettings = Field(default_factory=FirmwareSettings)
 
     config_file: str = Field(
         default="config.json", description="Configuration file path"
@@ -147,6 +217,8 @@ class AppSettings(BaseSettings):
                 self.api = APISettings(**raw["api"])
             if isinstance(raw.get("backup"), dict):
                 self.backup = BackupSettings(**raw["backup"])
+            if isinstance(raw.get("firmware"), dict):
+                self.firmware = FirmwareSettings(**raw["firmware"])
 
             for field_name in ["config_file", "data_dir", "cache_ttl"]:
                 if field_name in raw:
@@ -165,6 +237,7 @@ class AppSettings(BaseSettings):
                 "network": self.network.model_dump(),
                 "api": self.api.model_dump(),
                 "backup": self.backup.model_dump(),
+                "firmware": self.firmware.model_dump(),
                 "config_file": self.config_file,
                 "data_dir": self.data_dir,
                 "cache_ttl": self.cache_ttl,
@@ -185,6 +258,9 @@ class AppSettings(BaseSettings):
         try:
             data_path = Path(self.data_dir)
             data_path.mkdir(parents=True, exist_ok=True)
+
+            firmware_path = Path(self.firmware.dir)
+            firmware_path.mkdir(parents=True, exist_ok=True)
 
             if self.network.timeout <= 0:
                 raise ValidationError(
