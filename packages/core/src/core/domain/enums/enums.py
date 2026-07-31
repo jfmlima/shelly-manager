@@ -25,8 +25,10 @@ class UpdateChannel(str, Enum):
     def to_update_parameters(self) -> dict[str, str]:
         """Parameters for a firmware Update action.
 
-        Stable is the device-side default, so it sends no channel at all.
+        Shelly.Update names this field stage. A device silently ignores an
+        unknown parameter, so sending channel installed stable no matter what
+        was asked for. Stable is the device-side default and sends nothing.
         """
         if self is UpdateChannel.STABLE:
             return {}
-        return {"channel": self.value}
+        return {"stage": self.value}

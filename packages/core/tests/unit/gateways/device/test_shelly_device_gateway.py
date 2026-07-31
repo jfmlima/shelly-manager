@@ -573,6 +573,27 @@ class TestShellyDeviceGateway:
             "192.168.1.100", "Shelly.Update", params=None, timeout=10.0
         )
 
+    async def test_it_forwards_the_stage_to_the_update_action(
+        self, gateway, mock_rpc_client
+    ):
+
+        available_methods = ["Shelly.Update", "Shelly.Reboot", "Switch.Toggle"]
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                ({"methods": available_methods}, 0.1),
+                ({}, 0.1),
+            ]
+        )
+
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "shelly", "Update", {"stage": "beta"}
+        )
+
+        assert result.success is True
+        mock_rpc_client.make_rpc_request.assert_any_call(
+            "192.168.1.100", "Shelly.Update", params={"stage": "beta"}, timeout=10.0
+        )
+
     async def test_it_executes_component_reboot_action_successfully(
         self, gateway, mock_rpc_client
     ):
