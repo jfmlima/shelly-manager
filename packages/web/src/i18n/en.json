@@ -411,7 +411,8 @@
         "firmwareUpdate": "Firmware Update",
         "startingUpdate": "Starting Update...",
         "startUpdate": "Start Update",
-        "noReleaseOnChannel": "No firmware published on this channel for this device."
+        "noUpdateOnChannel": "No update available on this channel.",
+        "noUpdatesAvailable": "This device reports no firmware updates available."
       },
       "rebootDevice": {
         "title": "Reboot Device",

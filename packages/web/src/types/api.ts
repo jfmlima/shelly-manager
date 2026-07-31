@@ -280,10 +280,19 @@ export interface EM1DataComponent extends Component {
 }
 
 export interface UpdateInfo {
-  version: string;
-  build_id: string;
+  version?: string;
+  build_id?: string;
   name?: string;
   desc?: string;
+}
+
+/** Summary entries rename desc to description, so this is not interchangeable
+ * with UpdateInfo. */
+export interface SummaryUpdateInfo {
+  version: string;
+  build_id: string | null;
+  name: string | null;
+  description: string | null;
 }
 
 export interface DeviceSummary {
@@ -298,7 +307,7 @@ export interface DeviceSummary {
   total_power: number;
   any_switch_on: boolean;
   has_updates: boolean;
-  available_updates: Record<string, UpdateInfo>;
+  available_updates: Record<string, SummaryUpdateInfo>;
   restart_required: boolean;
   last_updated: string;
 }

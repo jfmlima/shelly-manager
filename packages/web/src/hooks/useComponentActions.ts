@@ -29,6 +29,10 @@ const GET_ACTIONS = [
   "ListAPClients",
 ];
 
+/** Reads that still change what a cached status would say, so they refresh it
+ * despite being in GET_ACTIONS. */
+const STATUS_REFRESHING_ACTIONS = ["CheckForUpdate"];
+
 interface ExecuteComponentActionParams {
   deviceIp: string;
   componentKey: string;
@@ -92,9 +96,7 @@ export function useExecuteComponentAction(
         parameters,
       ),
     onSuccess: (result, variables) => {
-      if (
-        !GET_ACTIONS.some((getAction) => variables.action.includes(getAction))
-      ) {
+      if (shouldRefreshStatus(variables.action)) {
         queryClient.invalidateQueries({
           queryKey: queryKeys.devices.status(variables.deviceIp),
         });
@@ -311,6 +313,13 @@ export function shouldShowResponseData(action: string): boolean {
   return GET_ACTIONS.some(
     (getAction) => action.includes(getAction) || action.endsWith(getAction),
   );
+}
+
+function shouldRefreshStatus(action: string): boolean {
+  if (STATUS_REFRESHING_ACTIONS.some((refresh) => action.includes(refresh))) {
+    return true;
+  }
+  return !GET_ACTIONS.some((getAction) => action.includes(getAction));
 }
 
 /**

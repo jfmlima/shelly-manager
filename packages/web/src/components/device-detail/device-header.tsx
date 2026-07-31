@@ -19,6 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getChannelReleases } from "@/lib/firmware-updates";
 import type { DeviceStatus } from "@/types/api";
 
 interface DeviceHeaderProps {
@@ -57,6 +58,9 @@ export function DeviceHeader({ deviceStatus, isLoading }: DeviceHeaderProps) {
   }
 
   const { summary, ip } = deviceStatus;
+  const channelReleases = getChannelReleases(
+    deviceStatus.firmware.available_updates,
+  );
 
   const getStatusBadge = () => {
     return (
@@ -133,40 +137,36 @@ export function DeviceHeader({ deviceStatus, isLoading }: DeviceHeaderProps) {
                 </div>
 
                 {/* Available Updates */}
-                {deviceStatus.firmware.available_updates &&
-                  Object.keys(deviceStatus.firmware.available_updates).length >
-                    0 && (
-                    <div className="space-y-1">
-                      <div className="text-xs text-muted-foreground">
-                        {t("deviceDetail.deviceInfo.availableUpdates")}:
-                      </div>
-                      <div className="space-y-1">
-                        {Object.entries(
-                          deviceStatus.firmware.available_updates,
-                        ).map(([channel, update]) => (
-                          <div
-                            key={channel}
-                            className="flex items-center space-x-2"
-                          >
-                            <Badge
-                              variant="secondary"
-                              className="text-xs px-2 py-0"
-                            >
-                              {channel}
-                            </Badge>
-                            <span className="text-xs font-mono">
-                              {update.version}
-                            </span>
-                            {update.name && (
-                              <span className="text-xs text-muted-foreground">
-                                ({update.name})
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                {channelReleases.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">
+                      {t("deviceDetail.deviceInfo.availableUpdates")}:
                     </div>
-                  )}
+                    <div className="space-y-1">
+                      {channelReleases.map(({ channel, release }) => (
+                        <div
+                          key={channel}
+                          className="flex items-center space-x-2"
+                        >
+                          <Badge
+                            variant="secondary"
+                            className="text-xs px-2 py-0"
+                          >
+                            {channel}
+                          </Badge>
+                          <span className="text-xs font-mono">
+                            {release.version}
+                          </span>
+                          {release.name && (
+                            <span className="text-xs text-muted-foreground">
+                              ({release.name})
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

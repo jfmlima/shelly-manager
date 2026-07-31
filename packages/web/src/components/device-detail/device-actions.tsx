@@ -35,6 +35,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { deviceApi, handleApiError } from "@/lib/api";
+import {
+  UPDATE_CHANNELS,
+  getChannelRelease,
+  hasAnyRelease,
+  type UpdateChannel,
+} from "@/lib/firmware-updates";
 import type { DeviceStatus, UpdateSource } from "@/types/api";
 
 interface DeviceActionsProps {
@@ -51,9 +57,7 @@ export function DeviceActions({
   isRefreshing = false,
 }: DeviceActionsProps) {
   const { t } = useTranslation();
-  const [updateChannel, setUpdateChannel] = useState<"stable" | "beta">(
-    "stable",
-  );
+  const [updateChannel, setUpdateChannel] = useState<UpdateChannel>("stable");
   const [updateSource, setUpdateSource] = useState<UpdateSource>("internet");
   const [rebootDialogOpen, setRebootDialogOpen] = useState(false);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
@@ -64,7 +68,7 @@ export function DeviceActions({
       channel,
       source,
     }: {
-      channel: "stable" | "beta";
+      channel: UpdateChannel;
       source: UpdateSource;
     }) =>
       deviceApi.updateDevice(
@@ -123,8 +127,9 @@ export function DeviceActions({
     },
   });
 
-  const hasUpdates = deviceStatus?.summary.has_updates || false;
-  const availableUpdates = deviceStatus?.firmware.available_updates || {};
+  const availableUpdates = deviceStatus?.firmware.available_updates;
+  const selectedRelease = getChannelRelease(availableUpdates, updateChannel);
+  const hasUpdates = hasAnyRelease(availableUpdates);
 
   return (
     <Card>
@@ -222,7 +227,7 @@ export function DeviceActions({
                     </label>
                     <Select
                       value={updateChannel}
-                      onValueChange={(value: "stable" | "beta") =>
+                      onValueChange={(value: UpdateChannel) =>
                         setUpdateChannel(value)
                       }
                     >
@@ -230,44 +235,54 @@ export function DeviceActions({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="stable">
-                          {t("bulkActions.stable")}
-                        </SelectItem>
-                        <SelectItem value="beta">
-                          {t("bulkActions.beta")}
-                        </SelectItem>
+                        {UPDATE_CHANNELS.map((channel) => {
+                          const release = getChannelRelease(
+                            availableUpdates,
+                            channel,
+                          );
+                          const label = t(`bulkActions.${channel}`);
+                          return (
+                            <SelectItem key={channel} value={channel}>
+                              {release
+                                ? `${label} (${release.version})`
+                                : label}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   </div>
                 )}
 
-                {updateSource === "internet" &&
-                  availableUpdates[updateChannel] && (
-                    <div className="p-3 bg-muted rounded-lg space-y-2">
-                      <div className="text-sm font-medium">
-                        {availableUpdates[updateChannel].name ||
-                          t(
-                            "deviceDetail.dialogs.updateFirmware.firmwareUpdate",
-                          )}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {t("deviceDetail.dialogs.updateFirmware.version")}:{" "}
-                        {availableUpdates[updateChannel].version}
-                      </div>
-                      {availableUpdates[updateChannel].desc && (
-                        <div className="text-xs text-muted-foreground">
-                          {availableUpdates[updateChannel].desc}
-                        </div>
-                      )}
+                {updateSource === "internet" && selectedRelease && (
+                  <div className="p-3 bg-muted rounded-lg space-y-2">
+                    <div className="text-sm font-medium">
+                      {selectedRelease.name ||
+                        t("deviceDetail.dialogs.updateFirmware.firmwareUpdate")}
                     </div>
-                  )}
+                    <div className="text-sm text-muted-foreground">
+                      {t("deviceDetail.dialogs.updateFirmware.version")}:{" "}
+                      {selectedRelease.version}
+                    </div>
+                    {selectedRelease.desc && (
+                      <div className="text-xs text-muted-foreground">
+                        {selectedRelease.desc}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {updateSource === "internet" &&
-                  !availableUpdates[updateChannel] && (
+                  deviceStatus &&
+                  !selectedRelease && (
                     <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
-                      {t(
-                        "deviceDetail.dialogs.updateFirmware.noReleaseOnChannel",
-                      )}
+                      {hasUpdates
+                        ? t(
+                            "deviceDetail.dialogs.updateFirmware.noUpdateOnChannel",
+                          )
+                        : t(
+                            "deviceDetail.dialogs.updateFirmware.noUpdatesAvailable",
+                          )}
                     </div>
                   )}
               </div>
@@ -288,8 +303,7 @@ export function DeviceActions({
                   }
                   disabled={
                     updateMutation.isPending ||
-                    (updateSource === "internet" &&
-                      !availableUpdates[updateChannel])
+                    (updateSource === "internet" && !selectedRelease)
                   }
                 >
                   {updateMutation.isPending
