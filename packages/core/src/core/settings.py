@@ -14,14 +14,12 @@ from core.domain.entities.exceptions import ConfigurationError, ValidationError
 
 MISSING_SECRET_KEY_MESSAGE = (
     "SHELLY_SECRET_KEY is not set. Generate one with: "
-    'python -c "from cryptography.fernet import Fernet; '
-    'print(Fernet.generate_key().decode())"'
+    "openssl rand -base64 32 | tr '+/' '-_'"
 )
 
 INVALID_SECRET_KEY_MESSAGE = (
     "SHELLY_SECRET_KEY is not a valid Fernet key. Generate one with: "
-    'python -c "from cryptography.fernet import Fernet; '
-    'print(Fernet.generate_key().decode())".'
+    "openssl rand -base64 32 | tr '+/' '-_'."
 )
 
 

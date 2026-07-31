@@ -369,7 +369,7 @@ The application requires a valid Fernet key in the `SHELLY_SECRET_KEY` environme
 
 ```bash
 # Generate a key using Python
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+openssl rand -base64 32 | tr '+/' '-_'
 ```
 
 ### 2. Set the Environment Variable

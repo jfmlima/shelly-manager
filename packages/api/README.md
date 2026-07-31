@@ -439,7 +439,7 @@ curl -X POST "http://localhost:8000/api/backups/1/restore" \
 | `HOST`               | `127.0.0.1`   | API server host            |
 | `PORT`               | `8000`        | API server port            |
 | `DEBUG`              | `false`       | Enable debug mode          |
-| `SHELLY_SECRET_KEY`  | (required)    | Fernet key for credential encryption. Generate with: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `SHELLY_SECRET_KEY`  | (required)    | Fernet key for credential encryption. Generate with: `openssl rand -base64 32 \| tr '+/' '-_'` |
 | `SHELLY_BACKUP_SCHEDULER_ENABLED` | `true` | Run the in-process scheduled-backup poller |
 | `SHELLY_BACKUP_POLL_INTERVAL_SECONDS` | `60` | How often the scheduler checks for due backups |
 | `SHELLY_FIRMWARE_ADVERTISED_BASE_URL` | (none) | URL devices use to reach this API, e.g. `http://192.168.1.50:8000`. Required for local updates; it cannot be guessed |

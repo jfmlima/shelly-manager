@@ -11,7 +11,7 @@ services:
       HOST: "0.0.0.0"
       PORT: "8000"
       DEBUG: "true"
-      SHELLY_SECRET_KEY: "${SHELLY_SECRET_KEY:?SHELLY_SECRET_KEY must be set - generate with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"}"
+      SHELLY_SECRET_KEY: "${SHELLY_SECRET_KEY:?SHELLY_SECRET_KEY must be set - generate with: openssl rand -base64 32 | tr '+/' '-_'}"
       # Scheduled backups run in-process on the API and assume a single worker.
       # Defaults shown; set SHELLY_BACKUP_SCHEDULER_ENABLED=false to disable.
       SHELLY_BACKUP_SCHEDULER_ENABLED: "${SHELLY_BACKUP_SCHEDULER_ENABLED:-true}"
@@ -58,7 +58,7 @@ services:
       context: .
       dockerfile: packages/cli/dev.Dockerfile
     environment:
-      SHELLY_SECRET_KEY: "${SHELLY_SECRET_KEY:?SHELLY_SECRET_KEY must be set - generate with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"}"
+      SHELLY_SECRET_KEY: "${SHELLY_SECRET_KEY:?SHELLY_SECRET_KEY must be set - generate with: openssl rand -base64 32 | tr '+/' '-_'}"
     volumes:
       - ./packages/cli/src:/app/packages/cli/src:rw
       - ./packages/core/src:/app/packages/core/src:rw

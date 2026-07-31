@@ -17,11 +17,11 @@ Development setup guide for Shelly Manager, covering backend (Core/API/CLI) and 
 git clone https://github.com/jfmlima/shelly-manager.git
 cd shelly-manager
 
-# Every compose service needs this. Put it in a .env file to keep it.
-export SHELLY_SECRET_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+# The api and cli services require this. Put it in a .env file to keep it.
+export SHELLY_SECRET_KEY=$(openssl rand -base64 32 | tr '+/' '-_')
 
 # Start development environment
-docker-compose up -d
+docker compose up -d
 
 # Access services:
 # - API: http://localhost:8000
@@ -29,7 +29,7 @@ docker-compose up -d
 # - API Docs: http://localhost:8000/docs
 ```
 
-The CLI ships as an opt-in profile, so `docker-compose up -d` does not start it. Its entrypoint keeps the container idle, which means you drive it with `exec` rather than `run`:
+The CLI ships as an opt-in profile, so `docker compose up -d` does not start it. Its entrypoint keeps the container idle, which means you drive it with `exec` rather than `run`:
 
 ```bash
 docker compose --profile cli up -d cli
@@ -37,7 +37,7 @@ docker compose exec cli shelly-manager scan 192.168.1.0/24
 docker compose down cli
 ```
 
-`down cli` stops only that container. A bare `docker compose down` takes the whole stack with it, profile flag or not.
+`down cli` names the service, so it removes only that container. Neither other form does what you might expect: a bare `docker compose down` tears down the default-profile services and leaves `cli` running, and because `cli` sets `restart: unless-stopped` it then survives reboots unnoticed. `docker compose --profile cli down` is the one that takes everything.
 
 Both source trees are bind-mounted into that container, so edits on the host take effect without a rebuild.
 
@@ -101,6 +101,8 @@ uv sync --package shelly-manager-cli
 ```
 
 ### Running Backend Services
+
+Commands that read or write stored credentials or backups need `SHELLY_SECRET_KEY` in the environment, the same value the compose stack uses. Everything else, including `--help` and `scan`, runs without it.
 
 ```bash
 # CLI tool
@@ -379,9 +381,8 @@ make run-api        # Start API server locally
 make run-web        # Start web dev server
 
 # Docker development
-make docker-build   # Build all Docker images
-make docker-up      # Start development stack
-make docker-down    # Stop development stack
+docker compose up -d      # Start development stack
+docker compose down       # Stop development stack
 ```
 
 ### Pre-commit Hooks
