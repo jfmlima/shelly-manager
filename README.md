@@ -264,9 +264,17 @@ DELETE /api/backups/{id}                                      # Delete a backup
 
 GET    /api/backup-schedules                                  # List backup schedules
 POST   /api/backup-schedules                                  # Create a schedule
+GET    /api/backup-schedules/{id}                             # Get a schedule
 PUT    /api/backup-schedules/{id}                             # Update a schedule
 DELETE /api/backup-schedules/{id}                             # Delete a schedule
+POST   /api/backup-schedules/{id}/enable                      # Enable a schedule
+POST   /api/backup-schedules/{id}/disable                     # Disable a schedule
 POST   /api/backup-schedules/{id}/run                         # Run a schedule now
+
+# Firmware cache (bundles the manager downloads once and serves to devices)
+GET    /api/firmware                                          # List cached firmware bundles
+DELETE /api/firmware/{id}                                     # Delete a cached bundle
+GET    /api/firmware/{id}/download                            # Serve a bundle; devices fetch this over LAN, unauthenticated
 
 # Component actions
 GET  /api/devices/{ip}/components/actions                     # Discover available actions
