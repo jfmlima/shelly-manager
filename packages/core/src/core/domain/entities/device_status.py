@@ -4,8 +4,6 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from .components import (
-    BluetoothHomeComponent,
-    BluetoothLEComponent,
     CloudComponent,
     ComponentType,
     CoverComponent,
@@ -13,10 +11,7 @@ from .components import (
     EM1DataComponent,
     EMComponent,
     EMDataComponent,
-    EthernetComponent,
     InputComponent,
-    KnxComponent,
-    MqttComponent,
     SwitchComponent,
     SystemComponent,
     WebSocketComponent,
@@ -151,36 +146,6 @@ class DeviceStatus(BaseModel):
     def get_websocket_info(self) -> WebSocketComponent | None:
         for comp in self.components:
             if isinstance(comp, WebSocketComponent):
-                return comp
-        return None
-
-    def get_ethernet_info(self) -> EthernetComponent | None:
-        for comp in self.components:
-            if isinstance(comp, EthernetComponent):
-                return comp
-        return None
-
-    def get_bluetooth_home_info(self) -> BluetoothHomeComponent | None:
-        for comp in self.components:
-            if isinstance(comp, BluetoothHomeComponent):
-                return comp
-        return None
-
-    def get_bluetooth_le_info(self) -> BluetoothLEComponent | None:
-        for comp in self.components:
-            if isinstance(comp, BluetoothLEComponent):
-                return comp
-        return None
-
-    def get_knx_info(self) -> KnxComponent | None:
-        for comp in self.components:
-            if isinstance(comp, KnxComponent):
-                return comp
-        return None
-
-    def get_mqtt_info(self) -> MqttComponent | None:
-        for comp in self.components:
-            if isinstance(comp, MqttComponent):
                 return comp
         return None
 
