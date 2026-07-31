@@ -12,7 +12,6 @@ from typing import Any
 
 from core.domain.entities.exceptions import (
     BulkOperationError,
-    ConfigurationError,
     DeviceAuthenticationError,
     DeviceCommunicationError,
     DeviceNotFoundError,
@@ -107,7 +106,6 @@ EXCEPTION_HANDLERS: MutableMapping[int | type[Exception], ExceptionHandler] | No
     ScheduleNotFoundError: _typed_handler(404, "Schedule Not Found"),
     ScheduleAlreadyExistsError: _typed_handler(409, "Schedule Already Exists"),
     CoreValidationError: _typed_handler(400, "Validation Error"),
-    ConfigurationError: _typed_handler(500, "Configuration Error"),
     ValueError: handle_value_error,
     HTTPException: handle_http_exception,
     Exception: handle_generic_exception,
