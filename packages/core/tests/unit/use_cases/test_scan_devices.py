@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from core.domain.entities.discovered_device import DiscoveredDevice
+from core.domain.entities.exceptions import ConfigurationError
 from core.domain.enums.enums import Status
 from core.domain.value_objects.scan_request import ScanRequest
 from core.gateways.network import MDNSGateway
@@ -102,6 +103,20 @@ class TestScanDevicesUseCase:
         result = await use_case.execute(valid_scan_request)
 
         assert len(result) == 0
+
+    async def test_it_surfaces_a_configuration_error_rather_than_scanning_empty(
+        self, use_case, valid_scan_request, mock_device_gateway
+    ):
+        mock_device_gateway.discover_device = AsyncMock(
+            side_effect=ConfigurationError(
+                "encryption", "SHELLY_SECRET_KEY is not set."
+            )
+        )
+
+        with pytest.raises(ConfigurationError) as excinfo:
+            await use_case.execute(valid_scan_request)
+
+        assert "SHELLY_SECRET_KEY" in str(excinfo.value)
 
     async def test_it_respects_max_workers_parameter(
         self, use_case, mock_device_gateway

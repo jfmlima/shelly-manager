@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Any, TypeVar
 
 from ..domain.entities.config_snapshot import DeviceSnapshot
-from ..domain.entities.exceptions import BulkOperationError
+from ..domain.entities.exceptions import BulkOperationError, ConfigurationError
 from ..domain.enums.enums import UpdateChannel
 from ..domain.value_objects.action_result import ActionResult
 from ..gateways.device import DeviceGateway
@@ -115,6 +115,8 @@ class BulkOperationsUseCase:
                 device_ips, "shelly", action, parameters
             )
         except Exception as e:
+            if isinstance(e, ConfigurationError):
+                raise
             raise BulkOperationError(
                 operation, device_ips, f"{label} failed: {str(e)}"
             ) from e

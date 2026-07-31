@@ -4,7 +4,11 @@ from datetime import datetime
 from typing import Any
 
 from ..domain.entities.discovered_device import DiscoveredDevice
-from ..domain.entities.exceptions import DeviceValidationError, ValidationError
+from ..domain.entities.exceptions import (
+    ConfigurationError,
+    DeviceValidationError,
+    ValidationError,
+)
 from ..domain.enums.enums import Status
 from ..domain.value_objects.scan_request import ScanRequest
 from ..gateways.device import DeviceGateway
@@ -50,6 +54,10 @@ class ScanDevicesUseCase:
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
+        for result in results:
+            if isinstance(result, ConfigurationError):
+                raise result
+
         discovered_devices = []
         for result in results:
             if isinstance(result, DiscoveredDevice) and result.status in [
@@ -88,6 +96,8 @@ class ScanDevicesUseCase:
         async with semaphore:
             try:
                 return await self._discover_device(ip, timeout)
+            except ConfigurationError:
+                raise
             except Exception:
                 return DiscoveredDevice(
                     ip=ip,
@@ -108,6 +118,8 @@ class ScanDevicesUseCase:
 
             return device
 
+        except ConfigurationError:
+            raise
         except Exception as e:
             raise DeviceValidationError(
                 ip, f"Failed to discover device at {ip}: {str(e)}"
