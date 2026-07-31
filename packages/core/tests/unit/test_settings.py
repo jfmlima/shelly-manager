@@ -1,5 +1,7 @@
 import json
 
+import pytest
+from core.domain.entities.exceptions import ValidationError
 from core.settings import AppSettings
 
 
@@ -139,3 +141,24 @@ def test_it_creates_the_firmware_dir_on_validate(tmp_path, monkeypatch):
     settings.validate_settings()
 
     assert (tmp_path / "data" / "firmware").is_dir()
+
+
+def test_it_builds_without_a_secret_key(monkeypatch):
+    monkeypatch.delenv("SHELLY_SECRET_KEY", raising=False)
+
+    settings = AppSettings(config_file="does-not-exist.json")
+
+    assert settings.secret_key is None
+
+
+def test_it_rejects_a_missing_secret_key_on_validate(tmp_path, monkeypatch):
+    monkeypatch.delenv("SHELLY_SECRET_KEY", raising=False)
+
+    settings = AppSettings(config_file=str(tmp_path / "config.json"))
+    settings.data_dir = str(tmp_path / "data")
+    settings.firmware.dir = str(tmp_path / "data" / "firmware")
+
+    with pytest.raises(ValidationError) as excinfo:
+        settings.validate_settings()
+
+    assert "SHELLY_SECRET_KEY" in str(excinfo.value)
