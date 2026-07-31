@@ -436,7 +436,7 @@ curl -X POST "http://localhost:8000/api/backups/1/restore" \
 
 | Variable             | Default       | Description                |
 | -------------------- | ------------- | -------------------------- |
-| `HOST`               | `127.0.0.1`   | API server host            |
+| `HOST`               | `0.0.0.0`     | API server host, all interfaces by default |
 | `PORT`               | `8000`        | API server port            |
 | `DEBUG`              | `false`       | Enable debug mode          |
 | `SHELLY_SECRET_KEY`  | (required)    | Fernet key for credential encryption. Generate with: `openssl rand -base64 32 \| tr '+/' '-_'` |

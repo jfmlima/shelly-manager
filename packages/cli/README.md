@@ -288,8 +288,8 @@ than backfilling every slot it missed. The first run happens one interval after 
 
 | Variable             | Default       | Description                |
 | -------------------- | ------------- | -------------------------- |
-| `SHELLY_TIMEOUT`     | `3.0`         | Default timeout per device |
-| `SHELLY_MAX_WORKERS` | `50`          | Default concurrent workers |
+| `NETWORK_TIMEOUT`    | `3.0`         | Default timeout per device |
+| `NETWORK_MAX_WORKERS` | `50`          | Default concurrent workers |
 
 
 ## Export Formats

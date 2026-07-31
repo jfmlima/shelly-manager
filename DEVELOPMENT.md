@@ -106,10 +106,10 @@ Commands that read or write stored credentials or backups need `SHELLY_SECRET_KE
 
 ```bash
 # CLI tool
-uv run shelly-manager --help
-uv run shelly-manager scan --range 192.168.1.0/24
+uv run --package shelly-manager-cli shelly-manager --help
+uv run --package shelly-manager-cli shelly-manager scan 192.168.1.0/24
 
-# API server
+# API server, which unlike the CLI needs SHELLY_SECRET_KEY set
 uv run --package shelly-manager-api python -m api.main
 # Visit: http://localhost:8000/docs
 
@@ -362,8 +362,8 @@ git push origin feature/amazing-feature
 
 ```bash
 # Quality and Testing
-make lint           # Run all linting (black, ruff, mypy, eslint)
-make format         # Format all code (black, prettier)
+make lint           # Run all linting (black, ruff, mypy)
+make format         # Format all code (black, ruff)
 make test           # Run all tests (backend + web)
 make test-coverage  # Run tests with coverage reports
 
@@ -378,11 +378,10 @@ make install        # Install all packages
 make install-dev    # Install with dev dependencies
 make clean          # Clean build artifacts
 make run-api        # Start API server locally
-make run-web        # Start web dev server
 
 # Docker development
 docker compose up -d      # Start development stack
-docker compose down       # Stop development stack
+docker compose down       # Stop the default services (leaves the cli profile)
 ```
 
 ### Pre-commit Hooks
@@ -402,8 +401,8 @@ git commit --no-verify
 
 The hooks automatically:
 
-- Format code with black/prettier
-- Run linting with ruff/eslint
+- Format code with black
+- Run linting with ruff
 - Check type safety with mypy/TypeScript
 - Run tests on affected packages
 - Check YAML/JSON syntax

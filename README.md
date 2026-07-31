@@ -376,7 +376,7 @@ Shelly Manager supports password-protected Shelly Gen1 (HTTP Basic Auth) and Gen
 The application requires a valid Fernet key in the `SHELLY_SECRET_KEY` environment variable.
 
 ```bash
-# Generate a key using Python
+# Generate a key
 openssl rand -base64 32 | tr '+/' '-_'
 ```
 
@@ -428,7 +428,7 @@ git clone https://github.com/jfmlima/shelly-manager.git
 cd shelly-manager
 
 # Start development stack
-docker-compose up -d
+docker compose up -d
 
 # Or install locally with uv
 uv sync --extra dev
