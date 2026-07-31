@@ -26,6 +26,16 @@ docker-compose up -d
 # - API Docs: http://localhost:8000/docs
 ```
 
+The CLI ships as an opt-in profile, so `docker-compose up -d` does not start it. Its entrypoint keeps the container idle, which means you drive it with `exec` rather than `run`:
+
+```bash
+docker compose --profile cli up -d cli
+docker compose exec cli shelly-manager scan 192.168.1.0/24
+docker compose --profile cli down
+```
+
+Both source trees are bind-mounted into that container, so edits on the host take effect without a rebuild.
+
 ### Option 2: Local Development
 
 1. **Install uv:**
