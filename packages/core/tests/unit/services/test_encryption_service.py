@@ -14,7 +14,6 @@ def test_it_round_trips_with_an_injected_key():
 
 
 def test_it_falls_back_to_the_configured_key(monkeypatch):
-    monkeypatch.setenv("SHELLY_SECRET_KEY", VALID_KEY)
     settings_module = importlib.import_module("core.settings")
     monkeypatch.setattr(settings_module.settings, "secret_key", VALID_KEY)
 
@@ -23,9 +22,10 @@ def test_it_falls_back_to_the_configured_key(monkeypatch):
     assert service.decrypt(service.encrypt("hunter2")) == "hunter2"
 
 
-def test_it_names_the_env_var_when_no_key_is_configured(monkeypatch):
+@pytest.mark.parametrize("configured", [None, "", "not-a-fernet-key"])
+def test_it_names_the_env_var_when_the_key_is_unusable(monkeypatch, configured):
     settings_module = importlib.import_module("core.settings")
-    monkeypatch.setattr(settings_module.settings, "secret_key", None)
+    monkeypatch.setattr(settings_module.settings, "secret_key", configured)
 
     with pytest.raises(ConfigurationError) as excinfo:
         EncryptionService()

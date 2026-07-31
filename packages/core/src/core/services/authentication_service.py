@@ -3,6 +3,7 @@ from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 
 from core.domain.credentials import Credential
+from core.domain.entities.exceptions import ConfigurationError
 from core.repositories.credentials_repository import CredentialsRepository
 from core.utils.validation import normalize_mac
 
@@ -47,6 +48,8 @@ class AuthenticationService:
                     return creds
 
                 return await repository.get_global()
+        except ConfigurationError:
+            raise
         except Exception as e:
             logger.error("Failed to resolve credentials for MAC %s: %s", mac, e)
             return None

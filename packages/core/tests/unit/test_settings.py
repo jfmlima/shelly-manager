@@ -146,7 +146,7 @@ def test_it_creates_the_firmware_dir_on_validate(tmp_path, monkeypatch):
 def test_it_builds_without_a_secret_key(monkeypatch):
     monkeypatch.delenv("SHELLY_SECRET_KEY", raising=False)
 
-    settings = AppSettings(config_file="does-not-exist.json")
+    settings = AppSettings(config_file="does-not-exist.json", _env_file=None)
 
     assert settings.secret_key is None
 
@@ -154,7 +154,7 @@ def test_it_builds_without_a_secret_key(monkeypatch):
 def test_it_rejects_a_missing_secret_key_on_validate(tmp_path, monkeypatch):
     monkeypatch.delenv("SHELLY_SECRET_KEY", raising=False)
 
-    settings = AppSettings(config_file=str(tmp_path / "config.json"))
+    settings = AppSettings(config_file=str(tmp_path / "config.json"), _env_file=None)
     settings.data_dir = str(tmp_path / "data")
     settings.firmware.dir = str(tmp_path / "data" / "firmware")
 

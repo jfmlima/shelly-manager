@@ -18,6 +18,12 @@ MISSING_SECRET_KEY_MESSAGE = (
     'print(Fernet.generate_key().decode())"'
 )
 
+INVALID_SECRET_KEY_MESSAGE = (
+    "SHELLY_SECRET_KEY is not a valid Fernet key. Generate one with: "
+    'python -c "from cryptography.fernet import Fernet; '
+    'print(Fernet.generate_key().decode())".'
+)
+
 
 class DatabaseSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DB_")
