@@ -3,7 +3,8 @@ import { Upload } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ActionConfigWrapper } from "./action-config-wrapper";
 import type { ExportConfigActionProps } from "../../types";
-import { CONFIGURABLE_COMPONENT_TYPES, BULK_ACTION_STYLES } from "../../types";
+import { BULK_ACTION_STYLES } from "../../types";
+import { useComponentTypes } from "@/hooks/useComponentTypes";
 
 export function ExportConfigConfig({
   selectedComponentTypes,
@@ -12,6 +13,7 @@ export function ExportConfigConfig({
   onCancel,
 }: ExportConfigActionProps) {
   const { t } = useTranslation();
+  const { componentTypes, usingFallback } = useComponentTypes();
 
   const handleComponentTypeToggle = (
     componentType: string,
@@ -45,8 +47,13 @@ export function ExportConfigConfig({
           <p className="text-sm text-muted-foreground">
             {t("bulkActions.selectComponentTypes")}
           </p>
+          {usingFallback && (
+            <p className="text-sm text-amber-600">
+              {t("bulkActions.componentTypesUnavailable")}
+            </p>
+          )}
           <div className={BULK_ACTION_STYLES.componentGrid}>
-            {CONFIGURABLE_COMPONENT_TYPES.map((componentType) => (
+            {componentTypes.exportable.map((componentType) => (
               <div key={componentType} className="flex items-center space-x-2">
                 <Checkbox
                   id={`component-${componentType}`}

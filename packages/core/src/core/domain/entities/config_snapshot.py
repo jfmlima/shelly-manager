@@ -37,6 +37,8 @@ CONFIGURABLE_COMPONENT_TYPES: frozenset[str] = EXPORTABLE_COMPONENT_TYPES - {
     "em1data",
 }
 
+NETWORK_TYPES: frozenset[str] = frozenset({"wifi", "eth", "mqtt", "ws", "cloud"})
+
 
 @dataclass(frozen=True)
 class SnapshotDeviceInfo:

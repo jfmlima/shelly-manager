@@ -32,6 +32,8 @@ import {
   paginatedBackupsSchema,
   restoreResultSchema,
 } from "./schemas/backups";
+import { componentTypeVocabularySchema } from "./schemas/component-types";
+import type { ComponentTypeVocabulary } from "./schemas/component-types";
 
 declare global {
   interface Window {
@@ -448,6 +450,17 @@ export const backupScheduleApi = {
       { timeout: 120000 },
     );
     return response.data;
+  },
+};
+
+export const metadataApi = {
+  getComponentTypes: async (): Promise<ComponentTypeVocabulary> => {
+    const response = await apiClient.get("/metadata/component-types");
+    return parseResponse(
+      componentTypeVocabularySchema,
+      response.data,
+      "GET /metadata/component-types",
+    );
   },
 };
 

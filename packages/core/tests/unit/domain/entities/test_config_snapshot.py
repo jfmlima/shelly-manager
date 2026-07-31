@@ -2,6 +2,7 @@ import pytest
 from core.domain.entities.config_snapshot import (
     CONFIGURABLE_COMPONENT_TYPES,
     EXPORTABLE_COMPONENT_TYPES,
+    NETWORK_TYPES,
     SCHEDULES_KEY,
     ComponentSnapshot,
     DeviceSnapshot,
@@ -215,3 +216,13 @@ class TestComponentTypeVocabulary:
             "emdata",
             "em1data",
         }
+
+    def test_it_treats_exactly_the_connectivity_types_as_network(self):
+        assert NETWORK_TYPES == {"wifi", "eth", "mqtt", "ws", "cloud"}
+
+    def test_it_leaves_the_restore_use_case_without_its_own_copy(self):
+        from core.use_cases.restore_device_config import (
+            NETWORK_TYPES as RESTORE_NETWORK_TYPES,
+        )
+
+        assert RESTORE_NETWORK_TYPES is NETWORK_TYPES

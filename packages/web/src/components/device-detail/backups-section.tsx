@@ -35,11 +35,10 @@ import {
   useDeleteBackup,
   useRestoreBackup,
 } from "@/hooks/useBackups";
+import { useComponentTypes } from "@/hooks/useComponentTypes";
 import { PAGE_SIZE, useRewindEmptyPage } from "@/hooks/useOffsetPagination";
 import { OffsetPager } from "@/components/shared/offset-pager";
 import type { BackupSummary } from "@/types/api";
-
-const NETWORK_TYPES = new Set(["wifi", "eth", "mqtt", "ws", "cloud"]);
 
 interface BackupsSectionProps {
   deviceIp: string;
@@ -210,14 +209,24 @@ function RestoreDialog({
 }) {
   const restore = useRestoreBackup();
   const { data: detail, isLoading, error } = useBackup(backup.id);
+  const {
+    componentTypes: vocabulary,
+    isLoading: vocabularyLoading,
+    usingFallback,
+  } = useComponentTypes();
+
+  const networkTypes = useMemo(
+    () => new Set(vocabulary.network),
+    [vocabulary.network],
+  );
 
   const componentTypes = useMemo(() => {
     const components = detail?.snapshot.components ?? {};
     return Object.entries(components).map(([key, value]) => ({
       key,
-      network: isNetworkComponent(key, value.type),
+      network: isNetworkComponent(key, value.type, networkTypes),
     }));
-  }, [detail]);
+  }, [detail, networkTypes]);
 
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [reboot, setReboot] = useState(false);
@@ -261,7 +270,7 @@ function RestoreDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading ? (
+        {isLoading || vocabularyLoading ? (
           <p className="text-sm text-muted-foreground">Loading components...</p>
         ) : (
           <>
@@ -269,6 +278,13 @@ function RestoreDialog({
               <p className="text-sm text-destructive">
                 Failed to load this backup: {handleApiError(error)}
                 {detail ? " Showing the components last loaded." : ""}
+              </p>
+            )}
+            {usingFallback && (
+              <p className="text-sm text-amber-600">
+                Could not load the network component list from the server, so
+                the defaults below come from a built-in list. Check the network
+                marks before restoring.
               </p>
             )}
             <div className="max-h-72 overflow-y-auto space-y-2">
@@ -327,9 +343,13 @@ function RestoreDialog({
 // Either signal is enough to treat a component as network: an entry can reach
 // the store untyped, and a type the device spells differently would otherwise
 // win over the key and leave wifi selected for restore.
-function isNetworkComponent(key: string, type: string | null | undefined) {
+function isNetworkComponent(
+  key: string,
+  type: string | null | undefined,
+  networkTypes: Set<string>,
+) {
   const keyType = key.split(":")[0].toLowerCase();
   return (
-    NETWORK_TYPES.has((type ?? "").toLowerCase()) || NETWORK_TYPES.has(keyType)
+    networkTypes.has((type ?? "").toLowerCase()) || networkTypes.has(keyType)
   );
 }

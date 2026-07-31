@@ -61,22 +61,6 @@ export interface DevicePreviewProps {
   selectedDevices: Device[];
 }
 
-export const CONFIGURABLE_COMPONENT_TYPES = [
-  "switch",
-  "input",
-  "cover",
-  "sys",
-  "cloud",
-  "wifi",
-  "ble",
-  "mqtt",
-  "ws",
-  "script",
-  "knx",
-  "modbus",
-  "zigbee",
-] as const;
-
 export const BULK_ACTION_STYLES = {
   actionCard: "transition-shadow cursor-pointer hover:shadow-md",
   dangerCard: "border-destructive/20 hover:border-destructive/40",

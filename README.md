@@ -244,6 +244,7 @@ The REST API provides complete device management capabilities:
 ```bash
 # Health and status
 GET  /api/health                                              # Service health check
+GET  /api/metadata/component-types                            # Component types the config endpoints accept
 GET  /api/devices/scan                                        # Discover devices on network
 GET  /api/devices/{ip}/status                                 # Get device status
 
