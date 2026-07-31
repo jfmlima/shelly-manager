@@ -21,6 +21,7 @@ services:
       # internet update source works.
       SHELLY_FIRMWARE_ADVERTISED_BASE_URL: "${SHELLY_FIRMWARE_ADVERTISED_BASE_URL:-}"
     volumes:
+      - shelly-data:/data
       - ./packages/api/src:/app/packages/api/src:rw
       - ./packages/core/src:/app/packages/core/src:rw
     ports:
@@ -66,3 +67,6 @@ services:
       - cli
     entrypoint: ["tail", "-f", "/dev/null"]
     restart: unless-stopped
+
+volumes:
+  shelly-data:

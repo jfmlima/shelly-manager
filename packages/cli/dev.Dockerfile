@@ -13,5 +13,6 @@ RUN uv sync --frozen --package shelly-manager-cli
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV SHELLY_DATA_DIR=/data SHELLY_FIRMWARE_DIR=/data/firmware
 
 ENTRYPOINT ["shelly-manager"]

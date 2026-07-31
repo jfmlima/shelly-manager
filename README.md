@@ -106,6 +106,8 @@ services:
       # Defaults shown; set SHELLY_BACKUP_SCHEDULER_ENABLED=false to disable.
       - SHELLY_BACKUP_SCHEDULER_ENABLED=true
       - SHELLY_BACKUP_POLL_INTERVAL_SECONDS=60
+    volumes:
+      - shelly-manager-data:/data
 
   shelly-manager-web:
     image: ghcr.io/jfmlima/shelly-manager-web:latest
@@ -115,6 +117,9 @@ services:
       - VITE_BASE_API_URL=http://localhost:8000
     depends_on:
       - shelly-manager-api
+
+volumes:
+  shelly-manager-data:
 ```
 
 **With Traefik**:
@@ -132,6 +137,8 @@ services:
       # Defaults shown; set SHELLY_BACKUP_SCHEDULER_ENABLED=false to disable.
       - SHELLY_BACKUP_SCHEDULER_ENABLED=true
       - SHELLY_BACKUP_POLL_INTERVAL_SECONDS=60
+    volumes:
+      - shelly-manager-data:/data
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.shelly-manager-api.rule=Host(`shelly-manager-api.your.domain`)"
@@ -152,6 +159,9 @@ services:
       - "traefik.http.routers.shelly-manager-web.service=shelly-manager-web"
       - "traefik.http.routers.shelly-manager-web.entrypoints=web"
       - "traefik.http.services.shelly-manager-web.loadbalancer.server.port=8080"
+
+volumes:
+  shelly-manager-data:
 ```
 
 **Home Assistant Add-on**
@@ -202,14 +212,21 @@ docker run --rm -it \
 ```bash
 docker run -p 8000:8000 \
   -e SHELLY_SECRET_KEY="your-generated-key" \
+  -v shelly-manager-data:/data \
   ghcr.io/jfmlima/shelly-manager-api:latest
 ```
+
+The `-v` is what keeps your data. The image writes everything it stores to `/data`, and without a volume there that directory belongs to the container and goes away with it. A named volume like the one above picks up the right ownership from the image; if you bind mount a host directory instead, run `chown 10001:10001` on it first, because the API runs as that user and cannot write to a root owned directory.
 
 ### Configuration
 
 Shelly Manager is zero-configuration by default. All scan and management parameters are provided at runtime via the Web UI, CLI flags, API parameters or ENV variables. This ensures flexibility and removes the need for managing static configuration files.
 
 For persistent storage of discovered devices in the Web UI, the application leverages browser localStorage. For API-based integrations, the client is responsible for maintaining device lists.
+
+**Server-side state lives in `/data`.** Device credentials, configuration backups, backup schedules and provisioning profiles are kept in a SQLite database at `/data/data.db`, and downloaded firmware bundles under `/data/firmware`. The API and CLI images set `SHELLY_DATA_DIR=/data` and `SHELLY_FIRMWARE_DIR=/data/firmware`; mount a volume at `/data` and everything survives a restart, or point the two variables somewhere else if you prefer another path. Outside a container both default to `./data`, relative to the working directory. The Unraid image and the Home Assistant add-on set their own paths and handle this for you.
+
+Earlier images wrote to `/app/data` instead. If you carried that over with a mount of your own, such as `-v ./data:/app/data`, your database will look reset after this upgrade: it is still at the old path, and moving `data.db` and `firmware/` into the new volume brings it back.
 
 **Scheduled backups** run on the API server itself. When `SHELLY_BACKUP_SCHEDULER_ENABLED` is `true` (the default), an in-process poller captures backups for any due schedules every `SHELLY_BACKUP_POLL_INTERVAL_SECONDS` (default 60). Because the timer lives in-process, run the API as a single worker (the default); see the [API README](packages/api/README.md) for the full setting reference.
 

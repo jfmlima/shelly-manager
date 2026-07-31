@@ -41,6 +41,8 @@ docker compose down cli
 
 Both source trees are bind-mounted into that container, so edits on the host take effect without a rebuild.
 
+The api service keeps its database and firmware cache in a named volume mounted at `/data`, so a plain `down` leaves both in place. `docker compose down -v` removes the volume too, which is how you get back to an empty database.
+
 ### Option 2: Local Development
 
 1. **Install uv:**

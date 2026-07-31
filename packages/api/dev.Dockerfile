@@ -15,6 +15,7 @@ RUN uv sync --frozen --package shelly-manager-api
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 ENV HOST=0.0.0.0 PORT=8000 DEBUG=true
+ENV SHELLY_DATA_DIR=/data SHELLY_FIRMWARE_DIR=/data/firmware
 
 EXPOSE 8000
 
