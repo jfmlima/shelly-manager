@@ -1,12 +1,15 @@
-from core.settings import settings
+from core.domain.entities.exceptions import ConfigurationError
+from core.settings import MISSING_SECRET_KEY_MESSAGE, settings
 from cryptography.fernet import Fernet
 
 
 class EncryptionService:
     def __init__(self, key: str | None = None):
         # Allow key injection for testing, default to settings
-        key_bytes = (key or settings.secret_key).encode()
-        self._fernet = Fernet(key_bytes)
+        resolved = key or settings.secret_key
+        if resolved is None:
+            raise ConfigurationError("encryption", MISSING_SECRET_KEY_MESSAGE)
+        self._fernet = Fernet(resolved.encode())
 
     def encrypt(self, plaintext: str) -> str:
         """Encrypt a plaintext string."""
