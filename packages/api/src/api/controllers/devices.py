@@ -6,6 +6,7 @@ from typing import TypeVar
 
 from core.domain.entities.exceptions import DeviceNotFoundError
 from core.domain.enums.enums import UpdateChannel
+from core.domain.value_objects.base_device_request import BaseDeviceRequest
 from core.domain.value_objects.check_device_status_request import (
     CheckDeviceStatusRequest,
 )
@@ -19,6 +20,7 @@ from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
 from core.use_cases.get_component_actions import GetComponentActionsUseCase
 from core.use_cases.scan_devices import ScanDevicesUseCase
+from core.use_cases.update_device_from_local import UpdateDeviceFromLocal
 from litestar import Router, get, post
 from litestar.exceptions import HTTPException
 from litestar.params import Body
@@ -240,6 +242,7 @@ async def update_device(
     ip: str,
     data: dict = Body(),
     execute_component_action_interactor: ExecuteComponentActionUseCase | None = None,
+    update_device_from_local_interactor: UpdateDeviceFromLocal | None = None,
 ) -> dict:
     """
     Initiate firmware update for a device.
@@ -247,27 +250,51 @@ async def update_device(
     Updates the device firmware to the latest version from the specified channel.
     The device will download and install the update, which may take several minutes.
 
+    With source "local" the manager downloads and caches the bundle, and the
+    device fetches it from the manager over LAN instead of from the internet.
+
     Args:
         ip: Device IP address (e.g., "192.168.1.100")
         data: Update parameters with optional "channel" field (stable/beta)
+            and optional "source" field (internet/local, default internet)
 
     Returns:
         dict: Update operation result and status
     """
-    execute_component_action_interactor = _require(
-        "execute_component_action_interactor", execute_component_action_interactor
-    )
+    source = data.get("source", "internet")
+    if source not in ("internet", "local"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported source: {source}. Supported: internet, local",
+        )
 
     channel = UpdateChannel(data.get("channel", "stable"))
 
-    request = ComponentActionRequest(
-        device_ip=ip,
-        component_key="shelly",
-        action="Update",
-        parameters=channel.to_update_parameters(),
-    )
+    if source == "local":
+        update_device_from_local_interactor = _require(
+            "update_device_from_local_interactor", update_device_from_local_interactor
+        )
+        if channel is not UpdateChannel.STABLE:
+            raise HTTPException(
+                status_code=400,
+                detail="Local updates support the stable channel only",
+            )
+        result = await update_device_from_local_interactor.execute(
+            BaseDeviceRequest(device_ip=ip)
+        )
+    else:
+        execute_component_action_interactor = _require(
+            "execute_component_action_interactor", execute_component_action_interactor
+        )
 
-    result = await execute_component_action_interactor.execute(request)
+        request = ComponentActionRequest(
+            device_ip=ip,
+            component_key="shelly",
+            action="Update",
+            parameters=channel.to_update_parameters(),
+        )
+
+        result = await execute_component_action_interactor.execute(request)
 
     return {
         "ip": result.device_ip,
@@ -276,6 +303,7 @@ async def update_device(
         "error": result.error,
         "action_type": result.action_type,
         "channel": channel.value,
+        "source": source,
     }
 
 
