@@ -37,6 +37,11 @@ CONFIGURABLE_COMPONENT_TYPES: frozenset[str] = EXPORTABLE_COMPONENT_TYPES - {
     "em1data",
 }
 
+# Component types that can drop the device off the network if restored. A
+# curated subset rather than a registry projection: it is about the blast
+# radius of a restore, not about which types exist.
+NETWORK_TYPES: frozenset[str] = frozenset({"wifi", "eth", "mqtt", "ws", "cloud"})
+
 
 @dataclass(frozen=True)
 class SnapshotDeviceInfo:

@@ -6,6 +6,7 @@ from contextlib import AbstractAsyncContextManager
 
 from core.domain.entities.config_snapshot import (
     LEGACY_SETTINGS_KEY,
+    NETWORK_TYPES,
     ComponentSnapshot,
     DeviceSnapshot,
 )
@@ -24,10 +25,6 @@ from core.use_cases.restore_strategies.gen2 import Gen2RestoreStrategy
 from core.utils.validation import normalize_mac
 
 logger = logging.getLogger(__name__)
-
-# Component types that can drop the device off the network if restored.
-# Excluded from the default selection; applied LAST when explicitly included.
-NETWORK_TYPES = {"wifi", "eth", "mqtt", "ws", "cloud"}
 
 
 class DeviceMismatchError(Exception):
