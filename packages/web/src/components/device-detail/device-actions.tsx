@@ -231,30 +231,10 @@ export function DeviceActions({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="stable">
-                          <div className="space-y-1">
-                            <div>{t("bulkActions.stable")}</div>
-                            {availableUpdates.stable && (
-                              <div className="text-xs text-muted-foreground">
-                                {t(
-                                  "deviceDetail.dialogs.updateFirmware.version",
-                                )}{" "}
-                                {availableUpdates.stable.version}
-                              </div>
-                            )}
-                          </div>
+                          {t("bulkActions.stable")}
                         </SelectItem>
                         <SelectItem value="beta">
-                          <div className="space-y-1">
-                            <div>{t("bulkActions.beta")}</div>
-                            {availableUpdates.beta && (
-                              <div className="text-xs text-muted-foreground">
-                                {t(
-                                  "deviceDetail.dialogs.updateFirmware.version",
-                                )}{" "}
-                                {availableUpdates.beta.version}
-                              </div>
-                            )}
-                          </div>
+                          {t("bulkActions.beta")}
                         </SelectItem>
                       </SelectContent>
                     </Select>
