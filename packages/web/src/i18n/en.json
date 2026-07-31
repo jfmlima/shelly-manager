@@ -410,7 +410,9 @@
         "version": "Version",
         "firmwareUpdate": "Firmware Update",
         "startingUpdate": "Starting Update...",
-        "startUpdate": "Start Update"
+        "startUpdate": "Start Update",
+        "noUpdateOnChannel": "No update available on this channel.",
+        "noUpdatesAvailable": "This device reports no firmware updates available."
       },
       "rebootDevice": {
         "title": "Reboot Device",
