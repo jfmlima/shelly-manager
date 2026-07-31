@@ -34,16 +34,15 @@ declare global {
   }
 }
 
-const getApiBaseUrl = (): string => {
-  const savedApiUrl = localStorage.getItem("shelly-manager-api-url");
+export const API_URL_STORAGE_KEY = "shelly-manager-api-url";
 
-  const runtimeApiUrl = window._env_?.VITE_BASE_API_URL;
-  const buildTimeApiUrl = import.meta.env.VITE_BASE_API_URL;
+export const getDefaultApiBaseUrl = (): string =>
+  window._env_?.VITE_BASE_API_URL ||
+  import.meta.env.VITE_BASE_API_URL ||
+  "http://localhost:8000";
 
-  return (
-    savedApiUrl || runtimeApiUrl || buildTimeApiUrl || "http://localhost:8000"
-  );
-};
+const getApiBaseUrl = (): string =>
+  localStorage.getItem(API_URL_STORAGE_KEY) || getDefaultApiBaseUrl();
 
 const baseURL = getApiBaseUrl();
 
@@ -430,6 +429,33 @@ export const backupScheduleApi = {
     );
     return response.data;
   },
+};
+
+export const healthApi = {
+  check: async (baseUrl: string): Promise<{ status?: string }> => {
+    const sanitizedUrl = baseUrl.replace(/\/+$/, "");
+    const response = await axios.get(`${sanitizedUrl}/api/health`, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 5000,
+    });
+    // Axios leaves an unparseable body as a string rather than throwing, so a
+    // server answering 200 with a login page would otherwise read as healthy.
+    if (
+      typeof response.data !== "object" ||
+      response.data === null ||
+      Array.isArray(response.data)
+    ) {
+      throw new Error("the response was not a health payload");
+    }
+    return response.data;
+  },
+};
+
+export const describeConnectionFailure = (error: unknown): string => {
+  if (axios.isAxiosError(error) && error.response) {
+    return `HTTP ${error.response.status}: ${error.response.statusText}`;
+  }
+  return `Connection failed: ${handleApiError(error)}`;
 };
 
 export const handleApiError = (error: unknown): string => {

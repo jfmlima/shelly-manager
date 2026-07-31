@@ -37,7 +37,13 @@ import {
 import { Footer } from "@/components/ui/footer";
 import { useTheme } from "@/components/theme-provider";
 import { toast } from "sonner";
-import { validateApiUrl } from "@/lib/api";
+import {
+  API_URL_STORAGE_KEY,
+  describeConnectionFailure,
+  getDefaultApiBaseUrl,
+  healthApi,
+  validateApiUrl,
+} from "@/lib/api";
 
 interface ApiConnectionStatus {
   status: "checking" | "connected" | "error" | "unknown";
@@ -60,10 +66,8 @@ export function Settings() {
   useEffect(() => {
     setSettings(loadAppSettings());
 
-    const savedApiUrl = localStorage.getItem("shelly-manager-api-url");
-    const defaultApiUrl =
-      import.meta.env.VITE_BASE_API_URL || "http://localhost:8000";
-    const currentApiUrl = savedApiUrl || defaultApiUrl;
+    const currentApiUrl =
+      localStorage.getItem(API_URL_STORAGE_KEY) || getDefaultApiBaseUrl();
 
     setApiUrl(currentApiUrl);
     setTempApiUrl(currentApiUrl);
@@ -85,38 +89,16 @@ export function Settings() {
     setConnectionStatus({ status: "checking" });
 
     try {
-      const sanitizedUrl = url.replace(/\/+$/, ""); // Remove trailing slashes
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-      const response = await fetch(`${sanitizedUrl}/api/health`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
+      const health = await healthApi.check(url);
+      setConnectionStatus({
+        status: "connected",
+        message: `Connected successfully (${health.status || "OK"})`,
       });
-
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const data = await response.json();
-        setConnectionStatus({
-          status: "connected",
-          message: `Connected successfully (${data.status || "OK"})`,
-        });
-        return true;
-      } else {
-        setConnectionStatus({
-          status: "error",
-          message: `HTTP ${response.status}: ${response.statusText}`,
-        });
-        return false;
-      }
+      return true;
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
       setConnectionStatus({
         status: "error",
-        message: `Connection failed: ${errorMessage}`,
+        message: describeConnectionFailure(error),
       });
       return false;
     }
@@ -129,7 +111,7 @@ export function Settings() {
 
     const isValid = await testApiConnection(tempApiUrl);
     if (isValid) {
-      localStorage.setItem("shelly-manager-api-url", tempApiUrl);
+      localStorage.setItem(API_URL_STORAGE_KEY, tempApiUrl);
       setApiUrl(tempApiUrl);
       toast.success("API URL saved successfully");
       setTimeout(() => window.location.reload(), 1000);
@@ -139,10 +121,9 @@ export function Settings() {
   };
 
   const resetApiUrl = () => {
-    const defaultApiUrl =
-      import.meta.env.VITE_BASE_API_URL || "http://localhost:8000";
+    const defaultApiUrl = getDefaultApiBaseUrl();
     setTempApiUrl(defaultApiUrl);
-    localStorage.removeItem("shelly-manager-api-url");
+    localStorage.removeItem(API_URL_STORAGE_KEY);
     setApiUrl(defaultApiUrl);
     setConnectionStatus({ status: "unknown" });
     toast.success("API URL reset to default");
@@ -333,7 +314,7 @@ export function Settings() {
                 <Button
                   variant="outline"
                   onClick={resetApiUrl}
-                  disabled={!localStorage.getItem("shelly-manager-api-url")}
+                  disabled={!localStorage.getItem(API_URL_STORAGE_KEY)}
                 >
                   Reset
                 </Button>
