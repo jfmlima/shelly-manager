@@ -94,6 +94,8 @@ def create_app() -> Litestar:
 
     @asynccontextmanager
     async def lifespan(app: Litestar) -> AsyncGenerator[None, None]:
+        _container.get_encryption_service()
+
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
             # create_all adds new indexes only to tables it creates fresh, not

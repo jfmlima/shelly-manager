@@ -1,7 +1,9 @@
 from datetime import datetime
 
+import pytest
 from api.controllers.monitoring import health_check
 from api.main import app_factory
+from core.domain.entities.exceptions import ConfigurationError
 from litestar import Litestar
 from litestar.config.cors import CORSConfig
 from litestar.testing import create_test_client
@@ -61,3 +63,28 @@ class TestMainApp:
             response = client.get("/unknown/route")
 
             assert response.status_code == 404
+
+
+class TestSecretKeyAtStartup:
+
+    async def test_it_refuses_to_start_without_a_secret_key(self, monkeypatch):
+        import core.settings
+
+        monkeypatch.setattr(core.settings.settings, "secret_key", None)
+
+        with pytest.raises(BaseExceptionGroup) as excinfo:
+            async with app_factory().lifespan():
+                pass
+
+        assert excinfo.group_contains(ConfigurationError, match="SHELLY_SECRET_KEY")
+
+    async def test_it_refuses_to_start_on_a_malformed_secret_key(self, monkeypatch):
+        import core.settings
+
+        monkeypatch.setattr(core.settings.settings, "secret_key", "not-a-fernet-key")
+
+        with pytest.raises(BaseExceptionGroup) as excinfo:
+            async with app_factory().lifespan():
+                pass
+
+        assert excinfo.group_contains(ConfigurationError, match="SHELLY_SECRET_KEY")

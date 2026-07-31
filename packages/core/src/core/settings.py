@@ -12,6 +12,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from core.domain.entities.exceptions import ConfigurationError, ValidationError
 
+MISSING_SECRET_KEY_MESSAGE = (
+    "SHELLY_SECRET_KEY is not set. Generate one with: "
+    'python -c "from cryptography.fernet import Fernet; '
+    'print(Fernet.generate_key().decode())"'
+)
+
+INVALID_SECRET_KEY_MESSAGE = (
+    "SHELLY_SECRET_KEY is not a valid Fernet key. Generate one with: "
+    'python -c "from cryptography.fernet import Fernet; '
+    'print(Fernet.generate_key().decode())".'
+)
+
 
 class DatabaseSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DB_")
@@ -180,8 +192,8 @@ class AppSettings(BaseSettings):
     data_dir: str = Field(default="./data", description="Data directory")
     cache_ttl: int = Field(default=300, ge=0, description="Cache TTL in seconds")
 
-    secret_key: str = Field(
-        ...,
+    secret_key: str | None = Field(
+        default=None,
         description="Secret key for encryption. Must be a valid Fernet key.",
         exclude=True,  # Prevent secret from being logged
     )
@@ -277,6 +289,13 @@ class AppSettings(BaseSettings):
             if self.api.port < 1 or self.api.port > 65535:
                 raise ValidationError(
                     "port", self.api.port, "Port must be between 1 and 65535"
+                )
+
+            if self.secret_key is None:
+                raise ValidationError(
+                    "secret_key",
+                    None,
+                    MISSING_SECRET_KEY_MESSAGE,
                 )
 
             # Validate secret key format (Fernet)
