@@ -45,7 +45,11 @@ export function useComponentTypes() {
     [vocabulary],
   );
 
-  return { ...query, componentTypes, usingFallback: query.data === undefined };
+  return {
+    ...query,
+    componentTypes,
+    usingFallback: query.data === undefined && !query.isLoading,
+  };
 }
 
 function forDisplay(types: string[]): string[] {
