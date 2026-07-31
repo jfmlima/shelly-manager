@@ -25,7 +25,7 @@ export function ApplyConfigConfig({
   onCancel,
 }: ApplyConfigActionProps) {
   const { t } = useTranslation();
-  const { componentTypes, isError } = useComponentTypes();
+  const { componentTypes, usingFallback } = useComponentTypes();
 
   const configuration = useConfiguration({
     initialValue: configurationJson,
@@ -57,7 +57,7 @@ export function ApplyConfigConfig({
           <p className="text-sm text-muted-foreground">
             {t("bulkActions.selectSingleComponentType")}
           </p>
-          {isError && (
+          {usingFallback && (
             <p className="text-sm text-amber-600">
               {t("bulkActions.componentTypesUnavailable")}
             </p>

@@ -13,7 +13,7 @@ export function ExportConfigConfig({
   onCancel,
 }: ExportConfigActionProps) {
   const { t } = useTranslation();
-  const { componentTypes, isError } = useComponentTypes();
+  const { componentTypes, usingFallback } = useComponentTypes();
 
   const handleComponentTypeToggle = (
     componentType: string,
@@ -47,7 +47,7 @@ export function ExportConfigConfig({
           <p className="text-sm text-muted-foreground">
             {t("bulkActions.selectComponentTypes")}
           </p>
-          {isError && (
+          {usingFallback && (
             <p className="text-sm text-amber-600">
               {t("bulkActions.componentTypesUnavailable")}
             </p>

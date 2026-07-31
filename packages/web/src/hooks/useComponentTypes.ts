@@ -45,7 +45,7 @@ export function useComponentTypes() {
     [vocabulary],
   );
 
-  return { ...query, componentTypes };
+  return { ...query, componentTypes, usingFallback: query.data === undefined };
 }
 
 function forDisplay(types: string[]): string[] {

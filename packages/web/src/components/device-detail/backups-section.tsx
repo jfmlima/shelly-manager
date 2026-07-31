@@ -212,7 +212,7 @@ function RestoreDialog({
   const {
     componentTypes: vocabulary,
     isLoading: vocabularyLoading,
-    isError: vocabularyFailed,
+    usingFallback,
   } = useComponentTypes();
 
   const networkTypes = useMemo(
@@ -280,7 +280,7 @@ function RestoreDialog({
                 {detail ? " Showing the components last loaded." : ""}
               </p>
             )}
-            {vocabularyFailed && (
+            {usingFallback && (
               <p className="text-sm text-amber-600">
                 Could not load the network component list from the server, so
                 the defaults below come from a built-in list. Check the network
