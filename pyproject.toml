@@ -26,6 +26,11 @@ dev = [
     "types-PyYAML==6.0.12.20250516",
 ]
 
+# The root distribution ships no modules of its own. Without this, setuptools
+# falls back to flat-layout discovery and fails once a data/ directory exists.
+[tool.setuptools]
+packages = []
+
 # Workspace configuration
 [tool.uv.workspace]
 members = ["packages/core", "packages/api", "packages/cli"]
