@@ -24,6 +24,9 @@ COPY --from=builder --chown=app:app /app/packages/cli /app/packages/cli
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV SHELLY_DATA_DIR=/data SHELLY_FIRMWARE_DIR=/data/firmware
+
+RUN mkdir -p /data/firmware && chown -R app:app /data
 
 WORKDIR /app
 USER app
