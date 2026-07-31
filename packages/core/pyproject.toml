@@ -14,8 +14,6 @@ dependencies = [
     "pydantic-settings==2.10.1",
     "structlog==25.4.0",
     "httpx==0.28.1",
-    "requests==2.32.4",
-    "urllib3==2.5.0",
     "zeroconf>=0.147.0",
     "SQLAlchemy[asyncio]>=2.0.25",
     "aiosqlite>=0.19.0",
@@ -30,7 +28,6 @@ dev = [
     "black",
     "ruff",
     "mypy",
-    "types-requests",
 ]
 
 [tool.setuptools.packages.find]

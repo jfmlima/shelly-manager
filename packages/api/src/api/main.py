@@ -2,6 +2,7 @@ import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+import uvicorn
 from core.repositories.db import engine
 from core.repositories.models import Base
 from core.settings import settings as core_settings
@@ -133,3 +134,13 @@ app = create_app()
 
 def app_factory() -> Litestar:
     return create_app()
+
+
+if __name__ == "__main__":
+    uvicorn.run(
+        app_factory,
+        host=os.getenv("HOST", "0.0.0.0"),
+        port=int(os.getenv("PORT", "8000")),
+        factory=True,
+        log_level="info",
+    )
