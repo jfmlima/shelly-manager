@@ -11,7 +11,7 @@ class EncryptionService:
     def __init__(self, key: str | None = None):
         # Allow key injection for testing, default to settings
         resolved = settings.secret_key if key is None else key
-        if not resolved:
+        if resolved is None or not resolved.strip():
             raise ConfigurationError("encryption", MISSING_SECRET_KEY_MESSAGE)
         try:
             self._fernet = Fernet(resolved.encode())
