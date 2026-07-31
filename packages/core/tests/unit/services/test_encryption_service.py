@@ -31,3 +31,13 @@ def test_it_names_the_env_var_when_the_key_is_unusable(monkeypatch, configured):
         EncryptionService()
 
     assert "SHELLY_SECRET_KEY" in str(excinfo.value)
+
+
+def test_it_rejects_an_injected_empty_key_instead_of_falling_back(monkeypatch):
+    settings_module = importlib.import_module("core.settings")
+    monkeypatch.setattr(settings_module.settings, "secret_key", VALID_KEY)
+
+    with pytest.raises(ConfigurationError) as excinfo:
+        EncryptionService("")
+
+    assert "SHELLY_SECRET_KEY" in str(excinfo.value)

@@ -10,7 +10,7 @@ from cryptography.fernet import Fernet
 class EncryptionService:
     def __init__(self, key: str | None = None):
         # Allow key injection for testing, default to settings
-        resolved = key or settings.secret_key
+        resolved = settings.secret_key if key is None else key
         if not resolved:
             raise ConfigurationError("encryption", MISSING_SECRET_KEY_MESSAGE)
         try:
