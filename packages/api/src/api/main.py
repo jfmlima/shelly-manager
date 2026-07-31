@@ -18,6 +18,7 @@ from .controllers.backups import backups_router
 from .controllers.credentials import credentials_router
 from .controllers.devices import devices_router
 from .controllers.firmware import firmware_router
+from .controllers.metadata import metadata_router
 from .controllers.monitoring import (
     health_check,
 )
@@ -69,6 +70,10 @@ def create_app() -> Litestar:
                 name="Firmware",
                 description="Cached firmware bundles served to devices over LAN",
             ),
+            Tag(
+                name="Metadata",
+                description="Vocabularies the API's own endpoints accept",
+            ),
         ],
         servers=[
             Server(url="http://localhost:8000", description="Development server"),
@@ -88,6 +93,7 @@ def create_app() -> Litestar:
             backups_router,
             backup_schedules_router,
             firmware_router,
+            metadata_router,
             health_check,
         ],
     )
