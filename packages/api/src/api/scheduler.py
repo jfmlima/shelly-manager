@@ -1,8 +1,9 @@
 """In-process poller that runs due scheduled backups.
 
 Wraps APScheduler's ``AsyncIOScheduler`` with a single interval job. This is only
-safe because the API runs as a single uvicorn worker (see ``run_server.py``): with
-multiple workers every worker would run the poller and duplicate every backup.
+safe because the API runs as a single uvicorn worker (neither the ``main`` entry
+point nor the container CMD passes ``--workers``): with multiple workers every
+worker would run the poller and duplicate every backup.
 """
 
 import logging
