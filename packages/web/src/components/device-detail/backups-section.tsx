@@ -209,7 +209,11 @@ function RestoreDialog({
 }) {
   const restore = useRestoreBackup();
   const { data: detail, isLoading, error } = useBackup(backup.id);
-  const { componentTypes: vocabulary } = useComponentTypes();
+  const {
+    componentTypes: vocabulary,
+    isPending: vocabularyPending,
+    isError: vocabularyFailed,
+  } = useComponentTypes();
 
   const networkTypes = useMemo(
     () => new Set(vocabulary.network),
@@ -266,7 +270,7 @@ function RestoreDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading ? (
+        {isLoading || vocabularyPending ? (
           <p className="text-sm text-muted-foreground">Loading components...</p>
         ) : (
           <>
@@ -274,6 +278,13 @@ function RestoreDialog({
               <p className="text-sm text-destructive">
                 Failed to load this backup: {handleApiError(error)}
                 {detail ? " Showing the components last loaded." : ""}
+              </p>
+            )}
+            {vocabularyFailed && (
+              <p className="text-sm text-amber-600">
+                Could not load the network component list from the server, so
+                the defaults below come from a built-in list. Check the network
+                marks before restoring.
               </p>
             )}
             <div className="max-h-72 overflow-y-auto space-y-2">

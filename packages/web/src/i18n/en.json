@@ -141,6 +141,7 @@
     },
     "componentSelection": "Component Selection",
     "selectComponentTypes": "Select component types to export configurations from",
+    "componentTypesUnavailable": "Could not load the component type list from the server. Showing the built-in list, which may be missing types this device supports.",
     "selectSingleComponentType": "Select a single component type to apply configuration to",
     "configurationEditor": "Configuration Editor",
     "pasteJsonConfig": "Paste your JSON configuration here",

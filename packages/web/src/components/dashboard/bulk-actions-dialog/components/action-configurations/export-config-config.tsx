@@ -13,7 +13,7 @@ export function ExportConfigConfig({
   onCancel,
 }: ExportConfigActionProps) {
   const { t } = useTranslation();
-  const { componentTypes } = useComponentTypes();
+  const { componentTypes, isError } = useComponentTypes();
 
   const handleComponentTypeToggle = (
     componentType: string,
@@ -47,6 +47,11 @@ export function ExportConfigConfig({
           <p className="text-sm text-muted-foreground">
             {t("bulkActions.selectComponentTypes")}
           </p>
+          {isError && (
+            <p className="text-sm text-amber-600">
+              {t("bulkActions.componentTypesUnavailable")}
+            </p>
+          )}
           <div className={BULK_ACTION_STYLES.componentGrid}>
             {componentTypes.exportable.map((componentType) => (
               <div key={componentType} className="flex items-center space-x-2">
