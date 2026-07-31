@@ -5,25 +5,40 @@ import { backupApi, handleApiError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { RestoreBackupRequest } from "@/types/api";
 
+interface BackupPageOptions {
+  limit?: number;
+  offset?: number;
+}
+
 export function useBackups(
   deviceMac: string | null | undefined,
-  options?: { limit?: number; offset?: number },
+  options?: BackupPageOptions,
 ) {
-  const limit = options?.limit ?? 50;
-  const offset = options?.offset ?? 0;
+  const page = pageOf(options);
   return useQuery({
     queryKey: queryKeys.backups.list({
-      deviceMac: deviceMac ?? undefined,
-      limit,
-      offset,
+      scope: "device",
+      deviceMac: deviceMac ?? null,
+      ...page,
     }),
     queryFn: () =>
-      backupApi.listBackups({
-        deviceMac: deviceMac ?? undefined,
-        limit,
-        offset,
-      }),
+      backupApi.listBackups({ deviceMac: deviceMac ?? undefined, ...page }),
     enabled: !!deviceMac,
+  });
+}
+
+export function useAllBackups(options?: BackupPageOptions) {
+  const page = pageOf(options);
+  return useQuery({
+    queryKey: queryKeys.backups.list({ scope: "all", ...page }),
+    queryFn: () => backupApi.listBackups(page),
+  });
+}
+
+export function useBackup(backupId: number) {
+  return useQuery({
+    queryKey: queryKeys.backups.detail(backupId),
+    queryFn: () => backupApi.getBackup(backupId),
   });
 }
 
@@ -44,8 +59,11 @@ export function useDeleteBackup() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (backupId: number) => backupApi.deleteBackup(backupId),
-    onSuccess: () => {
+    onSuccess: (_data, backupId) => {
       toast.success("Backup deleted");
+      queryClient.removeQueries({
+        queryKey: queryKeys.backups.detail(backupId),
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.backups.all() });
     },
     onError: (error) => toast.error(handleApiError(error)),
@@ -66,4 +84,11 @@ export function useRestoreBackup() {
     },
     onError: (error) => toast.error(handleApiError(error)),
   });
+}
+
+function pageOf(options?: BackupPageOptions) {
+  return {
+    limit: options?.limit ?? 50,
+    offset: options?.offset ?? 0,
+  };
 }

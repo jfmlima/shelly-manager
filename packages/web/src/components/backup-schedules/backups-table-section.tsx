@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Loader2, Save } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,8 +18,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { backupApi, handleApiError } from "@/lib/api";
-import { queryKeys } from "@/lib/query-keys";
+import { handleApiError } from "@/lib/api";
+import { useAllBackups, useDeleteBackup } from "@/hooks/useBackups";
 
 const PAGE_SIZE = 50;
 
@@ -37,12 +35,11 @@ function formatTimestamp(ts: number | null): string {
 }
 
 export function BackupsTableSection() {
-  const queryClient = useQueryClient();
   const [offset, setOffset] = useState(0);
 
-  const { data, isLoading, isSuccess, error } = useQuery({
-    queryKey: queryKeys.backups.list({ limit: PAGE_SIZE, offset }),
-    queryFn: () => backupApi.listBackups({ limit: PAGE_SIZE, offset }),
+  const { data, isLoading, isSuccess, error } = useAllBackups({
+    limit: PAGE_SIZE,
+    offset,
   });
 
   const items = data?.items ?? [];
@@ -56,14 +53,7 @@ export function BackupsTableSection() {
     }
   }, [isSuccess, items.length, offset]);
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => backupApi.deleteBackup(id),
-    onSuccess: () => {
-      toast.success("Backup deleted");
-      queryClient.invalidateQueries({ queryKey: queryKeys.backups.all() });
-    },
-    onError: (err) => toast.error(handleApiError(err)),
-  });
+  const deleteMutation = useDeleteBackup();
 
   const rangeStart = total === 0 ? 0 : offset + 1;
   const rangeEnd = offset + items.length;

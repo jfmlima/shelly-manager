@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
   Search,
@@ -9,8 +8,6 @@ import {
   Loader2,
   Radio,
 } from "lucide-react";
-import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,8 +25,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { provisioningApi, handleApiError } from "@/lib/api";
-import { queryKeys } from "@/lib/query-keys";
+import {
+  useDetectDevice,
+  useProvisionDevice,
+  useProvisioningProfiles,
+  useVerifyProvision,
+} from "@/hooks/useProvisioning";
 import type { APDeviceInfo, ProvisionResult } from "@/types/api";
 
 export function ProvisionDeviceSection() {
@@ -45,65 +46,38 @@ export function ProvisionDeviceSection() {
     useState<ProvisionResult | null>(null);
   const [verifyTargets, setVerifyTargets] = useState("");
 
-  const { data: profiles } = useQuery({
-    queryKey: queryKeys.provisioning.profiles(),
-    queryFn: provisioningApi.listProfiles,
-  });
+  const { data: profiles } = useProvisioningProfiles();
 
-  const detectMutation = useMutation({
-    mutationFn: () => provisioningApi.detectDevice(deviceIp),
-    onSuccess: (info) => {
-      setDetectedDevice(info);
-      setProvisionResult(null);
-      toast.success(
-        t("provisioning.provision.detect.success", {
-          app: info.app || info.model,
-          generation: info.generation,
-        }),
-      );
-    },
-    onError: (err) => {
-      setDetectedDevice(null);
-      toast.error(handleApiError(err));
-    },
-  });
+  const detectMutation = useDetectDevice();
+  const provisionMutation = useProvisionDevice();
+  const verifyMutation = useVerifyProvision();
 
-  const provisionMutation = useMutation({
-    mutationFn: () => {
-      const profileId = selectedProfileId
-        ? Number(selectedProfileId)
-        : undefined;
-      return provisioningApi.provisionDevice(deviceIp, profileId);
-    },
-    onSuccess: (result) => {
-      setProvisionResult(result);
-      if (result.success) {
-        toast.success(t("provisioning.messages.provisionSuccess"));
-      } else {
-        toast.error(result.error || t("provisioning.messages.provisionFailed"));
-      }
-    },
-    onError: (err) => toast.error(handleApiError(err)),
-  });
+  const handleDetect = () => {
+    detectMutation.mutate(deviceIp, {
+      onSuccess: (info) => {
+        setDetectedDevice(info);
+        setProvisionResult(null);
+      },
+      onError: () => setDetectedDevice(null),
+    });
+  };
 
-  const verifyMutation = useMutation({
-    mutationFn: () =>
-      provisioningApi.verifyProvision(provisionResult?.device_mac || "", [
-        verifyTargets,
-      ]),
-    onSuccess: (result) => {
-      if (result.found) {
-        toast.success(
-          t("provisioning.provision.verify.found", {
-            ip: result.device_ip,
-          }),
-        );
-      } else {
-        toast.error(t("provisioning.provision.verify.notFound"));
-      }
-    },
-    onError: (err) => toast.error(handleApiError(err)),
-  });
+  const handleProvision = () => {
+    provisionMutation.mutate(
+      {
+        deviceIp,
+        profileId: selectedProfileId ? Number(selectedProfileId) : undefined,
+      },
+      { onSuccess: setProvisionResult },
+    );
+  };
+
+  const handleVerify = () => {
+    verifyMutation.mutate({
+      deviceMac: provisionResult?.device_mac || "",
+      scanTargets: [verifyTargets],
+    });
+  };
 
   const defaultProfile = profiles?.find((p) => p.is_default);
 
@@ -134,10 +108,7 @@ export function ProvisionDeviceSection() {
               placeholder={t("provisioning.provision.detect.ipPlaceholder")}
               className="max-w-xs font-mono"
             />
-            <Button
-              onClick={() => detectMutation.mutate()}
-              disabled={detectMutation.isPending}
-            >
+            <Button onClick={handleDetect} disabled={detectMutation.isPending}>
               {detectMutation.isPending ? (
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
               ) : (
@@ -229,7 +200,7 @@ export function ProvisionDeviceSection() {
               </Select>
             </div>
             <Button
-              onClick={() => provisionMutation.mutate()}
+              onClick={handleProvision}
               disabled={provisionMutation.isPending}
             >
               {provisionMutation.isPending ? (
@@ -321,7 +292,7 @@ export function ProvisionDeviceSection() {
                     className="max-w-xs font-mono"
                   />
                   <Button
-                    onClick={() => verifyMutation.mutate()}
+                    onClick={handleVerify}
                     disabled={verifyMutation.isPending || !verifyTargets}
                     variant="outline"
                   >

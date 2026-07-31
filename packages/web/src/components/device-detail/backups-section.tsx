@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Save, RotateCcw, Trash2, AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -28,9 +27,8 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { backupApi } from "@/lib/api";
-import { queryKeys } from "@/lib/query-keys";
 import {
+  useBackup,
   useBackups,
   useCreateBackup,
   useDeleteBackup,
@@ -232,10 +230,7 @@ function RestoreDialog({
   onClose: () => void;
 }) {
   const restore = useRestoreBackup();
-  const { data: detail, isLoading } = useQuery({
-    queryKey: queryKeys.backups.detail(backup.id),
-    queryFn: () => backupApi.getBackup(backup.id),
-  });
+  const { data: detail, isLoading } = useBackup(backup.id);
 
   const componentTypes = useMemo(() => {
     const components = (detail?.snapshot?.components ?? {}) as Record<

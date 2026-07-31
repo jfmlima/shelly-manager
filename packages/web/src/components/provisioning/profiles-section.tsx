@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Wifi, Plus, Trash2, Star, Loader2, Pencil } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -33,8 +31,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { provisioningApi, handleApiError } from "@/lib/api";
-import { queryKeys } from "@/lib/query-keys";
+import { handleApiError } from "@/lib/api";
+import {
+  useCreateProvisioningProfile,
+  useDeleteProvisioningProfile,
+  useProvisioningProfiles,
+  useSetDefaultProvisioningProfile,
+  useUpdateProvisioningProfile,
+} from "@/hooks/useProvisioning";
 import type {
   CreateProvisioningProfileRequest,
   UpdateProvisioningProfileRequest,
@@ -107,7 +111,6 @@ function profileToFormData(profile: ProvisioningProfile): ProfileFormData {
 
 export function ProfilesSection() {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editingProfile, setEditingProfile] =
@@ -123,72 +126,20 @@ export function ProfilesSection() {
     defaultValues: defaultProfileFormValues,
   });
 
-  const {
-    data: profiles,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: queryKeys.provisioning.profiles(),
-    queryFn: provisioningApi.listProfiles,
-  });
+  const { data: profiles, isLoading, error } = useProvisioningProfiles();
 
-  const createMutation = useMutation({
-    mutationFn: (data: CreateProvisioningProfileRequest) =>
-      provisioningApi.createProfile(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.provisioning.profiles(),
-      });
-      toast.success(t("provisioning.profiles.created"));
-      setCreateOpen(false);
-      createForm.reset(defaultProfileFormValues);
-    },
-    onError: (err) => toast.error(handleApiError(err)),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({
-      id,
-      data,
-    }: {
-      id: number;
-      data: UpdateProvisioningProfileRequest;
-    }) => provisioningApi.updateProfile(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.provisioning.profiles(),
-      });
-      toast.success(t("provisioning.editDialog.updated"));
-      setEditOpen(false);
-      setEditingProfile(null);
-    },
-    onError: (err) => toast.error(handleApiError(err)),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: provisioningApi.deleteProfile,
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.provisioning.profiles(),
-      });
-      toast.success(t("provisioning.profiles.deleted"));
-    },
-    onError: (err) => toast.error(handleApiError(err)),
-  });
-
-  const setDefaultMutation = useMutation({
-    mutationFn: provisioningApi.setDefaultProfile,
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.provisioning.profiles(),
-      });
-      toast.success(t("provisioning.profiles.defaultUpdated"));
-    },
-    onError: (err) => toast.error(handleApiError(err)),
-  });
+  const createMutation = useCreateProvisioningProfile();
+  const updateMutation = useUpdateProvisioningProfile();
+  const deleteMutation = useDeleteProvisioningProfile();
+  const setDefaultMutation = useSetDefaultProvisioningProfile();
 
   const handleCreate = (data: ProfileFormData) => {
-    createMutation.mutate(formDataToCreateRequest(data));
+    createMutation.mutate(formDataToCreateRequest(data), {
+      onSuccess: () => {
+        setCreateOpen(false);
+        createForm.reset(defaultProfileFormValues);
+      },
+    });
   };
 
   const handleEdit = (profile: ProvisioningProfile) => {
@@ -199,10 +150,15 @@ export function ProfilesSection() {
 
   const handleUpdate = (data: ProfileFormData) => {
     if (!editingProfile) return;
-    updateMutation.mutate({
-      id: editingProfile.id,
-      data: formDataToUpdateRequest(data),
-    });
+    updateMutation.mutate(
+      { id: editingProfile.id, data: formDataToUpdateRequest(data) },
+      {
+        onSuccess: () => {
+          setEditOpen(false);
+          setEditingProfile(null);
+        },
+      },
+    );
   };
 
   return (

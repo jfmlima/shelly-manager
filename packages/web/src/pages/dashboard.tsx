@@ -1,58 +1,26 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
 
 import { ScanForm } from "@/components/dashboard/scan-form";
 import { DeviceTable } from "@/components/dashboard/device-table";
 import { BulkActionsDialog } from "@/components/dashboard/bulk-actions-dialog";
 import { Footer } from "@/components/ui/footer";
-import { deviceApi, handleApiError } from "@/lib/api";
-import { queryKeys } from "@/lib/query-keys";
-import {
-  loadScanResults,
-  saveScanResults,
-  clearScanResults,
-} from "@/lib/storage";
+import { handleApiError } from "@/lib/api";
+import { useScanDevices, useScannedDevices } from "@/hooks/useScannedDevices";
 import type { Device, ScanRequest } from "@/types/api";
 
 export function Dashboard() {
   const { t } = useTranslation();
   const [selectedDevices, setSelectedDevices] = useState<Device[]>([]);
   const [bulkActionsOpen, setBulkActionsOpen] = useState(false);
-  const queryClient = useQueryClient();
 
   const {
     data: devices = [],
     isLoading: isLoadingCached,
     error: cacheError,
-  } = useQuery({
-    queryKey: queryKeys.devices.scan(),
-    queryFn: () => {
-      const cached = loadScanResults();
-      return cached ? cached.devices : [];
-    },
-    staleTime: Infinity, // Cached data never becomes stale automatically
-    gcTime: Infinity, // Keep in memory indefinitely
-  });
+  } = useScannedDevices();
 
-  const scanMutation = useMutation({
-    mutationFn: async (params: ScanRequest) => {
-      clearScanResults();
-      queryClient.removeQueries({ queryKey: queryKeys.devices.scan() });
-      return deviceApi.scanDevices(params);
-    },
-    onSuccess: (data, variables) => {
-      saveScanResults(data, variables);
-      queryClient.setQueryData(queryKeys.devices.scan(), data);
-      toast.success(
-        t("dashboard.messages.scanSuccess", { count: data.length }),
-      );
-    },
-    onError: (error) => {
-      toast.error(handleApiError(error));
-    },
-  });
+  const scanMutation = useScanDevices();
 
   const handleScan = (request: ScanRequest) => {
     scanMutation.mutate(request);
