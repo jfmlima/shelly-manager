@@ -3,8 +3,10 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import uvicorn
+from core.domain.entities.exceptions import ConfigurationError
 from core.repositories.db import engine
 from core.repositories.models import Base
+from core.settings import MISSING_SECRET_KEY_MESSAGE
 from core.settings import settings as core_settings
 from litestar import Litestar, Router
 from litestar.config.cors import CORSConfig
@@ -94,6 +96,12 @@ def create_app() -> Litestar:
 
     @asynccontextmanager
     async def lifespan(app: Litestar) -> AsyncGenerator[None, None]:
+        # Credential and backup requests need this key. Without the check the
+        # server would boot and only fail deep inside a request, where the 500
+        # body redacts the cause.
+        if core_settings.secret_key is None:
+            raise ConfigurationError("startup", MISSING_SECRET_KEY_MESSAGE)
+
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
             # create_all adds new indexes only to tables it creates fresh, not
