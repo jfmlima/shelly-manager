@@ -12,7 +12,10 @@ from typing import TYPE_CHECKING, Any
 
 from ...domain.entities.device_status import DeviceStatus
 from ...domain.entities.discovered_device import DiscoveredDevice
-from ...domain.entities.exceptions import DeviceAuthenticationError
+from ...domain.entities.exceptions import (
+    ConfigurationError,
+    DeviceAuthenticationError,
+)
 from ...domain.enums.enums import Status
 from ...domain.value_objects.action_result import ActionResult
 from ...utils.validation import normalize_mac
@@ -177,6 +180,9 @@ class LegacyDeviceGateway:
                 has_update=has_update_value,
                 auth_required=auth_enabled,
             )
+        except ConfigurationError:
+            raise
+
         except Exception as e:
             logger.debug(
                 "Legacy discovery failed for %s: %s",
@@ -219,6 +225,8 @@ class LegacyDeviceGateway:
                 ip, "settings", auth=auth, timeout=timeout
             )
         except DeviceAuthenticationError:
+            raise
+        except ConfigurationError:
             raise
         except Exception as e:
             logger.debug(
@@ -329,6 +337,9 @@ class LegacyDeviceGateway:
                 message=command["message"],
                 data=response,
             )
+        except ConfigurationError:
+            raise
+
         except Exception as e:
             return ActionResult(
                 device_ip=ip,

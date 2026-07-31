@@ -3,7 +3,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from core.domain.credentials import Credential
 from core.domain.entities.discovered_device import DiscoveredDevice
-from core.domain.entities.exceptions import DeviceAuthenticationError
+from core.domain.entities.exceptions import (
+    ConfigurationError,
+    DeviceAuthenticationError,
+)
 from core.gateways.device.legacy_component_mapper import LegacyComponentMapper
 from core.gateways.device.legacy_device_gateway import LegacyDeviceGateway
 from core.gateways.network.legacy_http_client import LegacyHttpClient
@@ -284,3 +287,18 @@ class TestLegacyDeviceGatewayAuth:
     async def test_it_invalidates_nothing_for_an_unknown_device(self, gateway):
         # Should not raise
         gateway.invalidate_credential_cache("FFFFFFFFFFFF")
+
+    async def test_it_surfaces_a_configuration_error_instead_of_unreachable(
+        self,
+        gateway,
+        mock_http_client,
+        mock_auth_service,
+        sample_device_info_auth,
+    ):
+        mock_http_client.fetch_json.return_value = sample_device_info_auth
+        mock_auth_service.resolve_credentials.side_effect = ConfigurationError(
+            "encryption", "SHELLY_SECRET_KEY is not set."
+        )
+
+        with pytest.raises(ConfigurationError):
+            await gateway.discover_device("192.168.1.100")

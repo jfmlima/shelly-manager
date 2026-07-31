@@ -10,6 +10,7 @@ from typing import Any
 from ...domain.entities.device_status import DeviceStatus
 from ...domain.entities.discovered_device import DiscoveredDevice
 from ...domain.entities.exceptions import (
+    ConfigurationError,
     DeviceAuthenticationError,
     DeviceCommunicationError,
     DeviceUnreachableError,
@@ -127,6 +128,9 @@ class ShellyDeviceGateway(DeviceGateway):
                 error_message=str(e),
                 last_seen=datetime.now(),
             )
+
+        except ConfigurationError:
+            raise
 
         except Exception as e:
             logger.debug(
@@ -276,6 +280,9 @@ class ShellyDeviceGateway(DeviceGateway):
                 message=f"{action_name.method} failed on {component_key}",
                 error=str(e),
             )
+
+        except ConfigurationError:
+            raise
 
         except Exception as e:
             err = str(e)
