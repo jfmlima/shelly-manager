@@ -166,6 +166,8 @@ class ShellyDeviceGateway(DeviceGateway):
             logger.debug("No RPC read answered for %s, attempting legacy fallback", ip)
         except DeviceAuthenticationError:
             raise
+        except ConfigurationError:
+            raise
         except Exception as e:
             logger.error(
                 f"Error getting device status via RPC, attempting legacy fallback: {e}",
@@ -189,6 +191,8 @@ class ShellyDeviceGateway(DeviceGateway):
                 for c in components
                 if c.get("key", "").split(":")[0] == component_type
             ]
+        except ConfigurationError:
+            raise
         except Exception:
             return []
 
@@ -342,7 +346,13 @@ class ShellyDeviceGateway(DeviceGateway):
             for ip in device_ips
         ]
 
-        return await asyncio.gather(*tasks, return_exceptions=False)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        settled: list[ActionResult] = []
+        for result in results:
+            if isinstance(result, BaseException):
+                raise result
+            settled.append(result)
+        return settled
 
     async def _read_status_over_rpc(self, ip: str) -> DeviceStatus | None:
         """Ask the device for its status every way at once.
@@ -415,6 +425,8 @@ class ShellyDeviceGateway(DeviceGateway):
 
             logger.warning("Unreadable method list from %s: %r", ip, result)
             return []
+        except ConfigurationError:
+            raise
         except Exception as e:
             logger.warning(f"Failed to get available methods for {ip}: {e}")
             return []
