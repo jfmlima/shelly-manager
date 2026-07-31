@@ -24,7 +24,6 @@ dev = [
     "ruff",
     "mypy",
     "types-PyYAML",
-    "types-requests",
 ]
 
 [project.scripts]
