@@ -38,8 +38,12 @@ jobs:
 
             ## 🚀 Quick Start
             ```bash
-            # Run API server
-            docker run -p 8000:8000 ${{ env.IMAGE_PREFIX }}-api:${{ env.IMAGE_TAG }}
+            # Run API server. The -v keeps the database and firmware cache;
+            # generate the key with: openssl rand -base64 32 | tr '+/' '-_'
+            docker run -p 8000:8000 \
+              -e SHELLY_SECRET_KEY="your-generated-key" \
+              -v shelly-manager-data:/data \
+              ${{ env.IMAGE_PREFIX }}-api:${{ env.IMAGE_TAG }}
 
             # Run CLI tool
             docker run --rm ${{ env.IMAGE_PREFIX }}-cli:${{ env.IMAGE_TAG }} --help

@@ -443,7 +443,8 @@ curl -X POST "http://localhost:8000/api/backups/1/restore" \
 | `SHELLY_BACKUP_SCHEDULER_ENABLED` | `true` | Run the in-process scheduled-backup poller |
 | `SHELLY_BACKUP_POLL_INTERVAL_SECONDS` | `60` | How often the scheduler checks for due backups |
 | `SHELLY_FIRMWARE_ADVERTISED_BASE_URL` | (none) | URL devices use to reach this API, e.g. `http://192.168.1.50:8000`. Required for local updates; it cannot be guessed |
-| `SHELLY_FIRMWARE_DIR` | `./data/firmware` | Where downloaded firmware bundles are kept |
+| `SHELLY_DATA_DIR` | `/data` in the image, `./data` otherwise | Directory holding the SQLite database (`data.db`) |
+| `SHELLY_FIRMWARE_DIR` | `/data/firmware` in the image, `./data/firmware` otherwise | Where downloaded firmware bundles are kept |
 | `SHELLY_FIRMWARE_INDEX_URL` | `https://updates.shelly.cloud/update` | Where published firmware is looked up, by the app name a device reports |
 | `SHELLY_FIRMWARE_ALLOWED_DOWNLOAD_HOSTS` | `shelly.cloud` | Comma separated hosts firmware may be downloaded from, matched exactly or as a parent domain and re-checked on every redirect. `*` accepts any host |
 | `SHELLY_FIRMWARE_VERIFY_SSL` | `false` | Verify TLS when talking to the firmware index and CDN. Off by default because Shelly signs those hosts with a private CA absent from public trust stores; devices verify firmware signatures themselves |
@@ -452,6 +453,14 @@ curl -X POST "http://localhost:8000/api/backups/1/restore" \
 stored in the local database (`{data_dir}/data.db`); rotating the key makes existing snapshots
 undecryptable. Set `SHELLY_BACKUP_SCHEDULER_ENABLED=false` to turn off automated backups while
 still managing schedules through the API.
+
+Both directories are created on first use and both need to survive a restart, so mount a
+volume at `/data` when running this image. Without one they belong to the container, and
+replacing it resets the database and empties the firmware cache. A named volume inherits the
+image's ownership; a bind mounted host directory does not, so `chown 10001:10001` it before
+first start or the API cannot write to it. Packaged builds set their own path: the Unraid
+image uses `/config`, the Home Assistant add-on uses the add-on data volume, and neither
+needs a mount configured by hand.
 
 ## Docker Deployment
 
@@ -463,6 +472,8 @@ docker run -d \
   -p 8000:8000 \
   -e HOST=0.0.0.0 \
   -e PORT=8000 \
+  -e SHELLY_SECRET_KEY="your-generated-key" \
+  -v shelly-manager-data:/data \
   ghcr.io/jfmlima/shelly-manager-api:latest
 ```
 
@@ -478,7 +489,13 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - DEBUG=false
+      - SHELLY_SECRET_KEY=your-generated-key
+    volumes:
+      - shelly-manager-data:/data
     restart: unless-stopped
+
+volumes:
+  shelly-manager-data:
 ```
 
 ### Health Check
