@@ -23,6 +23,7 @@ import type {
   CreateBackupScheduleRequest,
   UpdateBackupScheduleRequest,
   ScheduleRunResult,
+  UpdateSource,
 } from "@/types/api";
 import { loadAppSettings } from "./settings";
 import { parseResponse } from "./schemas/parse";
@@ -163,8 +164,13 @@ export const deviceApi = {
   updateDevice: async (
     ip: string,
     channel: "stable" | "beta" = "stable",
+    source: UpdateSource = "internet",
   ): Promise<ActionResult> => {
-    const response = await apiClient.post(`/devices/${ip}/update`, { channel });
+    const response = await apiClient.post(
+      `/devices/${ip}/update`,
+      { channel, source },
+      source === "local" ? { timeout: 120000 } : undefined,
+    );
     return response.data;
   },
 

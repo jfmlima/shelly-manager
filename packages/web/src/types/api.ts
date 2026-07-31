@@ -324,12 +324,16 @@ export interface DeviceStatusError {
   error: string;
 }
 
+export type UpdateSource = "internet" | "local";
+
 export interface ActionResult {
   ip: string;
   success: boolean;
   message?: string;
   error?: string | null;
   action_type?: string;
+  channel?: string;
+  source?: UpdateSource;
 }
 
 export interface BulkActionResult {

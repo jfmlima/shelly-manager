@@ -62,7 +62,10 @@ GET /api/devices/scan              # Scan network for devices
 GET /api/devices/{ip}/status       # Get device status
 
 POST /api/devices/{ip}/update      # Update device firmware
-  ?channel=stable                  # Update channel (stable/beta)
+  # Body: {"channel": "stable", "source": "internet"}
+  #   channel: stable (default) or beta
+  #   source:  internet (default) lets the device download from Shelly
+  #            local serves the firmware from this manager instead
 
 POST /api/devices/{ip}/reboot      # Reboot device
 
@@ -72,6 +75,18 @@ POST /api/devices/bulk/update      # Bulk firmware updates
 # Component Actions
 GET /api/devices/{ip}/components/actions           # Discover available actions
 POST /api/devices/{ip}/components/{id}/action      # Execute component action
+```
+
+### Firmware Store
+
+Bundles the manager has downloaded for local updates. Devices fetch the download
+route themselves and are not authenticated, so it must be reachable from the
+device network.
+
+```bash
+GET    /api/firmware                  # List cached bundles
+DELETE /api/firmware/{id}             # Delete a bundle and its file
+GET    /api/firmware/{id}/download    # The zip a device fetches
 ```
 
 ### Configuration Backup & Restore
@@ -208,7 +223,9 @@ curl "http://localhost:8000/api/devices/scan?targets=192.168.1.1-10"
 ### Device Update
 
 ```bash
-curl -X POST "http://localhost:8000/api/devices/192.168.1.100/update?channel=stable"
+curl -X POST http://localhost:8000/api/devices/192.168.1.100/update \
+  -H "Content-Type: application/json" \
+  -d '{"channel": "stable"}'
 ```
 
 **Response:**
@@ -217,9 +234,21 @@ curl -X POST "http://localhost:8000/api/devices/192.168.1.100/update?channel=sta
 {
   "ip": "192.168.1.100",
   "success": true,
-  "message": "Firmware update initiated",
-  "action_type": "firmware_update"
+  "message": "Update executed successfully on shelly",
+  "action_type": "shelly.Update",
+  "channel": "stable",
+  "source": "internet"
 }
+```
+
+For a device with no internet access, ask the manager to serve the firmware.
+It downloads the official bundle once, keeps it, and hands the device a URL on
+this host. Requires `SHELLY_FIRMWARE_ADVERTISED_BASE_URL`; stable channel only.
+
+```bash
+curl -X POST http://localhost:8000/api/devices/192.168.1.100/update \
+  -H "Content-Type: application/json" \
+  -d '{"source": "local"}'
 ```
 
 ### Component Actions Examples
@@ -413,6 +442,11 @@ curl -X POST "http://localhost:8000/api/backups/1/restore" \
 | `SHELLY_SECRET_KEY`  | (required)    | Fernet key for credential encryption. Generate with: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 | `SHELLY_BACKUP_SCHEDULER_ENABLED` | `true` | Run the in-process scheduled-backup poller |
 | `SHELLY_BACKUP_POLL_INTERVAL_SECONDS` | `60` | How often the scheduler checks for due backups |
+| `SHELLY_FIRMWARE_ADVERTISED_BASE_URL` | (none) | URL devices use to reach this API, e.g. `http://192.168.1.50:8000`. Required for local updates; it cannot be guessed |
+| `SHELLY_FIRMWARE_DIR` | `./data/firmware` | Where downloaded firmware bundles are kept |
+| `SHELLY_FIRMWARE_INDEX_URL` | `https://updates.shelly.cloud/update` | Where published firmware is looked up, by the app name a device reports |
+| `SHELLY_FIRMWARE_ALLOWED_DOWNLOAD_HOSTS` | `shelly.cloud` | Comma separated hosts firmware may be downloaded from, matched exactly or as a parent domain and re-checked on every redirect. `*` accepts any host |
+| `SHELLY_FIRMWARE_VERIFY_SSL` | `false` | Verify TLS when talking to the firmware index and CDN. Off by default because Shelly signs those hosts with a private CA absent from public trust stores; devices verify firmware signatures themselves |
 
 `SHELLY_SECRET_KEY` also encrypts configuration **backup snapshots** at rest. Backups are
 stored in the local database (`{data_dir}/data.db`); rotating the key makes existing snapshots

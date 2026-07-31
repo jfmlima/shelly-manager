@@ -15,6 +15,7 @@ Manage Shelly devices on your local network without connecting them to the Shell
 - Gen1 (legacy HTTP) and Gen2 (RPC) device support with automatic detection
 - Device discovery using mDNS and Network Scanning
 - Firmware update management (stable/beta channels)
+- Firmware updates for devices with no internet access, served from the manager over the LAN
 - Device configuration management with bulk export/apply
 - Per-device configuration backup and restore with encrypted snapshots
 - Scheduled backups with retention (keep last N, drop older than N days)
@@ -212,6 +213,10 @@ For persistent storage of discovered devices in the Web UI, the application leve
 
 **Scheduled backups** run on the API server itself. When `SHELLY_BACKUP_SCHEDULER_ENABLED` is `true` (the default), an in-process poller captures backups for any due schedules every `SHELLY_BACKUP_POLL_INTERVAL_SECONDS` (default 60). Because the timer lives in-process, run the API as a single worker (the default); see the [API README](packages/api/README.md) for the full setting reference.
 
+**Local firmware updates** let a device that cannot reach the internet still be updated. Ask for one with `"source": "local"` on the update endpoint, or `--source local` from the CLI: the manager downloads the official firmware from Shelly once, keeps it, and tells the device to fetch it from the manager instead. The same copy serves every device running that model, so only the manager needs internet access.
+
+Set `SHELLY_FIRMWARE_ADVERTISED_BASE_URL` to a URL your devices can reach, for example `http://192.168.1.50:8000`. There is no default and a local update fails immediately without it, because the manager cannot work out its own device-facing address. The devices fetch that URL unauthenticated, so it has to be reachable from the device network.
+
 ## Architecture
 
 ```
@@ -298,6 +303,13 @@ shelly-manager scan --use-mdns
 shelly-manager device status 192.168.1.100
 shelly-manager device reboot 192.168.1.100
 shelly-manager device actions list 192.168.1.100
+
+# Firmware updates
+shelly-manager device update -t 192.168.1.100
+shelly-manager device update -t 192.168.1.100 --channel beta
+
+# ...or serve the firmware from this host, for a device with no internet access
+shelly-manager device update -t 192.168.1.100 --source local
 
 # Bulk operations
 shelly-manager bulk reboot --target 192.168.1.100-110

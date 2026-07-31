@@ -15,7 +15,7 @@ from ..entities import (
     DeviceScanRequest,
     DeviceStatusRequest,
 )
-from ..exceptions import EXIT_VALIDATION
+from ..exceptions import EXIT_USAGE, EXIT_VALIDATION
 from ..presentation.styles import Messages
 from ..use_cases.device.component_actions import ComponentActionsUseCase
 from ..use_cases.device.device_status import DeviceStatusUseCase
@@ -309,6 +309,16 @@ async def reboot_devices(
     type=click.Choice([channel.value for channel in UpdateChannel]),
     default=UpdateChannel.STABLE.value,
 )
+@click.option(
+    "--source",
+    type=click.Choice(["internet", "local"]),
+    default="internet",
+    help=(
+        "Where the device fetches firmware from: internet (device downloads "
+        "from Shelly) or local (cached in this host's firmware store and "
+        "served to the device by the manager API, which must share it)"
+    ),
+)
 @click.option("--force", is_flag=True)
 @common_options
 @click.pass_context
@@ -318,6 +328,7 @@ async def update_firmware(
     targets: tuple[str, ...],
     targets_opt: tuple[str, ...],
     channel: str,
+    source: str,
     force: bool,
     timeout: int,
     workers: int,
@@ -327,7 +338,14 @@ async def update_firmware(
     Examples:
       shelly-manager device update -t 192.168.1.100
       shelly-manager device update 192.168.1.0/24 --channel beta
+      shelly-manager device update -t 192.168.1.100 --source local
     """
+    if source == "local" and channel != UpdateChannel.STABLE.value:
+        ctx.obj.console.print(
+            Messages.error("Local updates support the stable channel only")
+        )
+        sys.exit(EXIT_USAGE)
+
     request = ComponentActionRequest(
         targets=list(targets) + list(targets_opt),
         component_key="shelly",
@@ -343,6 +361,7 @@ async def update_firmware(
         request,
         "shelly-manager device update -t 192.168.1.100",
         "shelly-manager device update 192.168.1.0/24 --channel beta",
+        from_local_store=source == "local",
     )
 
 
@@ -396,11 +415,22 @@ async def _run_component_action(
     ctx: click.Context,
     request: ComponentActionRequest,
     *examples: str,
+    from_local_store: bool = False,
 ) -> None:
+    """Run one component action across every requested device.
+
+    ``from_local_store`` serves a firmware update out of this host's own
+    firmware store rather than leaving each device to fetch from the internet.
+    """
     console = ctx.obj.console
     actions_use_case = ComponentActionsUseCase(ctx.obj.container, console)
+    execute = (
+        actions_use_case.execute_local_update
+        if from_local_store
+        else actions_use_case.execute_action
+    )
     try:
-        results = await actions_use_case.execute_action(request)
+        results = await execute(request)
     except ValueError as e:
         _print_usage_error(console, e, *examples)
         sys.exit(EXIT_VALIDATION)

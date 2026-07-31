@@ -8,10 +8,12 @@ from api.controllers.devices import (
     get_component_actions,
     get_device_status,
     scan_devices,
+    update_device,
 )
 from api.presentation.handlers import EXCEPTION_HANDLERS
 from core.domain.entities.device_status import DeviceStatus
 from core.domain.entities.discovered_device import DiscoveredDevice
+from core.domain.entities.exceptions import FirmwareError
 from core.domain.enums.enums import Status
 from core.domain.value_objects.action_result import ActionResult
 from core.use_cases.bulk_operations import BulkOperationsUseCase
@@ -19,6 +21,7 @@ from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
 from core.use_cases.get_component_actions import GetComponentActionsUseCase
 from core.use_cases.scan_devices import ScanDevicesUseCase
+from core.use_cases.update_device_from_local import UpdateDeviceFromLocal
 from litestar.di import Provide
 from litestar.testing import create_test_client
 
@@ -107,7 +110,7 @@ class TestDevicesController:
             },
         ) as client:
             response = client.post(
-                "/192.168.1.100/components/sys/actions/OTA", json={"channel": "beta"}
+                "/192.168.1.100/components/sys/actions/OTA", json={"stage": "beta"}
             )
 
             assert response.status_code == 200
@@ -117,6 +120,181 @@ class TestDevicesController:
             assert data["message"] == "Update started"
             assert data["component_key"] == "sys"
             assert data["action"] == "OTA"
+
+    def test_update_device_sends_stage_for_beta_channel(self):
+        captured = {}
+
+        class MockExecuteComponentActionUseCase(ExecuteComponentActionUseCase):
+            def __init__(self):
+                pass
+
+            async def execute(self, request):
+                captured["request"] = request
+                return ActionResult(
+                    device_ip=request.device_ip,
+                    success=True,
+                    message="Update started",
+                    action_type="shelly.Update",
+                )
+
+        with create_test_client(
+            route_handlers=[update_device],
+            dependencies={
+                "execute_component_action_interactor": Provide(
+                    lambda: MockExecuteComponentActionUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.post("/192.168.1.100/update", json={"channel": "beta"})
+
+            assert response.status_code == 200
+            assert response.json()["channel"] == "beta"
+            assert captured["request"].parameters == {"stage": "beta"}
+
+    def test_update_device_sends_no_parameters_for_stable_channel(self):
+        captured = {}
+
+        class MockExecuteComponentActionUseCase(ExecuteComponentActionUseCase):
+            def __init__(self):
+                pass
+
+            async def execute(self, request):
+                captured["request"] = request
+                return ActionResult(
+                    device_ip=request.device_ip,
+                    success=True,
+                    message="Update started",
+                    action_type="shelly.Update",
+                )
+
+        with create_test_client(
+            route_handlers=[update_device],
+            dependencies={
+                "execute_component_action_interactor": Provide(
+                    lambda: MockExecuteComponentActionUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.post("/192.168.1.100/update", json={})
+
+            assert response.status_code == 200
+            assert response.json()["channel"] == "stable"
+            assert captured["request"].parameters == {}
+
+    def test_update_device_from_local_source(self):
+        captured = {}
+
+        class MockUpdateDeviceFromLocal(UpdateDeviceFromLocal):
+            def __init__(self):
+                pass
+
+            async def execute(self, request):
+                captured["request"] = request
+                return ActionResult(
+                    device_ip=request.device_ip,
+                    success=True,
+                    message="Update executed successfully on shelly",
+                    action_type="shelly.Update",
+                )
+
+        with create_test_client(
+            route_handlers=[update_device],
+            dependencies={
+                "update_device_from_local_interactor": Provide(
+                    lambda: MockUpdateDeviceFromLocal(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.post("/192.168.1.100/update", json={"source": "local"})
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert data["source"] == "local"
+            assert data["channel"] == "stable"
+            assert captured["request"].device_ip == "192.168.1.100"
+
+    def test_update_device_rejects_an_unknown_source(self):
+        with create_test_client(route_handlers=[update_device]) as client:
+            response = client.post("/192.168.1.100/update", json={"source": "usb"})
+
+            assert response.status_code == 400
+
+    def test_update_device_rejects_an_unknown_channel(self):
+        with create_test_client(
+            route_handlers=[update_device],
+            exception_handlers=EXCEPTION_HANDLERS,
+        ) as client:
+            response = client.post("/192.168.1.100/update", json={"channel": "nightly"})
+
+            assert response.status_code == 400
+
+    def test_update_device_rejects_a_beta_local_update(self):
+        class MockUpdateDeviceFromLocal(UpdateDeviceFromLocal):
+            def __init__(self):
+                pass
+
+        with create_test_client(
+            route_handlers=[update_device],
+            dependencies={
+                "update_device_from_local_interactor": Provide(
+                    lambda: MockUpdateDeviceFromLocal(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.post(
+                "/192.168.1.100/update",
+                json={"source": "local", "channel": "beta"},
+            )
+
+            assert response.status_code == 400
+
+    def test_update_device_maps_firmware_misconfiguration_to_500(self):
+        from core.domain.entities.exceptions import FirmwareConfigurationError
+
+        class MockUpdateDeviceFromLocal(UpdateDeviceFromLocal):
+            def __init__(self):
+                pass
+
+            async def execute(self, request):
+                raise FirmwareConfigurationError(
+                    "Local updates need SHELLY_FIRMWARE_ADVERTISED_BASE_URL set"
+                )
+
+        with create_test_client(
+            route_handlers=[update_device],
+            dependencies={
+                "update_device_from_local_interactor": Provide(
+                    lambda: MockUpdateDeviceFromLocal(), sync_to_thread=False
+                )
+            },
+            exception_handlers=EXCEPTION_HANDLERS,
+        ) as client:
+            response = client.post("/192.168.1.100/update", json={"source": "local"})
+
+            assert response.status_code == 500
+            assert response.json()["error"] == "Firmware Not Configured"
+
+    def test_update_device_maps_firmware_errors_to_422(self):
+        class MockUpdateDeviceFromLocal(UpdateDeviceFromLocal):
+            def __init__(self):
+                pass
+
+            async def execute(self, request):
+                raise FirmwareError("No firmware published for app 'Plus2PM'")
+
+        with create_test_client(
+            route_handlers=[update_device],
+            dependencies={
+                "update_device_from_local_interactor": Provide(
+                    lambda: MockUpdateDeviceFromLocal(), sync_to_thread=False
+                )
+            },
+            exception_handlers=EXCEPTION_HANDLERS,
+        ) as client:
+            response = client.post("/192.168.1.100/update", json={"source": "local"})
+
+            assert response.status_code == 422
 
     def test_reboot_device_successfully(self):
         class MockExecuteComponentActionUseCase(ExecuteComponentActionUseCase):
@@ -288,6 +466,33 @@ class TestDevicesController:
             assert all(result["success"] for result in data)
             assert all(result["operation"] == "update" for result in data)
             assert all(result["channel"] == "beta" for result in data)
+
+    def test_bulk_operations_update_rejects_an_unknown_channel(self):
+        from core.use_cases.bulk_operations import BulkOperationsUseCase
+
+        class MockBulkOperationsUseCase(BulkOperationsUseCase):
+            def __init__(self):
+                pass
+
+        with create_test_client(
+            route_handlers=[execute_bulk_operations],
+            dependencies={
+                "bulk_operations_use_case": Provide(
+                    lambda: MockBulkOperationsUseCase(), sync_to_thread=False
+                )
+            },
+            exception_handlers=EXCEPTION_HANDLERS,
+        ) as client:
+            response = client.post(
+                "/bulk",
+                json={
+                    "device_ips": ["192.168.1.100"],
+                    "operation": "update",
+                    "channel": "nightly",
+                },
+            )
+
+            assert response.status_code == 400
 
     def test_bulk_operations_reboot_successfully(self):
         from core.use_cases.bulk_operations import BulkOperationsUseCase

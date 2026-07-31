@@ -107,6 +107,20 @@ class LoggingError(ShellyManagerError):
         super().__init__(msg, {"operation": operation, "error": error})
 
 
+class FirmwareError(ShellyManagerError):
+
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(message, details)
+
+
+class FirmwareConfigurationError(FirmwareError):
+    """Raised when the firmware feature itself is not set up on this server.
+
+    Separate from its parent so callers can tell an operator's missing
+    configuration apart from a request that cannot be satisfied.
+    """
+
+
 class DomainError(ShellyManagerError):
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):

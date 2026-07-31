@@ -9,6 +9,7 @@ from core.gateways.device import LegacyDeviceGateway
 from core.gateways.device.ap_device_detector import APDeviceDetector
 from core.gateways.device.legacy_component_mapper import LegacyComponentMapper
 from core.gateways.device.shelly_device_gateway import ShellyDeviceGateway
+from core.gateways.firmware import ShellyCloudFirmwareGateway
 from core.gateways.network import (
     AsyncShellyRPCClient,
     LegacyHttpClient,
@@ -25,6 +26,9 @@ from core.repositories.sqlalchemy_backup_schedule_repository import (
 from core.repositories.sqlalchemy_credentials_repository import (
     SQLAlchemyCredentialsRepository,
 )
+from core.repositories.sqlalchemy_firmware_repository import (
+    SQLAlchemyFirmwareRepository,
+)
 from core.repositories.sqlalchemy_provisioning_profile_repository import (
     SQLAlchemyProvisioningProfileRepository,
 )
@@ -32,6 +36,7 @@ from core.services.auth_state_cache import AuthStateCache
 from core.services.authentication_service import AuthenticationService
 from core.services.encryption_service import EncryptionService
 from core.settings import settings as core_settings
+from core.use_cases.acquire_firmware import AcquireFirmware
 from core.use_cases.backup_device_config import BackupDeviceConfig
 from core.use_cases.bulk_operations import BulkOperationsUseCase
 from core.use_cases.capture_device_config import CaptureDeviceConfig
@@ -39,6 +44,7 @@ from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
 from core.use_cases.get_component_actions import GetComponentActionsUseCase
 from core.use_cases.manage_backup_schedules import ManageBackupSchedulesUseCase
+from core.use_cases.manage_firmware import ManageFirmware
 from core.use_cases.manage_provisioning_profiles import (
     ManageProvisioningProfilesUseCase,
 )
@@ -46,6 +52,7 @@ from core.use_cases.provision_device import ProvisionDeviceUseCase
 from core.use_cases.restore_device_config import RestoreDeviceConfig
 from core.use_cases.run_due_backups import RunDueBackupsUseCase
 from core.use_cases.scan_devices import ScanDevicesUseCase
+from core.use_cases.update_device_from_local import UpdateDeviceFromLocal
 
 
 class BaseContainer:
@@ -72,6 +79,10 @@ class BaseContainer:
             ManageBackupSchedulesUseCase | None
         ) = None
         self._run_due_backups_interactor: RunDueBackupsUseCase | None = None
+        self._firmware_gateway: ShellyCloudFirmwareGateway | None = None
+        self._acquire_firmware_interactor: AcquireFirmware | None = None
+        self._update_device_from_local_interactor: UpdateDeviceFromLocal | None = None
+        self._manage_firmware_interactor: ManageFirmware | None = None
         # Every slot above is a device-scoped cache cleared by
         # _reset_device_caches(); slots below survive close().
         self._device_cache_slots: tuple[str, ...] = tuple(vars(self))
@@ -112,10 +123,28 @@ class BaseContainer:
             )
         return self._device_gateway
 
+    def get_firmware_gateway(self) -> ShellyCloudFirmwareGateway:
+        if self._firmware_gateway is None:
+            self._firmware_gateway = ShellyCloudFirmwareGateway(
+                index_url=core_settings.firmware.index_url,
+                verify=core_settings.firmware.verify_ssl,
+                allowed_download_hosts=(
+                    core_settings.firmware.download_host_allow_list()
+                ),
+            )
+        return self._firmware_gateway
+
     async def _aclose_legacy_http_client(self) -> None:
         if self._legacy_http_client is not None:
             try:
                 await self._legacy_http_client.close()
+            except Exception:
+                pass
+
+    async def _aclose_firmware_gateway(self) -> None:
+        if self._firmware_gateway is not None:
+            try:
+                await self._firmware_gateway.close()
             except Exception:
                 pass
 
@@ -181,6 +210,33 @@ class BaseContainer:
                 device_gateway=self.get_device_gateway()
             )
         return self._bulk_operations_interactor
+
+    def get_acquire_firmware_interactor(self) -> AcquireFirmware:
+        if self._acquire_firmware_interactor is None:
+            self._acquire_firmware_interactor = AcquireFirmware(
+                firmware_gateway=self.get_firmware_gateway(),
+                repository_factory=self.create_firmware_repository,
+                settings=core_settings.firmware,
+            )
+        return self._acquire_firmware_interactor
+
+    def get_update_device_from_local_interactor(self) -> UpdateDeviceFromLocal:
+        if self._update_device_from_local_interactor is None:
+            self._update_device_from_local_interactor = UpdateDeviceFromLocal(
+                device_gateway=self.get_device_gateway(),
+                firmware_gateway=self.get_firmware_gateway(),
+                acquire_firmware=self.get_acquire_firmware_interactor(),
+                settings=core_settings.firmware,
+            )
+        return self._update_device_from_local_interactor
+
+    def get_manage_firmware_interactor(self) -> ManageFirmware:
+        if self._manage_firmware_interactor is None:
+            self._manage_firmware_interactor = ManageFirmware(
+                repository_factory=self.create_firmware_repository,
+                settings=core_settings.firmware,
+            )
+        return self._manage_firmware_interactor
 
     def get_ap_device_detector(self) -> APDeviceDetector:
         if self._ap_device_detector is None:
@@ -281,6 +337,16 @@ class BaseContainer:
                 await session.close()
 
     @asynccontextmanager
+    async def create_firmware_repository(
+        self,
+    ) -> AsyncGenerator[SQLAlchemyFirmwareRepository, None]:
+        async with async_session_factory() as session:
+            try:
+                yield SQLAlchemyFirmwareRepository(session)
+            finally:
+                await session.close()
+
+    @asynccontextmanager
     async def create_backup_schedule_repository(
         self,
     ) -> AsyncGenerator[SQLAlchemyBackupScheduleRepository, None]:
@@ -304,6 +370,7 @@ class BaseContainer:
                 pass
 
         await self._aclose_legacy_http_client()
+        await self._aclose_firmware_gateway()
 
         self._rpc_client = None
         self._reset_device_caches()

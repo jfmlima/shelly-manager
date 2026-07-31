@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, Integer, String
+from sqlalchemy import Boolean, Integer, String, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -80,6 +80,28 @@ class DeviceBackups(Base):
         return (
             f"<DeviceBackups(id={self.id}, device_mac='{self.device_mac}', "
             f"source='{self.source}')>"
+        )
+
+
+class FirmwareBundles(Base):
+    __tablename__ = "firmware_bundles"
+    __table_args__ = (UniqueConstraint("app_name", "version", "build_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    app_name: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    version: Mapped[str] = mapped_column(String, nullable=False)
+    build_id: Mapped[str] = mapped_column(String, nullable=False)
+    file_name: Mapped[str] = mapped_column(String, nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    sha256: Mapped[str | None] = mapped_column(String, nullable=True)
+    downloaded_at: Mapped[int] = mapped_column(
+        Integer, default=lambda: int(datetime.now(UTC).timestamp())
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<FirmwareBundles(id={self.id}, app_name='{self.app_name}', "
+            f"version='{self.version}')>"
         )
 
 

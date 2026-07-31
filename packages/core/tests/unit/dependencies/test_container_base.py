@@ -15,6 +15,9 @@ from core.repositories.sqlalchemy_backup_schedule_repository import (
 from core.repositories.sqlalchemy_credentials_repository import (
     SQLAlchemyCredentialsRepository,
 )
+from core.repositories.sqlalchemy_firmware_repository import (
+    SQLAlchemyFirmwareRepository,
+)
 from core.repositories.sqlalchemy_provisioning_profile_repository import (
     SQLAlchemyProvisioningProfileRepository,
 )
@@ -87,6 +90,10 @@ class TestProviderWiring:
             "get_restore_device_config_interactor",
             "get_manage_backup_schedules_interactor",
             "get_run_due_backups_interactor",
+            "get_firmware_gateway",
+            "get_acquire_firmware_interactor",
+            "get_update_device_from_local_interactor",
+            "get_manage_firmware_interactor",
             "get_ap_device_detector",
             "get_mdns_client",
             "get_auth_state_cache",
@@ -115,6 +122,7 @@ class TestRepositoryFactories:
                 "create_backup_schedule_repository",
                 SQLAlchemyBackupScheduleRepository,
             ),
+            ("create_firmware_repository", SQLAlchemyFirmwareRepository),
         ],
     )
     async def test_it_yields_a_repository_per_session(
@@ -142,6 +150,16 @@ class TestClose:
         assert container.get_device_gateway() is not gateway
         assert container.get_authentication_service() is auth_service
         await container.close()
+
+    async def test_it_closes_the_firmware_gateway(self):
+        container = BaseContainer()
+        firmware_gateway = AsyncMock()
+        container._firmware_gateway = firmware_gateway
+
+        await container.close()
+
+        firmware_gateway.close.assert_awaited_once()
+        assert container._firmware_gateway is None
 
     async def test_it_swallows_client_close_errors(self):
         container = BaseContainer()

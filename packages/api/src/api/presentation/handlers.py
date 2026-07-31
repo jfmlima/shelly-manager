@@ -15,6 +15,8 @@ from core.domain.entities.exceptions import (
     DeviceAuthenticationError,
     DeviceCommunicationError,
     DeviceNotFoundError,
+    FirmwareConfigurationError,
+    FirmwareError,
 )
 from core.domain.entities.exceptions import ValidationError as CoreValidationError
 from core.use_cases.backup_device_config import BackupError, BackupNotFoundError
@@ -96,6 +98,8 @@ EXCEPTION_HANDLERS: MutableMapping[int | type[Exception], ExceptionHandler] | No
     BackupNotFoundError: _typed_handler(404, "Backup Not Found"),
     BackupError: _typed_handler(422, "Backup Error"),
     DeviceMismatchError: _typed_handler(409, "Device Mismatch"),
+    FirmwareConfigurationError: _typed_handler(500, "Firmware Not Configured"),
+    FirmwareError: _typed_handler(422, "Firmware Error"),
     CredentialNotFoundError: _typed_handler(404, "Credential Not Found"),
     ProfileNotFoundError: _typed_handler(404, "Profile Not Found"),
     ProfileAlreadyExistsError: _typed_handler(409, "Profile Already Exists"),
