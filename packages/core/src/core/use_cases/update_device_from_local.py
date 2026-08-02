@@ -18,6 +18,9 @@ from core.use_cases.acquire_firmware import AcquireFirmware
 
 logger = logging.getLogger(__name__)
 
+# Changelog: "1.3.3 is a mandatory update before 1.4.0."
+_MANDATORY_STEPS = (((1, 3, 3), (1, 4, 0)),)
+
 
 class UpdateDeviceFromLocal:
     """Update a Gen2+ device with firmware served from the manager host.
@@ -44,7 +47,8 @@ class UpdateDeviceFromLocal:
         Raises:
             DeviceNotFoundError: If the device is unreachable.
             FirmwareError: If the advertised base URL is unset, the device is
-                Gen1 or reports no app name, or no release is published.
+                Gen1 or reports no app name, no release is published, or a
+                mandatory intermediate update is missing.
         """
         base_url = (self._settings.advertised_base_url or "").strip()
         if not base_url:
@@ -86,6 +90,15 @@ class UpdateDeviceFromLocal:
                 message=(
                     f"Device already runs the latest firmware ({release.version})"
                 ),
+            )
+
+        step = _blocking_step(installed, release.version)
+        if step is not None:
+            raise FirmwareError(
+                f"Device {ip} runs {installed}; Shelly requires {step} before"
+                f" {release.version} can install. Update once with internet"
+                f" access, then local updates work.",
+                {"device_ip": ip, "installed": installed, "target": release.version},
             )
 
         downgrade = _downgrade_note(installed, release.version)
@@ -152,6 +165,20 @@ def _version_key(version: str) -> tuple[int, ...] | None:
             return None
         key.append(int(leading_digits.group()))
     return tuple(key)
+
+
+def _blocking_step(installed: str | None, candidate: str) -> str | None:
+    """The version the device must run before ``candidate``, or ``None``."""
+    if installed is None:
+        return None
+    installed_key = _version_key(installed)
+    candidate_key = _version_key(candidate)
+    if installed_key is None or candidate_key is None:
+        return None
+    for step, gated_from in _MANDATORY_STEPS:
+        if installed_key < step and candidate_key >= gated_from:
+            return ".".join(str(part) for part in step)
+    return None
 
 
 def _downgrade_note(installed: str | None, candidate: str) -> str | None:

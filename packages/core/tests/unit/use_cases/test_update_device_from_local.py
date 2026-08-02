@@ -277,6 +277,55 @@ class TestUpdateDeviceFromLocal:
 
         assert "downgrade" not in result.message
 
+    async def test_it_refuses_an_update_the_device_would_discard(
+        self, use_case, mock_device_gateway, mock_firmware_gateway, mock_acquire
+    ):
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(firmware_version="20231031-152228/1.0.7-g5db02bd")
+        )
+        mock_firmware_gateway.get_latest = AsyncMock(return_value=_release("1.8.0"))
+
+        with pytest.raises(FirmwareError, match="1.3.3"):
+            await use_case.execute(BaseDeviceRequest(device_ip=IP))
+
+        mock_acquire.execute.assert_not_awaited()
+        mock_device_gateway.execute_component_action.assert_not_awaited()
+
+    async def test_it_refuses_a_gated_update_from_a_bare_version(
+        self, use_case, mock_device_gateway, mock_firmware_gateway
+    ):
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(firmware_version="1.0.7")
+        )
+        mock_firmware_gateway.get_latest = AsyncMock(return_value=_release("1.8.0"))
+
+        with pytest.raises(FirmwareError, match="1.3.3"):
+            await use_case.execute(BaseDeviceRequest(device_ip=IP))
+
+    async def test_it_updates_a_device_running_the_mandatory_step(
+        self, use_case, mock_device_gateway, mock_firmware_gateway
+    ):
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(firmware_version="20240613-000000/1.3.3-gabc")
+        )
+        mock_firmware_gateway.get_latest = AsyncMock(return_value=_release("1.8.0"))
+
+        await use_case.execute(BaseDeviceRequest(device_ip=IP))
+
+        mock_device_gateway.execute_component_action.assert_awaited_once()
+
+    async def test_it_updates_below_the_gate_when_the_target_is_too(
+        self, use_case, mock_device_gateway, mock_firmware_gateway
+    ):
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(firmware_version="20230101-000000/1.0.7-gabc")
+        )
+        mock_firmware_gateway.get_latest = AsyncMock(return_value=_release("1.3.3"))
+
+        await use_case.execute(BaseDeviceRequest(device_ip=IP))
+
+        mock_device_gateway.execute_component_action.assert_awaited_once()
+
     async def test_it_updates_a_device_running_an_older_version(
         self, use_case, mock_device_gateway, mock_firmware_gateway
     ):
