@@ -179,10 +179,32 @@ class TestUpdateDeviceFromLocal:
     ):
         mock_firmware_gateway.get_latest = AsyncMock(return_value=None)
 
-        with pytest.raises(FirmwareError, match="No firmware published"):
+        with pytest.raises(FirmwareError, match="No stable firmware published"):
             await use_case.execute(BaseDeviceRequest(device_ip=IP))
 
         mock_device_gateway.execute_component_action.assert_not_awaited()
+
+    async def test_it_asks_the_index_for_the_requested_channel(
+        self, use_case, mock_firmware_gateway
+    ):
+        await use_case.execute(BaseDeviceRequest(device_ip=IP), channel="beta")
+
+        mock_firmware_gateway.get_latest.assert_awaited_once_with("Plus2PM", "beta")
+
+    async def test_it_asks_the_index_for_stable_by_default(
+        self, use_case, mock_firmware_gateway
+    ):
+        await use_case.execute(BaseDeviceRequest(device_ip=IP))
+
+        mock_firmware_gateway.get_latest.assert_awaited_once_with("Plus2PM", "stable")
+
+    async def test_it_names_the_channel_that_has_no_release(
+        self, use_case, mock_firmware_gateway
+    ):
+        mock_firmware_gateway.get_latest = AsyncMock(return_value=None)
+
+        with pytest.raises(FirmwareError, match="No beta firmware published"):
+            await use_case.execute(BaseDeviceRequest(device_ip=IP), channel="beta")
 
     async def test_it_short_circuits_when_already_up_to_date(
         self, use_case, mock_device_gateway, mock_firmware_gateway, mock_acquire

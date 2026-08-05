@@ -4,6 +4,7 @@ import pytest
 from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.entities.exceptions import ConfigurationError
 from core.domain.enums.enums import Status
+from core.domain.value_objects.firmware_release import FirmwareRelease
 from core.domain.value_objects.scan_request import ScanRequest
 from core.gateways.network import MDNSGateway
 from core.use_cases.scan_devices import ScanDevicesUseCase
@@ -228,3 +229,144 @@ class TestScanDevicesUseCase:
 
         assert result == []
         mock_mdns_client.discover_device_ips.assert_called_once_with(timeout=5.0)
+
+
+class TestScanSettlesUpdateStatus:
+    """A stalled device-side update check is answered from the manager's index."""
+
+    @pytest.fixture
+    def single_ip_request(self):
+        return ScanRequest(
+            targets=["192.168.1.1"],
+            use_predefined=False,
+            use_mdns=False,
+            timeout=3.0,
+            max_workers=10,
+        )
+
+    def _device(self, status=Status.DETECTED, **kwargs):
+        base = {
+            "ip": "192.168.1.1",
+            "status": status,
+            "device_id": "1",
+            "device_type": "SNSW-102P16EU",
+            "app_name": "Plus2PM",
+            "firmware_version": "20240101-000000/1.7.5-gabc",
+        }
+        base.update(kwargs)
+        return DiscoveredDevice(**base)
+
+    def _use_case(self, mock_device_gateway, release):
+        firmware_gateway = AsyncMock()
+        if isinstance(release, Exception):
+            firmware_gateway.get_latest = AsyncMock(side_effect=release)
+        else:
+            firmware_gateway.get_latest = AsyncMock(return_value=release)
+        use_case = ScanDevicesUseCase(
+            device_gateway=mock_device_gateway,
+            firmware_gateway=firmware_gateway,
+        )
+        return use_case, firmware_gateway
+
+    async def test_it_marks_an_update_the_index_publishes(
+        self, mock_device_gateway, single_ip_request
+    ):
+        mock_device_gateway.discover_device = AsyncMock(return_value=self._device())
+        use_case, firmware_gateway = self._use_case(
+            mock_device_gateway,
+            FirmwareRelease(
+                app_name="Plus2PM",
+                version="1.8.0",
+                build_id="20250611-100000/1.8.0-g1234567",
+                download_url="https://fwcdn.example.test/Plus2PM.zip",
+            ),
+        )
+
+        result = await use_case.execute(single_ip_request)
+
+        assert result[0].status == Status.UPDATE_AVAILABLE
+        firmware_gateway.get_latest.assert_awaited_once_with("Plus2PM")
+
+    async def test_it_marks_a_device_already_on_the_published_build(
+        self, mock_device_gateway, single_ip_request
+    ):
+        build_id = "20250611-100000/1.7.5-g1234567"
+        mock_device_gateway.discover_device = AsyncMock(
+            return_value=self._device(firmware_version=build_id)
+        )
+        use_case, _ = self._use_case(
+            mock_device_gateway,
+            FirmwareRelease(
+                app_name="Plus2PM",
+                version="1.7.5",
+                build_id=build_id,
+                download_url="https://fwcdn.example.test/Plus2PM.zip",
+            ),
+        )
+
+        result = await use_case.execute(single_ip_request)
+
+        assert result[0].status == Status.NO_UPDATE_NEEDED
+
+    async def test_it_leaves_detected_when_the_index_has_no_release(
+        self, mock_device_gateway, single_ip_request
+    ):
+        mock_device_gateway.discover_device = AsyncMock(return_value=self._device())
+        use_case, _ = self._use_case(mock_device_gateway, None)
+
+        result = await use_case.execute(single_ip_request)
+
+        assert result[0].status == Status.DETECTED
+
+    async def test_it_leaves_detected_when_the_index_is_unreachable(
+        self, mock_device_gateway, single_ip_request
+    ):
+        mock_device_gateway.discover_device = AsyncMock(return_value=self._device())
+        use_case, _ = self._use_case(mock_device_gateway, Exception("index down"))
+
+        result = await use_case.execute(single_ip_request)
+
+        assert result[0].status == Status.DETECTED
+
+    async def test_it_leaves_a_settled_status_alone(
+        self, mock_device_gateway, single_ip_request
+    ):
+        mock_device_gateway.discover_device = AsyncMock(
+            return_value=self._device(status=Status.NO_UPDATE_NEEDED)
+        )
+        use_case, firmware_gateway = self._use_case(mock_device_gateway, None)
+
+        result = await use_case.execute(single_ip_request)
+
+        assert result[0].status == Status.NO_UPDATE_NEEDED
+        firmware_gateway.get_latest.assert_not_awaited()
+
+    async def test_it_skips_a_device_without_an_app_name(
+        self, mock_device_gateway, single_ip_request
+    ):
+        mock_device_gateway.discover_device = AsyncMock(
+            return_value=self._device(app_name=None)
+        )
+        use_case, firmware_gateway = self._use_case(mock_device_gateway, None)
+
+        result = await use_case.execute(single_ip_request)
+
+        assert result[0].status == Status.DETECTED
+        firmware_gateway.get_latest.assert_not_awaited()
+
+    async def test_it_asks_the_index_once_per_app(self, mock_device_gateway):
+        request = ScanRequest(
+            targets=["192.168.1.1", "192.168.1.2"],
+            use_predefined=False,
+            use_mdns=False,
+            timeout=3.0,
+            max_workers=10,
+        )
+        mock_device_gateway.discover_device = AsyncMock(
+            side_effect=lambda ip, timeout: self._device(ip=ip)
+        )
+        use_case, firmware_gateway = self._use_case(mock_device_gateway, None)
+
+        await use_case.execute(request)
+
+        firmware_gateway.get_latest.assert_awaited_once_with("Plus2PM")

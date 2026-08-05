@@ -7,6 +7,7 @@ from api.controllers.devices import (
     execute_component_action,
     get_component_actions,
     get_device_status,
+    get_firmware_releases,
     scan_devices,
     update_device,
 )
@@ -20,6 +21,7 @@ from core.use_cases.bulk_operations import BulkOperationsUseCase
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
 from core.use_cases.get_component_actions import GetComponentActionsUseCase
+from core.use_cases.get_local_firmware_releases import GetLocalFirmwareReleases
 from core.use_cases.scan_devices import ScanDevicesUseCase
 from core.use_cases.update_device_from_local import UpdateDeviceFromLocal
 from litestar.di import Provide
@@ -188,8 +190,9 @@ class TestDevicesController:
             def __init__(self):
                 pass
 
-            async def execute(self, request):
+            async def execute(self, request, channel="stable"):
                 captured["request"] = request
+                captured["channel"] = channel
                 return ActionResult(
                     device_ip=request.device_ip,
                     success=True,
@@ -213,6 +216,98 @@ class TestDevicesController:
             assert data["source"] == "local"
             assert data["channel"] == "stable"
             assert captured["request"].device_ip == "192.168.1.100"
+            assert captured["channel"] == "stable"
+
+    def test_update_device_from_local_source_passes_the_channel(self):
+        captured = {}
+
+        class MockUpdateDeviceFromLocal(UpdateDeviceFromLocal):
+            def __init__(self):
+                pass
+
+            async def execute(self, request, channel="stable"):
+                captured["channel"] = channel
+                return ActionResult(
+                    device_ip=request.device_ip,
+                    success=True,
+                    message="Update executed successfully on shelly",
+                    action_type="shelly.Update",
+                )
+
+        with create_test_client(
+            route_handlers=[update_device],
+            dependencies={
+                "update_device_from_local_interactor": Provide(
+                    lambda: MockUpdateDeviceFromLocal(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.post(
+                "/192.168.1.100/update",
+                json={"source": "local", "channel": "beta"},
+            )
+
+            assert response.status_code == 200
+            assert response.json()["channel"] == "beta"
+            assert captured["channel"] == "beta"
+
+    def test_get_firmware_releases_reports_each_channel(self):
+        from core.domain.value_objects.firmware_release import FirmwareRelease
+
+        class MockGetLocalFirmwareReleases(GetLocalFirmwareReleases):
+            def __init__(self):
+                pass
+
+            async def execute(self, request):
+                return {
+                    "stable": FirmwareRelease(
+                        app_name="Plus2PM",
+                        version="1.8.0",
+                        build_id="20250611-100000/1.8.0-g1234567",
+                        download_url="https://fwcdn.example.test/Plus2PM.zip",
+                    ),
+                    "beta": None,
+                }
+
+        with create_test_client(
+            route_handlers=[get_firmware_releases],
+            dependencies={
+                "local_firmware_releases_interactor": Provide(
+                    lambda: MockGetLocalFirmwareReleases(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.get("/192.168.1.100/firmware-releases")
+
+            assert response.status_code == 200
+            assert response.json() == {
+                "stable": {
+                    "version": "1.8.0",
+                    "build_id": "20250611-100000/1.8.0-g1234567",
+                },
+                "beta": None,
+            }
+
+    def test_get_firmware_releases_maps_an_index_failure_to_422(self):
+        class MockGetLocalFirmwareReleases(GetLocalFirmwareReleases):
+            def __init__(self):
+                pass
+
+            async def execute(self, request):
+                raise FirmwareError("Firmware index request failed for Plus2PM")
+
+        with create_test_client(
+            route_handlers=[get_firmware_releases],
+            dependencies={
+                "local_firmware_releases_interactor": Provide(
+                    lambda: MockGetLocalFirmwareReleases(), sync_to_thread=False
+                )
+            },
+            exception_handlers=EXCEPTION_HANDLERS,
+        ) as client:
+            response = client.get("/192.168.1.100/firmware-releases")
+
+            assert response.status_code == 422
 
     def test_update_device_rejects_an_unknown_source(self):
         with create_test_client(route_handlers=[update_device]) as client:
@@ -229,26 +324,6 @@ class TestDevicesController:
 
             assert response.status_code == 400
 
-    def test_update_device_rejects_a_beta_local_update(self):
-        class MockUpdateDeviceFromLocal(UpdateDeviceFromLocal):
-            def __init__(self):
-                pass
-
-        with create_test_client(
-            route_handlers=[update_device],
-            dependencies={
-                "update_device_from_local_interactor": Provide(
-                    lambda: MockUpdateDeviceFromLocal(), sync_to_thread=False
-                )
-            },
-        ) as client:
-            response = client.post(
-                "/192.168.1.100/update",
-                json={"source": "local", "channel": "beta"},
-            )
-
-            assert response.status_code == 400
-
     def test_update_device_maps_firmware_misconfiguration_to_500(self):
         from core.domain.entities.exceptions import FirmwareConfigurationError
 
@@ -256,7 +331,7 @@ class TestDevicesController:
             def __init__(self):
                 pass
 
-            async def execute(self, request):
+            async def execute(self, request, channel="stable"):
                 raise FirmwareConfigurationError(
                     "Local updates need SHELLY_FIRMWARE_ADVERTISED_BASE_URL set"
                 )
@@ -280,8 +355,8 @@ class TestDevicesController:
             def __init__(self):
                 pass
 
-            async def execute(self, request):
-                raise FirmwareError("No firmware published for app 'Plus2PM'")
+            async def execute(self, request, channel="stable"):
+                raise FirmwareError("No stable firmware published for app 'Plus2PM'")
 
         with create_test_client(
             route_handlers=[update_device],

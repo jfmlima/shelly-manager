@@ -335,6 +335,12 @@ export interface DeviceStatusError {
 
 export type UpdateSource = "internet" | "local";
 
+/** What the manager itself can serve for a local update, per channel. */
+export type LocalFirmwareReleases = Record<
+  string,
+  { version: string; build_id: string } | null
+>;
+
 export interface ActionResult {
   ip: string;
   success: boolean;

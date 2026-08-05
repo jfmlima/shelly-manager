@@ -35,6 +35,7 @@ class TestShellyDeviceGateway:
         device_info = {
             "id": "shelly1pm-001",
             "model": "SHPM-1",
+            "app": "Plus1PM",
             "name": "Living Room Switch",
             "fw_id": "20230913-114010/v1.14.0-gcb84623",
         }
@@ -51,6 +52,7 @@ class TestShellyDeviceGateway:
         assert result.status == Status.NO_UPDATE_NEEDED
         assert result.device_id == "shelly1pm-001"
         assert result.device_type == "SHPM-1"
+        assert result.app_name == "Plus1PM"
         assert result.device_name == "Living Room Switch"
         assert result.firmware_version == "20230913-114010/v1.14.0-gcb84623"
         assert result.response_time == 0.15

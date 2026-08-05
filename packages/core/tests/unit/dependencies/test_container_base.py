@@ -93,6 +93,7 @@ class TestProviderWiring:
             "get_firmware_gateway",
             "get_acquire_firmware_interactor",
             "get_update_device_from_local_interactor",
+            "get_local_firmware_releases_interactor",
             "get_manage_firmware_interactor",
             "get_ap_device_detector",
             "get_mdns_client",

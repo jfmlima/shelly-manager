@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
   Download,
@@ -70,12 +70,7 @@ export function DeviceActions({
     }: {
       channel: UpdateChannel;
       source: UpdateSource;
-    }) =>
-      deviceApi.updateDevice(
-        ip,
-        source === "local" ? "stable" : channel,
-        source,
-      ),
+    }) => deviceApi.updateDevice(ip, channel, source),
     onSuccess: (result) => {
       if (result.success) {
         toast.success(
@@ -130,6 +125,23 @@ export function DeviceActions({
   const availableUpdates = deviceStatus?.firmware.available_updates;
   const selectedRelease = getChannelRelease(availableUpdates, updateChannel);
   const hasUpdates = hasAnyRelease(availableUpdates);
+
+  // The device's own available_updates answer for the internet source; an
+  // offline device reports none, so the local source asks the manager what
+  // its index can serve instead.
+  const localReleasesQuery = useQuery({
+    queryKey: ["local-firmware-releases", ip],
+    queryFn: () => deviceApi.getFirmwareReleases(ip),
+    enabled: updateDialogOpen && updateSource === "local",
+    staleTime: 60_000,
+  });
+  // On a failed refetch the query keeps its previous data next to isError;
+  // stale availability must not offer an update the manager may no longer
+  // have, so an errored query means "unknown", not "last known".
+  const localReleases = localReleasesQuery.isError
+    ? undefined
+    : localReleasesQuery.data;
+  const selectedLocalRelease = localReleases?.[updateChannel] ?? null;
 
   return (
     <Card>
@@ -220,39 +232,35 @@ export function DeviceActions({
                   </ol>
                 </div>
 
-                {updateSource === "internet" && (
-                  <div className="space-y-3">
-                    <label className="block text-sm font-medium">
-                      {t("deviceDetail.dialogs.updateFirmware.updateChannel")}
-                    </label>
-                    <Select
-                      value={updateChannel}
-                      onValueChange={(value: UpdateChannel) =>
-                        setUpdateChannel(value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {UPDATE_CHANNELS.map((channel) => {
-                          const release = getChannelRelease(
-                            availableUpdates,
-                            channel,
-                          );
-                          const label = t(`bulkActions.${channel}`);
-                          return (
-                            <SelectItem key={channel} value={channel}>
-                              {release
-                                ? `${label} (${release.version})`
-                                : label}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium">
+                    {t("deviceDetail.dialogs.updateFirmware.updateChannel")}
+                  </label>
+                  <Select
+                    value={updateChannel}
+                    onValueChange={(value: UpdateChannel) =>
+                      setUpdateChannel(value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UPDATE_CHANNELS.map((channel) => {
+                        const release =
+                          updateSource === "local"
+                            ? localReleases?.[channel]
+                            : getChannelRelease(availableUpdates, channel);
+                        const label = t(`bulkActions.${channel}`);
+                        return (
+                          <SelectItem key={channel} value={channel}>
+                            {release ? `${label} (${release.version})` : label}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 {updateSource === "internet" && selectedRelease && (
                   <div className="p-3 bg-muted rounded-lg space-y-2">
@@ -285,6 +293,29 @@ export function DeviceActions({
                           )}
                     </div>
                   )}
+
+                {updateSource === "local" && selectedLocalRelease && (
+                  <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
+                    {t("deviceDetail.dialogs.updateFirmware.version")}:{" "}
+                    {selectedLocalRelease.version}
+                  </div>
+                )}
+
+                {updateSource === "local" &&
+                  localReleases &&
+                  !selectedLocalRelease && (
+                    <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
+                      {t(
+                        "deviceDetail.dialogs.updateFirmware.noUpdateOnChannel",
+                      )}
+                    </div>
+                  )}
+
+                {updateSource === "local" && localReleasesQuery.isError && (
+                  <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
+                    {handleApiError(localReleasesQuery.error)}
+                  </div>
+                )}
               </div>
 
               <DialogFooter>
@@ -303,7 +334,8 @@ export function DeviceActions({
                   }
                   disabled={
                     updateMutation.isPending ||
-                    (updateSource === "internet" && !selectedRelease)
+                    (updateSource === "internet" && !selectedRelease) ||
+                    (updateSource === "local" && !selectedLocalRelease)
                   }
                 >
                   {updateMutation.isPending

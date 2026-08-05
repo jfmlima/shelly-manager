@@ -10,7 +10,6 @@ from core.domain.entities.exceptions import (
 )
 from core.domain.value_objects.action_result import ActionResult
 from core.domain.value_objects.base_device_request import BaseDeviceRequest
-from core.domain.value_objects.firmware_release import FirmwareRelease
 from core.gateways.device import DeviceGateway
 from core.gateways.firmware import FirmwareGateway
 from core.settings import FirmwareSettings
@@ -41,14 +40,16 @@ class UpdateDeviceFromLocal:
         self._acquire_firmware = acquire_firmware
         self._settings = settings
 
-    async def execute(self, request: BaseDeviceRequest) -> ActionResult:
+    async def execute(
+        self, request: BaseDeviceRequest, channel: str = "stable"
+    ) -> ActionResult:
         """Point the device at a locally cached copy of its latest firmware.
 
         Raises:
             DeviceNotFoundError: If the device is unreachable.
             FirmwareError: If the advertised base URL is unset, the device is
-                Gen1 or reports no app name, no release is published, or a
-                mandatory intermediate update is missing.
+                Gen1 or reports no app name, no release is published on the
+                channel, or a mandatory intermediate update is missing.
         """
         base_url = (self._settings.advertised_base_url or "").strip()
         if not base_url:
@@ -74,15 +75,15 @@ class UpdateDeviceFromLocal:
                 {"device_ip": ip},
             )
 
-        release = await self._firmware_gateway.get_latest(status.app_name)
+        release = await self._firmware_gateway.get_latest(status.app_name, channel)
         if release is None:
             raise FirmwareError(
-                f"No firmware published for app '{status.app_name}'",
-                {"app_name": status.app_name},
+                f"No {channel} firmware published for app '{status.app_name}'",
+                {"app_name": status.app_name, "channel": channel},
             )
 
         installed = _installed_version(status.firmware_version)
-        if _already_runs(status.firmware_version, installed, release):
+        if release.is_installed_on(status.firmware_version):
             return ActionResult(
                 device_ip=ip,
                 action_type="shelly.Update",
@@ -135,25 +136,6 @@ def _installed_version(firmware_version: str | None) -> str | None:
         return None
     _, _, after_build_date = firmware_version.partition("/")
     return (after_build_date or firmware_version).split("-g", 1)[0]
-
-
-def _already_runs(
-    firmware_version: str | None, installed: str | None, release: FirmwareRelease
-) -> bool:
-    """Whether the device already runs exactly what the index publishes.
-
-    A fw_id and the index's build id name one exact build, so they decide this
-    whenever the device reports one. Comparing versions instead would call a
-    device current when the same version has been republished under a new
-    build, which is how a reissued fix would never install. A device that
-    reports a bare version has no build to compare, so its version has to
-    settle it, otherwise it would be reflashed on every run.
-    """
-    if not firmware_version:
-        return False
-    if "/" in firmware_version:
-        return firmware_version == release.build_id
-    return installed is not None and installed == release.version
 
 
 def _version_key(version: str) -> tuple[int, ...] | None:

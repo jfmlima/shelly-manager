@@ -17,6 +17,9 @@ class DiscoveredDevice(BaseModel):
     status: Status = Field(..., description="Current device status")
     device_id: str | None = Field(None, description="Unique device identifier")
     device_type: str | None = Field(None, description="Device model/type")
+    app_name: str | None = Field(
+        None, description="Device app name firmware is looked up by, e.g. 'Plus2PM'"
+    )
     firmware_version: str | None = Field(None, description="Current firmware version")
     device_name: str | None = Field(None, description="User-defined device name")
     auth_required: bool = Field(

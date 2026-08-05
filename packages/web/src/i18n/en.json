@@ -401,7 +401,6 @@
         "updateSource": "Update Source",
         "sourceInternet": "Internet",
         "sourceLocal": "Via manager",
-        "sourceLocalHint": "The manager downloads the official firmware once and serves it to the device over the local network. Useful for devices without internet access. Stable channel only.",
         "internetStep1": "The device is told to update itself",
         "internetStep2": "It downloads the firmware from Shelly and installs it",
         "localStep1": "The manager asks Shelly which version is current",

@@ -10,8 +10,10 @@ from ..domain.entities.exceptions import (
     ValidationError,
 )
 from ..domain.enums.enums import Status
+from ..domain.value_objects.firmware_release import FirmwareRelease
 from ..domain.value_objects.scan_request import ScanRequest
 from ..gateways.device import DeviceGateway
+from ..gateways.firmware import FirmwareGateway
 from ..gateways.network import MDNSGateway
 
 logger = logging.getLogger(__name__)
@@ -24,10 +26,12 @@ class ScanDevicesUseCase:
         device_gateway: DeviceGateway,
         mdns_client: MDNSGateway | None = None,
         auth_state_cache: Any | None = None,
+        firmware_gateway: FirmwareGateway | None = None,
     ):
         self._device_gateway = device_gateway
         self._mdns_client = mdns_client
         self._auth_state_cache = auth_state_cache
+        self._firmware_gateway = firmware_gateway
 
     async def execute(self, request: ScanRequest) -> list[DiscoveredDevice]:
         """
@@ -68,7 +72,54 @@ class ScanDevicesUseCase:
             ]:
                 discovered_devices.append(result)
 
+        await self._settle_update_status(discovered_devices)
+
         return discovered_devices
+
+    async def _settle_update_status(self, devices: list[DiscoveredDevice]) -> None:
+        """Answer stalled update checks from the manager's own index lookup.
+
+        A device that cannot reach Shelly's cloud fails its own update check
+        and stays DETECTED, which the UI reads as an open question even though
+        the manager can still serve it firmware locally. The index the manager
+        queries here is the same one local updates install from, so the badge
+        and the via-manager path cannot disagree. Stable only: it is what an
+        unqualified "update available" means everywhere else in the app.
+        """
+        firmware_gateway = self._firmware_gateway
+        if firmware_gateway is None:
+            return
+
+        pending: dict[str, list[DiscoveredDevice]] = {}
+        for device in devices:
+            if device.status == Status.DETECTED and device.app_name:
+                pending.setdefault(device.app_name, []).append(device)
+        if not pending:
+            return
+
+        apps = sorted(pending)
+        lookups = await asyncio.gather(
+            *(self._lookup_release(firmware_gateway, app) for app in apps)
+        )
+
+        for app, release in zip(apps, lookups, strict=True):
+            if release is None:
+                continue
+            for device in pending[app]:
+                device.status = (
+                    Status.NO_UPDATE_NEEDED
+                    if release.is_installed_on(device.firmware_version)
+                    else Status.UPDATE_AVAILABLE
+                )
+
+    async def _lookup_release(
+        self, firmware_gateway: FirmwareGateway, app_name: str
+    ) -> FirmwareRelease | None:
+        try:
+            return await firmware_gateway.get_latest(app_name)
+        except Exception as e:
+            logger.warning("Firmware index lookup failed for app %s: %s", app_name, e)
+            return None
 
     def _validate_scan_request(self, request: ScanRequest) -> None:
         """Validate scan request."""

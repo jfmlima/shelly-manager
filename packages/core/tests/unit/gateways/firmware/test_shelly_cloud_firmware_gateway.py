@@ -56,6 +56,46 @@ class TestGetLatest:
         assert release.download_url == "https://fwcdn.example.test/Plus2PM.zip"
         assert release.channel == "stable"
 
+    async def test_it_returns_the_beta_release_when_asked(self):
+        def handler(request):
+            return httpx.Response(
+                200,
+                json={
+                    "stable": {
+                        "version": "1.7.5",
+                        "build_id": "20250611-100000/1.7.5-g1234567",
+                        "url": "https://fwcdn.example.test/Plus2PM.zip",
+                    },
+                    "beta": {
+                        "version": "1.8.0-beta2",
+                        "build_id": "20250701-100000/1.8.0-beta2-g89abcde",
+                        "url": "https://fwcdn.example.test/Plus2PM-beta.zip",
+                    },
+                },
+            )
+
+        release = await _gateway(handler).get_latest("Plus2PM", "beta")
+
+        assert release is not None
+        assert release.version == "1.8.0-beta2"
+        assert release.build_id == "20250701-100000/1.8.0-beta2-g89abcde"
+        assert release.channel == "beta"
+
+    async def test_it_returns_none_when_the_channel_has_no_entry(self):
+        def handler(request):
+            return httpx.Response(
+                200,
+                json={
+                    "stable": {
+                        "version": "1.7.5",
+                        "build_id": "20250611-100000/1.7.5-g1234567",
+                        "url": "https://fwcdn.example.test/Plus2PM.zip",
+                    }
+                },
+            )
+
+        assert (await _gateway(handler).get_latest("Plus2PM", "beta")) is None
+
     async def test_it_returns_none_when_the_index_has_no_entry(self):
         def handler(request):
             return httpx.Response(404)
