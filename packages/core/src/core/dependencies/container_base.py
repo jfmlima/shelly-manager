@@ -210,7 +210,8 @@ class BaseContainer:
     def get_bulk_operations_interactor(self) -> BulkOperationsUseCase:
         if self._bulk_operations_interactor is None:
             self._bulk_operations_interactor = BulkOperationsUseCase(
-                device_gateway=self.get_device_gateway()
+                device_gateway=self.get_device_gateway(),
+                update_device_from_local=self.get_update_device_from_local_interactor(),
             )
         return self._bulk_operations_interactor
 

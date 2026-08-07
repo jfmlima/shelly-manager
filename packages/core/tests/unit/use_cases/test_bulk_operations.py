@@ -9,16 +9,27 @@ from core.domain.entities.components import (
     SystemComponent,
 )
 from core.domain.entities.device_status import DeviceStatus
-from core.domain.entities.exceptions import BulkOperationError
+from core.domain.entities.exceptions import (
+    BulkOperationError,
+    FirmwareConfigurationError,
+)
 from core.domain.value_objects.action_result import ActionResult
+from core.domain.value_objects.base_device_request import BaseDeviceRequest
 from core.use_cases.bulk_operations import BulkOperationsUseCase
 
 
 class TestBulkOperationsUseCase:
 
     @pytest.fixture
-    def use_case(self, mock_device_gateway):
-        return BulkOperationsUseCase(device_gateway=mock_device_gateway)
+    def mock_update_from_local(self):
+        return AsyncMock()
+
+    @pytest.fixture
+    def use_case(self, mock_device_gateway, mock_update_from_local):
+        return BulkOperationsUseCase(
+            device_gateway=mock_device_gateway,
+            update_device_from_local=mock_update_from_local,
+        )
 
     async def test_it_updates_multiple_devices_successfully(
         self, use_case, mock_device_gateway
@@ -82,6 +93,98 @@ class TestBulkOperationsUseCase:
 
         with pytest.raises(BulkOperationError, match="Bulk update failed"):
             await use_case.execute_bulk_update(device_ips)
+
+    async def test_it_updates_each_device_from_the_local_store(
+        self, use_case, mock_update_from_local
+    ):
+        mock_update_from_local.execute = AsyncMock(
+            side_effect=[
+                ActionResult(
+                    success=True,
+                    action_type="shelly.Update",
+                    device_ip="192.168.1.100",
+                    message="Update initiated",
+                ),
+                ActionResult(
+                    success=True,
+                    action_type="shelly.Update",
+                    device_ip="192.168.1.101",
+                    message="Update initiated",
+                ),
+            ]
+        )
+
+        results = await use_case.execute_bulk_local_update(
+            ["192.168.1.100", "192.168.1.101"], "beta"
+        )
+
+        assert [r.device_ip for r in results] == ["192.168.1.100", "192.168.1.101"]
+        assert all(r.success for r in results)
+        assert mock_update_from_local.execute.call_args_list == [
+            ((BaseDeviceRequest(device_ip="192.168.1.100"), "beta"),),
+            ((BaseDeviceRequest(device_ip="192.168.1.101"), "beta"),),
+        ]
+
+    async def test_it_continues_local_updates_past_a_failing_device(
+        self, use_case, mock_update_from_local
+    ):
+        mock_update_from_local.execute = AsyncMock(
+            side_effect=[
+                Exception("Device unreachable"),
+                ActionResult(
+                    success=True,
+                    action_type="shelly.Update",
+                    device_ip="192.168.1.101",
+                    message="Update initiated",
+                ),
+            ]
+        )
+
+        results = await use_case.execute_bulk_local_update(
+            ["192.168.1.100", "192.168.1.101"]
+        )
+
+        assert results[0].success is False
+        assert results[0].device_ip == "192.168.1.100"
+        assert results[0].error == "Device unreachable"
+        assert results[1].success is True
+
+    async def test_it_updates_a_repeated_device_locally_only_once(
+        self, use_case, mock_update_from_local
+    ):
+        mock_update_from_local.execute = AsyncMock(
+            return_value=ActionResult(
+                success=True,
+                action_type="shelly.Update",
+                device_ip="192.168.1.100",
+                message="Update initiated",
+            )
+        )
+
+        results = await use_case.execute_bulk_local_update(
+            ["192.168.1.100", "192.168.1.100"]
+        )
+
+        assert len(results) == 1
+        assert mock_update_from_local.execute.await_count == 1
+
+    async def test_it_raises_when_local_updates_are_not_configured(
+        self, use_case, mock_update_from_local
+    ):
+        mock_update_from_local.execute = AsyncMock(
+            side_effect=FirmwareConfigurationError("Advertised base URL unset")
+        )
+
+        with pytest.raises(FirmwareConfigurationError):
+            await use_case.execute_bulk_local_update(["192.168.1.100", "192.168.1.101"])
+
+    async def test_it_rejects_an_unknown_channel_for_local_updates(
+        self, use_case, mock_update_from_local
+    ):
+        with pytest.raises(ValueError):
+            await use_case.execute_bulk_local_update(["192.168.1.100"], "nightly")
+
+        mock_update_from_local.execute.assert_not_awaited()
 
     async def test_it_reboots_multiple_devices_successfully(
         self, use_case, mock_device_gateway

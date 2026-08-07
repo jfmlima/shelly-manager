@@ -133,7 +133,7 @@ class ComponentActionsUseCase:
         return results
 
     async def execute_local_update(
-        self, request: ComponentActionRequest
+        self, request: ComponentActionRequest, channel: str = "stable"
     ) -> list[ComponentActionResult]:
         """Update devices with firmware served from the manager's local store.
 
@@ -184,7 +184,7 @@ class ComponentActionsUseCase:
             for device_ip in device_ips:
                 try:
                     action_result = await update_interactor.execute(
-                        BaseDeviceRequest(device_ip=device_ip)
+                        BaseDeviceRequest(device_ip=device_ip), channel
                     )
 
                     result = ComponentActionResult(

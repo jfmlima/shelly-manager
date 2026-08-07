@@ -64,6 +64,17 @@ export const getBulkOperationTimeout = (deviceCount: number): number => {
   return Math.min(baseTimeout + deviceCount * perDeviceTimeout, maxTimeout);
 };
 
+// Local updates run sequentially server-side and the first device of an app
+// may wait on the bundle download, so the window starts where the
+// single-device local timeout ends.
+export const getBulkLocalUpdateTimeout = (deviceCount: number): number => {
+  const baseTimeout = 120000;
+  const perDeviceTimeout = 15000;
+  const maxTimeout = 600000;
+
+  return Math.min(baseTimeout + deviceCount * perDeviceTimeout, maxTimeout);
+};
+
 export const apiClient = axios.create({
   baseURL: `${baseURL}/api`,
   headers: {
@@ -187,7 +198,10 @@ export const deviceApi = {
     operation: "update" | "reboot" | "factory_reset",
     parameters: Record<string, unknown> = {},
   ): Promise<ActionResult[]> => {
-    const timeout = getBulkOperationTimeout(deviceIps.length);
+    const timeout =
+      operation === "update" && parameters.source === "local"
+        ? getBulkLocalUpdateTimeout(deviceIps.length)
+        : getBulkOperationTimeout(deviceIps.length);
     const response = await apiClient.post(
       "/devices/bulk",
       {
@@ -205,6 +219,7 @@ export const deviceApi = {
   ): Promise<ActionResult[]> => {
     return deviceApi.bulkExecuteOperation(request.device_ips, "update", {
       channel: request.channel || "stable",
+      source: request.source || "internet",
     });
   },
 

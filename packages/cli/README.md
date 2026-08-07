@@ -161,7 +161,7 @@ With `--source local` the manager downloads the official firmware once and the
 device fetches it from the manager, so only this host needs internet access.
 It reads the same firmware store as the API and requires
 `SHELLY_FIRMWARE_ADVERTISED_BASE_URL` to be set to a URL your devices can
-reach; the API must serve that URL. Stable channel only.
+reach; the API must serve that URL.
 
 ### Configuration Management
 

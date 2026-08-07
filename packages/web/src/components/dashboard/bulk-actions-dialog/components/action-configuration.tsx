@@ -11,6 +11,8 @@ export function ActionConfiguration({
   selectedAction,
   updateChannel,
   onUpdateChannelChange,
+  updateSource,
+  onUpdateSourceChange,
   confirmFactoryReset,
   onConfirmFactoryResetChange,
   selectedComponentTypes,
@@ -29,6 +31,8 @@ export function ActionConfiguration({
         <UpdateActionConfig
           updateChannel={updateChannel}
           onUpdateChannelChange={onUpdateChannelChange}
+          updateSource={updateSource}
+          onUpdateSourceChange={onUpdateSourceChange}
           onExecute={onExecute}
           onCancel={onCancel}
         />
