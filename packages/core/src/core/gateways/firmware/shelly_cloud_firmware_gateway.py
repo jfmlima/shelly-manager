@@ -59,7 +59,9 @@ class ShellyCloudFirmwareGateway(FirmwareGateway):
                 verify=verify,
             )
 
-    async def get_latest(self, app_name: str) -> FirmwareRelease | None:
+    async def get_latest(
+        self, app_name: str, channel: str = "stable"
+    ) -> FirmwareRelease | None:
         if not _is_safe_app_name(app_name):
             raise FirmwareError(
                 f"Refusing firmware lookup for unsafe app name '{app_name}'",
@@ -80,7 +82,7 @@ class ShellyCloudFirmwareGateway(FirmwareGateway):
                 {"app_name": app_name},
             ) from e
 
-        return _release_from_index_entry(app_name, data)
+        return _release_from_index_entry(app_name, data, channel)
 
     async def download(
         self, release: FirmwareRelease, dest_path: str
@@ -254,16 +256,18 @@ def _reject_oversized(response: httpx.Response, release: FirmwareRelease) -> Non
         )
 
 
-def _release_from_index_entry(app_name: str, data: Any) -> FirmwareRelease | None:
+def _release_from_index_entry(
+    app_name: str, data: Any, channel: str
+) -> FirmwareRelease | None:
     if not isinstance(data, dict):
         return None
-    stable = data.get("stable")
-    if not isinstance(stable, dict):
+    entry = data.get(channel)
+    if not isinstance(entry, dict):
         return None
 
-    version = stable.get("version")
-    build_id = stable.get("build_id")
-    download_url = stable.get("url")
+    version = entry.get("version")
+    build_id = entry.get("build_id")
+    download_url = entry.get("url")
     if not (
         isinstance(version, str)
         and version
@@ -279,5 +283,5 @@ def _release_from_index_entry(app_name: str, data: Any) -> FirmwareRelease | Non
         version=version,
         build_id=build_id,
         download_url=download_url,
-        channel="stable",
+        channel=channel,
     )

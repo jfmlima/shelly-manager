@@ -24,6 +24,7 @@ import type {
   UpdateBackupScheduleRequest,
   ScheduleRunResult,
   UpdateSource,
+  LocalFirmwareReleases,
 } from "@/types/api";
 import { loadAppSettings } from "./settings";
 import { parseResponse } from "./schemas/parse";
@@ -160,6 +161,11 @@ export const deviceApi = {
 
   getDeviceStatus: async (ip: string): Promise<DeviceStatus> => {
     const response = await apiClient.get(`/devices/${ip}/status`);
+    return response.data;
+  },
+
+  getFirmwareReleases: async (ip: string): Promise<LocalFirmwareReleases> => {
+    const response = await apiClient.get(`/devices/${ip}/firmware-releases`);
     return response.data;
   },
 

@@ -19,6 +19,7 @@ from core.use_cases.bulk_operations import BulkOperationsUseCase
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
 from core.use_cases.get_component_actions import GetComponentActionsUseCase
+from core.use_cases.get_local_firmware_releases import GetLocalFirmwareReleases
 from core.use_cases.scan_devices import ScanDevicesUseCase
 from core.use_cases.update_device_from_local import UpdateDeviceFromLocal
 from litestar import Router, get, post
@@ -274,13 +275,8 @@ async def update_device(
         update_device_from_local_interactor = _require(
             "update_device_from_local_interactor", update_device_from_local_interactor
         )
-        if channel is not UpdateChannel.STABLE:
-            raise HTTPException(
-                status_code=400,
-                detail="Local updates support the stable channel only",
-            )
         result = await update_device_from_local_interactor.execute(
-            BaseDeviceRequest(device_ip=ip)
+            BaseDeviceRequest(device_ip=ip), channel=channel.value
         )
     else:
         execute_component_action_interactor = _require(
@@ -304,6 +300,47 @@ async def update_device(
         "action_type": result.action_type,
         "channel": channel.value,
         "source": source,
+    }
+
+
+@get(
+    "/{ip:str}/firmware-releases",
+    tags=["Devices"],
+    summary="Preview Firmware Releases for Local Update",
+)
+async def get_firmware_releases(
+    ip: str,
+    local_firmware_releases_interactor: GetLocalFirmwareReleases | None = None,
+) -> dict:
+    """
+    Show what firmware a local (via manager) update would install, per channel.
+
+    The versions come from the manager's own index lookup, so they are
+    accurate for devices without internet access. Channels the index
+    publishes nothing for are null, as is every channel for a device local
+    updates cannot serve (Gen1 or no reported app name).
+
+    Args:
+        ip: Device IP address (e.g., "192.168.1.100")
+
+    Returns:
+        dict: Release metadata by channel name, e.g.
+            {"stable": {"version": ..., "build_id": ...}, "beta": null}
+    """
+    local_firmware_releases_interactor = _require(
+        "local_firmware_releases_interactor", local_firmware_releases_interactor
+    )
+
+    releases = await local_firmware_releases_interactor.execute(
+        BaseDeviceRequest(device_ip=ip)
+    )
+    return {
+        channel: (
+            None
+            if release is None
+            else {"version": release.version, "build_id": release.build_id}
+        )
+        for channel, release in releases.items()
     }
 
 
@@ -463,6 +500,7 @@ devices_router = Router(
         execute_component_action,
         get_device_status,
         update_device,
+        get_firmware_releases,
         reboot_device,
         execute_bulk_operations,
         bulk_export_config,

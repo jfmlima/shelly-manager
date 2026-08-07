@@ -82,6 +82,10 @@ def get_dependencies(container: APIContainer) -> dict:
             lambda: container.get_update_device_from_local_interactor(),
             sync_to_thread=False,
         ),
+        "local_firmware_releases_interactor": Provide(
+            lambda: container.get_local_firmware_releases_interactor(),
+            sync_to_thread=False,
+        ),
         "manage_firmware_use_case": Provide(
             lambda: container.get_manage_firmware_interactor(),
             sync_to_thread=False,

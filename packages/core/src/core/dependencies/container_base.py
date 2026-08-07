@@ -43,6 +43,7 @@ from core.use_cases.capture_device_config import CaptureDeviceConfig
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase
 from core.use_cases.execute_component_action import ExecuteComponentActionUseCase
 from core.use_cases.get_component_actions import GetComponentActionsUseCase
+from core.use_cases.get_local_firmware_releases import GetLocalFirmwareReleases
 from core.use_cases.manage_backup_schedules import ManageBackupSchedulesUseCase
 from core.use_cases.manage_firmware import ManageFirmware
 from core.use_cases.manage_provisioning_profiles import (
@@ -82,6 +83,7 @@ class BaseContainer:
         self._firmware_gateway: ShellyCloudFirmwareGateway | None = None
         self._acquire_firmware_interactor: AcquireFirmware | None = None
         self._update_device_from_local_interactor: UpdateDeviceFromLocal | None = None
+        self._local_firmware_releases_interactor: GetLocalFirmwareReleases | None = None
         self._manage_firmware_interactor: ManageFirmware | None = None
         # Every slot above is a device-scoped cache cleared by
         # _reset_device_caches(); slots below survive close().
@@ -180,6 +182,7 @@ class BaseContainer:
                 device_gateway=self.get_device_gateway(),
                 mdns_client=self.get_mdns_client(),
                 auth_state_cache=self.get_auth_state_cache(),
+                firmware_gateway=self.get_firmware_gateway(),
             )
         return self._scan_interactor
 
@@ -229,6 +232,14 @@ class BaseContainer:
                 settings=core_settings.firmware,
             )
         return self._update_device_from_local_interactor
+
+    def get_local_firmware_releases_interactor(self) -> GetLocalFirmwareReleases:
+        if self._local_firmware_releases_interactor is None:
+            self._local_firmware_releases_interactor = GetLocalFirmwareReleases(
+                device_gateway=self.get_device_gateway(),
+                firmware_gateway=self.get_firmware_gateway(),
+            )
+        return self._local_firmware_releases_interactor
 
     def get_manage_firmware_interactor(self) -> ManageFirmware:
         if self._manage_firmware_interactor is None:

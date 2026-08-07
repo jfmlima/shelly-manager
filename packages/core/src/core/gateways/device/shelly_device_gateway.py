@@ -90,6 +90,7 @@ class ShellyDeviceGateway(DeviceGateway):
                 status=Status.DETECTED,
                 device_id=device_data.get("id"),
                 device_type=device_data.get("model"),
+                app_name=device_data.get("app"),
                 device_name=device_data.get("name"),
                 firmware_version=device_data.get("fw_id"),
                 auth_required=auth_required,

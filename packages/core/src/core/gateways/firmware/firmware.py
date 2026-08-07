@@ -7,8 +7,10 @@ from core.domain.value_objects.firmware_release import FirmwareRelease
 
 class FirmwareGateway(ABC):
     @abstractmethod
-    async def get_latest(self, app_name: str) -> FirmwareRelease | None:
-        """Latest stable release for an app, or ``None`` when the index has none."""
+    async def get_latest(
+        self, app_name: str, channel: str = "stable"
+    ) -> FirmwareRelease | None:
+        """Latest release for an app on a channel, or ``None`` when the index has none."""
         pass
 
     @abstractmethod
