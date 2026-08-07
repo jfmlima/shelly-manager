@@ -42,6 +42,7 @@ class TestDevicesController:
                     device_type="Shelly 1",
                     device_name="Test Device",
                     firmware_version="1.0.0",
+                    available_firmware_version="1.2.0",
                     response_time=0.5,
                     last_seen=datetime.now(),
                 )
@@ -62,6 +63,7 @@ class TestDevicesController:
             assert len(data) == 1
             assert data[0]["ip"] == "192.168.1.100"
             assert data[0]["status"] == "detected"
+            assert data[0]["available_firmware_version"] == "1.2.0"
 
     def test_scan_without_targets_returns_400(self):
         from core.domain.entities.exceptions import ValidationError

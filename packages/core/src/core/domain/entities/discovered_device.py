@@ -21,6 +21,9 @@ class DiscoveredDevice(BaseModel):
         None, description="Device app name firmware is looked up by, e.g. 'Plus2PM'"
     )
     firmware_version: str | None = Field(None, description="Current firmware version")
+    available_firmware_version: str | None = Field(
+        None, description="Version an available update would install"
+    )
     device_name: str | None = Field(None, description="User-defined device name")
     auth_required: bool = Field(
         False, description="Whether device requires authentication"

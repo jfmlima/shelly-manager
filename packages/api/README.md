@@ -214,6 +214,7 @@ curl "http://localhost:8000/api/devices/scan?targets=192.168.1.1-10"
     "device_type": "shelly1pm",
     "device_name": "Living Room Light",
     "firmware_version": "20230913-112003",
+    "available_firmware_version": "1.2.0",
     "response_time": 0.123,
     "last_seen": "2024-01-15T10:30:00Z"
   }

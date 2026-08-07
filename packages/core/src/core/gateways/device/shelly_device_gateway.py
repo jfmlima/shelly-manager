@@ -107,7 +107,11 @@ class ShellyDeviceGateway(DeviceGateway):
                 stable_update = update_data.get("stable", {}) if update_data else {}
                 beta_update = update_data.get("beta", {}) if update_data else {}
 
-                if stable_update.get("version") or beta_update.get("version"):
+                available_version = stable_update.get("version") or beta_update.get(
+                    "version"
+                )
+                if available_version:
+                    device.available_firmware_version = available_version
                     device.status = Status.UPDATE_AVAILABLE
                 else:
                     device.status = Status.NO_UPDATE_NEEDED

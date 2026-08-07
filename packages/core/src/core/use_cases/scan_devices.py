@@ -106,11 +106,11 @@ class ScanDevicesUseCase:
             if release is None:
                 continue
             for device in pending[app]:
-                device.status = (
-                    Status.NO_UPDATE_NEEDED
-                    if release.is_installed_on(device.firmware_version)
-                    else Status.UPDATE_AVAILABLE
-                )
+                if release.is_installed_on(device.firmware_version):
+                    device.status = Status.NO_UPDATE_NEEDED
+                else:
+                    device.status = Status.UPDATE_AVAILABLE
+                    device.available_firmware_version = release.version
 
     async def _lookup_release(
         self, firmware_gateway: FirmwareGateway, app_name: str

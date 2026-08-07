@@ -285,6 +285,7 @@ class TestScanSettlesUpdateStatus:
         result = await use_case.execute(single_ip_request)
 
         assert result[0].status == Status.UPDATE_AVAILABLE
+        assert result[0].available_firmware_version == "1.8.0"
         firmware_gateway.get_latest.assert_awaited_once_with("Plus2PM")
 
     async def test_it_marks_a_device_already_on_the_published_build(
@@ -307,6 +308,7 @@ class TestScanSettlesUpdateStatus:
         result = await use_case.execute(single_ip_request)
 
         assert result[0].status == Status.NO_UPDATE_NEEDED
+        assert result[0].available_firmware_version is None
 
     async def test_it_leaves_detected_when_the_index_has_no_release(
         self, mock_device_gateway, single_ip_request
@@ -339,6 +341,23 @@ class TestScanSettlesUpdateStatus:
         result = await use_case.execute(single_ip_request)
 
         assert result[0].status == Status.NO_UPDATE_NEEDED
+        firmware_gateway.get_latest.assert_not_awaited()
+
+    async def test_it_keeps_the_device_reported_available_version(
+        self, mock_device_gateway, single_ip_request
+    ):
+        mock_device_gateway.discover_device = AsyncMock(
+            return_value=self._device(
+                status=Status.UPDATE_AVAILABLE,
+                available_firmware_version="1.9.0",
+            )
+        )
+        use_case, firmware_gateway = self._use_case(mock_device_gateway, None)
+
+        result = await use_case.execute(single_ip_request)
+
+        assert result[0].status == Status.UPDATE_AVAILABLE
+        assert result[0].available_firmware_version == "1.9.0"
         firmware_gateway.get_latest.assert_not_awaited()
 
     async def test_it_skips_a_device_without_an_app_name(
