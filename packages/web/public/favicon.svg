@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+    .bg { fill: #18181b; }
+    .fg { fill: #fafafa; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #fafafa; }
+      .fg { fill: #18181b; }
+    }
+  </style>
+  <rect class="bg" width="64" height="64" rx="14" />
+  <text class="fg" x="32" y="33" text-anchor="middle" dominant-baseline="central" font-family="system-ui, 'Segoe UI', 'DejaVu Sans', sans-serif" font-weight="700" font-size="26">SM</text>
+</svg>

@@ -83,6 +83,7 @@
       "title": "Discovered Devices",
       "description": "Found {{count}} device(s). Click on any row to view device details.",
       "ip": "IP Address",
+      "openDeviceUi": "Open the web UI of {{ip}} in a new tab",
       "status": "Firmware Status",
       "deviceType": "Device Type",
       "deviceName": "Device Name",

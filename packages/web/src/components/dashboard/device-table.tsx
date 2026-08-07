@@ -13,7 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ChevronDown } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatDistanceToNow } from "date-fns";
 
@@ -149,7 +149,19 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
         </Button>
       ),
       cell: ({ row }) => (
-        <div className="font-mono text-sm">{row.getValue("ip")}</div>
+        <a
+          href={`http://${row.getValue("ip")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          aria-label={t("dashboard.deviceTable.openDeviceUi", {
+            ip: row.getValue("ip"),
+          })}
+          className="font-mono text-sm hover:underline inline-flex items-center gap-1"
+        >
+          {row.getValue("ip")}
+          <ExternalLink className="h-3 w-3 text-muted-foreground" />
+        </a>
       ),
     },
     {
