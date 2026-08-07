@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { deviceApi, handleApiError } from "@/lib/api";
-import type { Device } from "@/types/api";
+import type { Device, UpdateSource } from "@/types/api";
 import type { BulkProgress } from "../types";
 
 interface UseBulkActionsProps {
@@ -24,10 +24,17 @@ export function useBulkActions({
   const { t } = useTranslation();
 
   const bulkUpdateMutation = useMutation({
-    mutationFn: async (updateChannel: "stable" | "beta") => {
+    mutationFn: async ({
+      channel,
+      source,
+    }: {
+      channel: "stable" | "beta";
+      source: UpdateSource;
+    }) => {
       const deviceIps = selectedDevices.map((device) => device.ip);
       return deviceApi.bulkExecuteOperation(deviceIps, "update", {
-        channel: updateChannel,
+        channel,
+        source,
       });
     },
     onSuccess: (results) => {

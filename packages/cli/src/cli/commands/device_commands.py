@@ -15,7 +15,7 @@ from ..entities import (
     DeviceScanRequest,
     DeviceStatusRequest,
 )
-from ..exceptions import EXIT_USAGE, EXIT_VALIDATION
+from ..exceptions import EXIT_VALIDATION
 from ..presentation.styles import Messages
 from ..use_cases.device.component_actions import ComponentActionsUseCase
 from ..use_cases.device.device_status import DeviceStatusUseCase
@@ -340,12 +340,6 @@ async def update_firmware(
       shelly-manager device update 192.168.1.0/24 --channel beta
       shelly-manager device update -t 192.168.1.100 --source local
     """
-    if source == "local" and channel != UpdateChannel.STABLE.value:
-        ctx.obj.console.print(
-            Messages.error("Local updates support the stable channel only")
-        )
-        sys.exit(EXIT_USAGE)
-
     request = ComponentActionRequest(
         targets=list(targets) + list(targets_opt),
         component_key="shelly",
@@ -362,6 +356,7 @@ async def update_firmware(
         "shelly-manager device update -t 192.168.1.100",
         "shelly-manager device update 192.168.1.0/24 --channel beta",
         from_local_store=source == "local",
+        channel=channel,
     )
 
 
@@ -416,21 +411,21 @@ async def _run_component_action(
     request: ComponentActionRequest,
     *examples: str,
     from_local_store: bool = False,
+    channel: str = "stable",
 ) -> None:
     """Run one component action across every requested device.
 
     ``from_local_store`` serves a firmware update out of this host's own
-    firmware store rather than leaving each device to fetch from the internet.
+    firmware store rather than leaving each device to fetch from the
+    internet; ``channel`` picks the release it serves.
     """
     console = ctx.obj.console
     actions_use_case = ComponentActionsUseCase(ctx.obj.container, console)
-    execute = (
-        actions_use_case.execute_local_update
-        if from_local_store
-        else actions_use_case.execute_action
-    )
     try:
-        results = await execute(request)
+        if from_local_store:
+            results = await actions_use_case.execute_local_update(request, channel)
+        else:
+            results = await actions_use_case.execute_action(request)
     except ValueError as e:
         _print_usage_error(console, e, *examples)
         sys.exit(EXIT_VALIDATION)

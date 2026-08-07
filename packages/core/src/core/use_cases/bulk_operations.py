@@ -4,11 +4,17 @@ from datetime import UTC, datetime
 from typing import Any, TypeVar
 
 from ..domain.entities.config_snapshot import DeviceSnapshot
-from ..domain.entities.exceptions import BulkOperationError, ConfigurationError
+from ..domain.entities.exceptions import (
+    BulkOperationError,
+    ConfigurationError,
+    FirmwareConfigurationError,
+)
 from ..domain.enums.enums import UpdateChannel
 from ..domain.value_objects.action_result import ActionResult
+from ..domain.value_objects.base_device_request import BaseDeviceRequest
 from ..gateways.device import DeviceGateway
 from .capture_device_config import CaptureDeviceConfig
+from .update_device_from_local import UpdateDeviceFromLocal
 
 T = TypeVar("T")
 
@@ -46,8 +52,10 @@ class BulkOperationsUseCase:
     def __init__(
         self,
         device_gateway: DeviceGateway,
+        update_device_from_local: UpdateDeviceFromLocal,
     ):
         self._device_gateway = device_gateway
+        self._update_from_local = update_device_from_local
         self._capture = CaptureDeviceConfig(device_gateway)
 
     async def execute_bulk_update(
@@ -67,6 +75,47 @@ class BulkOperationsUseCase:
         return await self._execute_shelly_action(
             device_ips, "Update", parameters, "bulk_update", "Bulk update"
         )
+
+    async def execute_bulk_local_update(
+        self, device_ips: list[str], channel: str = "stable"
+    ) -> list[ActionResult]:
+        """
+        Update multiple devices from the manager's local firmware store.
+
+        Devices go one at a time so the first device of each app caches the
+        bundle and the rest reuse it. A failing device gets a failed result
+        while the rest proceed; a missing advertised base URL fails every
+        device identically, so it raises instead.
+
+        Args:
+            device_ips: List of device IP addresses
+            channel: Update channel (stable/beta)
+
+        Returns:
+            List of action results, one per unique device
+        """
+        channel = UpdateChannel(channel).value
+        results: list[ActionResult] = []
+        for device_ip in _unique(device_ips):
+            try:
+                results.append(
+                    await self._update_from_local.execute(
+                        BaseDeviceRequest(device_ip=device_ip), channel
+                    )
+                )
+            except FirmwareConfigurationError:
+                raise
+            except Exception as e:
+                results.append(
+                    ActionResult(
+                        device_ip=device_ip,
+                        action_type="shelly.Update",
+                        success=False,
+                        message="Local update failed",
+                        error=str(e),
+                    )
+                )
+        return results
 
     async def execute_bulk_reboot(self, device_ips: list[str]) -> list[ActionResult]:
         """

@@ -69,8 +69,10 @@ POST /api/devices/{ip}/update      # Update device firmware
 
 POST /api/devices/{ip}/reboot      # Reboot device
 
-POST /api/devices/bulk/update      # Bulk firmware updates
-  # Body: {"device_ips": ["192.168.1.100", "192.168.1.101"], "channel": "stable"}
+POST /api/devices/bulk             # Bulk operations (update, reboot, factory_reset)
+  # Body: {"device_ips": ["192.168.1.100", "192.168.1.101"], "operation": "update",
+  #        "channel": "stable", "source": "internet"}
+  #   update takes the same channel and source fields as the single-device route
 
 # Component Actions
 GET /api/devices/{ip}/components/actions           # Discover available actions
@@ -244,7 +246,7 @@ curl -X POST http://localhost:8000/api/devices/192.168.1.100/update \
 
 For a device with no internet access, ask the manager to serve the firmware.
 It downloads the official bundle once, keeps it, and hands the device a URL on
-this host. Requires `SHELLY_FIRMWARE_ADVERTISED_BASE_URL`; stable channel only.
+this host. Requires `SHELLY_FIRMWARE_ADVERTISED_BASE_URL`.
 
 ```bash
 curl -X POST http://localhost:8000/api/devices/192.168.1.100/update \

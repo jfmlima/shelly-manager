@@ -362,6 +362,7 @@ export interface BulkActionResult {
 export interface BulkUpdateRequest {
   device_ips: string[];
   channel?: "stable" | "beta";
+  source?: UpdateSource;
 }
 
 export interface ScanRequest {

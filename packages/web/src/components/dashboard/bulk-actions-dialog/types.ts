@@ -1,4 +1,4 @@
-import type { Device, ActionResult } from "@/types/api";
+import type { Device, ActionResult, UpdateSource } from "@/types/api";
 
 export type BulkActionType =
   | "update"
@@ -36,6 +36,8 @@ export interface ActionConfigurationProps {
   selectedAction: BulkActionType;
   updateChannel: "stable" | "beta";
   onUpdateChannelChange: (channel: "stable" | "beta") => void;
+  updateSource: UpdateSource;
+  onUpdateSourceChange: (source: UpdateSource) => void;
   confirmFactoryReset: boolean;
   onConfirmFactoryResetChange: (confirm: boolean) => void;
   selectedComponentTypes: string[];
@@ -90,6 +92,8 @@ export interface BaseActionConfigProps {
 export interface UpdateActionConfigProps extends BaseActionConfigProps {
   updateChannel: "stable" | "beta";
   onUpdateChannelChange: (channel: "stable" | "beta") => void;
+  updateSource: UpdateSource;
+  onUpdateSourceChange: (source: UpdateSource) => void;
 }
 
 export interface FactoryResetConfigProps extends BaseActionConfigProps {

@@ -397,7 +397,9 @@ async def execute_bulk_operations(
     returned for each device individually.
 
     Args:
-        data: Request containing device_ips list and operation type
+        data: Request containing device_ips list, operation type, and for
+            updates an optional "channel" (stable/beta) and "source"
+            (internet/local, default internet)
 
     Returns:
         list[dict]: Operation results for each device with success status
@@ -424,9 +426,20 @@ async def execute_bulk_operations(
 
     if operation == "update":
         channel = data.get("channel", "stable")
-        results = await bulk_operations_use_case.execute_bulk_update(
-            device_ips, channel
-        )
+        source = data.get("source", "internet")
+        if source not in ("internet", "local"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported source: {source}. Supported: internet, local",
+            )
+        if source == "local":
+            results = await bulk_operations_use_case.execute_bulk_local_update(
+                device_ips, channel
+            )
+        else:
+            results = await bulk_operations_use_case.execute_bulk_update(
+                device_ips, channel
+            )
     elif operation == "reboot":
         results = await bulk_operations_use_case.execute_bulk_reboot(device_ips)
     elif operation == "factory_reset":

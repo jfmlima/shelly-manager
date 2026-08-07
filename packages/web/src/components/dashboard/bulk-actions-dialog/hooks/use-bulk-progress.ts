@@ -33,8 +33,10 @@ export function useBulkProgress() {
   const calculateEstimatedDuration = (
     operationType: BulkActionType,
     deviceCount: number,
+    msPerDevice?: number,
   ): number => {
-    const baseTimePerDevice = OPERATION_TIME_ESTIMATES[operationType];
+    const baseTimePerDevice =
+      msPerDevice ?? OPERATION_TIME_ESTIMATES[operationType];
     // Add some overhead for network latency and processing
     const overheadFactor = 1.2;
     return Math.ceil(baseTimePerDevice * deviceCount * overheadFactor);
@@ -60,6 +62,7 @@ export function useBulkProgress() {
   const startProgressTimer = (
     operationType: BulkActionType,
     deviceCount: number,
+    msPerDevice?: number,
   ) => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -69,6 +72,7 @@ export function useBulkProgress() {
     const estimatedDuration = calculateEstimatedDuration(
       operationType,
       deviceCount,
+      msPerDevice,
     );
 
     timerRef.current = setInterval(() => {
@@ -118,7 +122,11 @@ export function useBulkProgress() {
     };
   }, []);
 
-  const initializeProgress = (total: number, operationType: BulkActionType) => {
+  const initializeProgress = (
+    total: number,
+    operationType: BulkActionType,
+    msPerDevice?: number,
+  ) => {
     setProgress({
       total,
       completed: 0,
@@ -127,7 +135,7 @@ export function useBulkProgress() {
       isRunning: true,
       startTime: Date.now(),
     });
-    startProgressTimer(operationType, total);
+    startProgressTimer(operationType, total, msPerDevice);
   };
 
   const resetProgress = () => {

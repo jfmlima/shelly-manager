@@ -571,6 +571,109 @@ class TestDevicesController:
 
             assert response.status_code == 400
 
+    def test_bulk_operations_update_via_local_source(self):
+        from core.use_cases.bulk_operations import BulkOperationsUseCase
+
+        class MockBulkOperationsUseCase(BulkOperationsUseCase):
+            def __init__(self):
+                pass
+
+            async def execute_bulk_update(self, device_ips, channel="stable"):
+                raise AssertionError("local source must not use the device path")
+
+            async def execute_bulk_local_update(self, device_ips, channel="stable"):
+                return [
+                    ActionResult(
+                        device_ip=ip,
+                        success=True,
+                        message=f"Updating to {channel}",
+                        action_type="shelly.Update",
+                    )
+                    for ip in device_ips
+                ]
+
+        with create_test_client(
+            route_handlers=[execute_bulk_operations],
+            dependencies={
+                "bulk_operations_use_case": Provide(
+                    lambda: MockBulkOperationsUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.post(
+                "/bulk",
+                json={
+                    "device_ips": ["192.168.1.100", "192.168.1.101"],
+                    "operation": "update",
+                    "channel": "beta",
+                    "source": "local",
+                },
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data) == 2
+            assert all(result["success"] for result in data)
+            assert all(result["source"] == "local" for result in data)
+            assert all(result["channel"] == "beta" for result in data)
+
+    def test_bulk_operations_local_update_reports_missing_configuration(self):
+        from core.domain.entities.exceptions import FirmwareConfigurationError
+        from core.use_cases.bulk_operations import BulkOperationsUseCase
+
+        class MockBulkOperationsUseCase(BulkOperationsUseCase):
+            def __init__(self):
+                pass
+
+            async def execute_bulk_local_update(self, device_ips, channel="stable"):
+                raise FirmwareConfigurationError("Advertised base URL unset")
+
+        with create_test_client(
+            route_handlers=[execute_bulk_operations],
+            dependencies={
+                "bulk_operations_use_case": Provide(
+                    lambda: MockBulkOperationsUseCase(), sync_to_thread=False
+                )
+            },
+            exception_handlers=EXCEPTION_HANDLERS,
+        ) as client:
+            response = client.post(
+                "/bulk",
+                json={
+                    "device_ips": ["192.168.1.100"],
+                    "operation": "update",
+                    "source": "local",
+                },
+            )
+
+            assert response.status_code == 500
+
+    def test_bulk_operations_update_rejects_an_unknown_source(self):
+        from core.use_cases.bulk_operations import BulkOperationsUseCase
+
+        class MockBulkOperationsUseCase(BulkOperationsUseCase):
+            def __init__(self):
+                pass
+
+        with create_test_client(
+            route_handlers=[execute_bulk_operations],
+            dependencies={
+                "bulk_operations_use_case": Provide(
+                    lambda: MockBulkOperationsUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.post(
+                "/bulk",
+                json={
+                    "device_ips": ["192.168.1.100"],
+                    "operation": "update",
+                    "source": "cloud",
+                },
+            )
+
+            assert response.status_code == 400
+
     def test_bulk_operations_reboot_successfully(self):
         from core.use_cases.bulk_operations import BulkOperationsUseCase
 

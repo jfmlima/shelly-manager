@@ -230,7 +230,7 @@ Earlier images wrote to `/app/data` instead. If you carried that over with a mou
 
 **Scheduled backups** run on the API server itself. When `SHELLY_BACKUP_SCHEDULER_ENABLED` is `true` (the default), an in-process poller captures backups for any due schedules every `SHELLY_BACKUP_POLL_INTERVAL_SECONDS` (default 60). Because the timer lives in-process, run the API as a single worker (the default); see the [API README](packages/api/README.md) for the full setting reference.
 
-**Local firmware updates** let a device that cannot reach the internet still be updated. Ask for one with `"source": "local"` on the update endpoint, or `--source local` from the CLI: the manager downloads the official firmware from Shelly once, keeps it, and tells the device to fetch it from the manager instead. The same copy serves every device running that model, so only the manager needs internet access.
+**Local firmware updates** let a device that cannot reach the internet still be updated. Ask for one with `"source": "local"` on the update endpoint (single-device or bulk), or `--source local` from the CLI: the manager downloads the official firmware from Shelly once, keeps it, and tells the device to fetch it from the manager instead. The same copy serves every device running that model, so only the manager needs internet access.
 
 Set `SHELLY_FIRMWARE_ADVERTISED_BASE_URL` to a URL your devices can reach, for example `http://192.168.1.50:8000`. There is no default and a local update fails immediately without it, because the manager cannot work out its own device-facing address. The devices fetch that URL unauthenticated, so it has to be reachable from the device network.
 

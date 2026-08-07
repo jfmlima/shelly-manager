@@ -19,6 +19,7 @@ import { ActionConfiguration } from "./components/action-configuration";
 import { ProgressDisplay } from "./components/progress-display";
 
 import type { BulkActionsDialogProps, BulkActionType } from "./types";
+import type { UpdateSource } from "@/types/api";
 
 export function BulkActionsDialog({
   open,
@@ -35,6 +36,7 @@ export function BulkActionsDialog({
   const [updateChannel, setUpdateChannel] = useState<"stable" | "beta">(
     "stable",
   );
+  const [updateSource, setUpdateSource] = useState<UpdateSource>("internet");
   const [confirmFactoryReset, setConfirmFactoryReset] = useState(false);
   const [selectedComponentTypes, setSelectedComponentTypes] = useState<
     string[]
@@ -68,6 +70,8 @@ export function BulkActionsDialog({
   const resetDialog = () => {
     setSelectedAction(null);
     resetProgress();
+    setUpdateChannel("stable");
+    setUpdateSource("internet");
     setConfirmFactoryReset(false);
     setSelectedComponentTypes([]);
     setSelectedComponentType("");
@@ -89,10 +93,20 @@ export function BulkActionsDialog({
     }
   };
 
+  // Local updates run sequentially on the server and may wait on a firmware
+  // download, so the default 3s/device estimate would fill the bar in seconds.
+  const LOCAL_UPDATE_MS_PER_DEVICE = 20000;
+
   const executeAction = async () => {
     if (!selectedAction) return;
 
-    initializeProgress(selectedDevices.length, selectedAction);
+    initializeProgress(
+      selectedDevices.length,
+      selectedAction,
+      selectedAction === "update" && updateSource === "local"
+        ? LOCAL_UPDATE_MS_PER_DEVICE
+        : undefined,
+    );
 
     if (selectedAction === "export_config") {
       if (selectedComponentTypes.length === 0) {
@@ -118,7 +132,10 @@ export function BulkActionsDialog({
 
     switch (selectedAction) {
       case "update":
-        bulkUpdateMutation.mutate(updateChannel);
+        bulkUpdateMutation.mutate({
+          channel: updateChannel,
+          source: updateSource,
+        });
         break;
       case "reboot":
         bulkRebootMutation.mutate();
@@ -169,6 +186,8 @@ export function BulkActionsDialog({
               selectedAction={selectedAction}
               updateChannel={updateChannel}
               onUpdateChannelChange={setUpdateChannel}
+              updateSource={updateSource}
+              onUpdateSourceChange={setUpdateSource}
               confirmFactoryReset={confirmFactoryReset}
               onConfirmFactoryResetChange={setConfirmFactoryReset}
               selectedComponentTypes={selectedComponentTypes}
