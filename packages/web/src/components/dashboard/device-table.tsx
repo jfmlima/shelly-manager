@@ -82,12 +82,16 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
     initialSettings.tableDensity,
   );
 
-  const getStatusBadge = (status: string) => {
-    const statusLower = status?.toLowerCase() || "";
+  const getStatusBadge = (device: Device) => {
+    const statusLower = device.status?.toLowerCase() || "";
     let variant: "default" | "secondary" | "destructive" | "outline" =
       "default";
 
-    if (statusLower.includes("detected") || statusLower.includes("online")) {
+    if (
+      statusLower.includes("detected") ||
+      statusLower.includes("online") ||
+      statusLower === "update_available"
+    ) {
       variant = "default";
     } else if (statusLower.includes("updating")) {
       variant = "secondary";
@@ -100,9 +104,16 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
       variant = "outline";
     }
 
-    return (
-      <Badge variant={variant}>{t(`status.${statusLower}`, status)}</Badge>
-    );
+    return <Badge variant={variant}>{getStatusLabel(device)}</Badge>;
+  };
+
+  const getStatusLabel = (device: Device) => {
+    const statusLower = device.status?.toLowerCase() || "";
+    const label = t(`status.${statusLower}`, device.status);
+    return statusLower === "update_available" &&
+      device.available_firmware_version
+      ? `${label} (${device.available_firmware_version})`
+      : label;
   };
 
   const columns: ColumnDef<Device>[] = [
@@ -142,7 +153,8 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
       ),
     },
     {
-      accessorKey: "status",
+      id: "status",
+      accessorFn: (device) => getStatusLabel(device),
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -153,7 +165,7 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => getStatusBadge(row.getValue("status")),
+      cell: ({ row }) => getStatusBadge(row.original),
     },
     {
       accessorKey: "device_type",

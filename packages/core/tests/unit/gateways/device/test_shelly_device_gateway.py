@@ -821,6 +821,44 @@ class TestShellyDeviceGateway:
 
         assert result is not None
         assert result.status == Status.NO_UPDATE_NEEDED
+        assert result.available_firmware_version is None
+
+    async def test_it_captures_the_available_update_version(
+        self, gateway, mock_rpc_client
+    ):
+        device_info = {"id": "test-device", "model": "SHSW-1", "fw_id": "1.0.0"}
+        update_info = {
+            "stable": {"version": "2.6.0"},
+            "beta": {"version": "2.7.0-beta1"},
+        }
+        mock_rpc_client.make_rpc_request = AsyncMock()
+        mock_rpc_client.make_rpc_request.side_effect = [
+            (device_info, 0.1),
+            (update_info, 0.05),
+        ]
+
+        result = await gateway.discover_device("192.168.1.100")
+
+        assert result is not None
+        assert result.status == Status.UPDATE_AVAILABLE
+        assert result.available_firmware_version == "2.6.0"
+
+    async def test_it_captures_a_beta_only_update_version(
+        self, gateway, mock_rpc_client
+    ):
+        device_info = {"id": "test-device", "model": "SHSW-1", "fw_id": "1.0.0"}
+        update_info = {"stable": {}, "beta": {"version": "2.7.0-beta1"}}
+        mock_rpc_client.make_rpc_request = AsyncMock()
+        mock_rpc_client.make_rpc_request.side_effect = [
+            (device_info, 0.1),
+            (update_info, 0.05),
+        ]
+
+        result = await gateway.discover_device("192.168.1.100")
+
+        assert result is not None
+        assert result.status == Status.UPDATE_AVAILABLE
+        assert result.available_firmware_version == "2.7.0-beta1"
 
     async def test_it_handles_null_update_info(self, gateway, mock_rpc_client):
         device_info = {"id": "test-device", "model": "SHSW-1", "fw_id": "1.0.0"}

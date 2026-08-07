@@ -84,6 +84,7 @@ async def scan_devices(
             "device_type": device.device_type,
             "device_name": device.device_name,
             "firmware_version": device.firmware_version,
+            "available_firmware_version": device.available_firmware_version,
             "response_time": device.response_time,
             "error_message": device.error_message,
             "last_seen": device.last_seen.isoformat() if device.last_seen else None,

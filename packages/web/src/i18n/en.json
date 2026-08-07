@@ -83,7 +83,7 @@
       "title": "Discovered Devices",
       "description": "Found {{count}} device(s). Click on any row to view device details.",
       "ip": "IP Address",
-      "status": "Status",
+      "status": "Firmware Status",
       "deviceType": "Device Type",
       "deviceName": "Device Name",
       "firmwareVersion": "Firmware Version",
@@ -486,6 +486,9 @@
     "updating": "Updating",
     "unknown": "Unknown",
     "detected": "Detected",
+    "update_available": "Update Available",
+    "no_update_needed": "Up to Date",
+    "auth_required": "Auth Required",
     "error": "Error"
   },
   "errors": {
