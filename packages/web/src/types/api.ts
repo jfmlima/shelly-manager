@@ -2,6 +2,7 @@ export interface Device {
   ip: string;
   status: string;
   device_type: string;
+  model_name?: string | null;
   device_name: string;
   firmware_version: string;
   available_firmware_version?: string | null;
@@ -298,6 +299,8 @@ export interface SummaryUpdateInfo {
 
 export interface DeviceSummary {
   device_name: string | null;
+  device_type: string | null;
+  model_name: string | null;
   mac_address: string | null;
   firmware_version: string | null;
   uptime: number;

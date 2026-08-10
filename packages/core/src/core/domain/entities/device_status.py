@@ -3,6 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from ..model_names import get_model_name
 from .components import (
     CloudComponent,
     ComponentType,
@@ -186,6 +187,8 @@ class DeviceStatus(BaseModel):
         return {
             "device_name": self.device_name
             or (sys_info.device_name if sys_info else None),
+            "device_type": self.device_type,
+            "model_name": get_model_name(self.device_type),
             "mac_address": self.mac_address
             or (sys_info.mac_address if sys_info else None),
             "firmware_version": self.firmware_version

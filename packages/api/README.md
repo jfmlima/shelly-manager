@@ -213,7 +213,8 @@ curl "http://localhost:8000/api/devices/scan?targets=192.168.1.1-10"
   {
     "ip": "192.168.1.100",
     "status": "online",
-    "device_type": "shelly1pm",
+    "device_type": "SHSW-PM",
+    "model_name": "Shelly 1PM",
     "device_name": "Living Room Light",
     "firmware_version": "20230913-112003",
     "available_firmware_version": "1.2.0",

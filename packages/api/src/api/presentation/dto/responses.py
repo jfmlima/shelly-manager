@@ -20,6 +20,7 @@ class DeviceResponse(BaseModel):
     ip: str
     device_id: str | None = None
     device_type: str | None = None
+    model_name: str | None = None
     device_name: str | None = None
     firmware_version: str | None = None
     status: str
