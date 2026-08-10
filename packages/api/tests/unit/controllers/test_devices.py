@@ -39,7 +39,7 @@ class TestDevicesController:
                 device = DiscoveredDevice(
                     ip="192.168.1.100",
                     status=Status.DETECTED,
-                    device_type="Shelly 1",
+                    device_type="SHSW-PM",
                     device_name="Test Device",
                     firmware_version="1.0.0",
                     available_firmware_version="1.2.0",
@@ -64,6 +64,8 @@ class TestDevicesController:
             assert data[0]["ip"] == "192.168.1.100"
             assert data[0]["status"] == "detected"
             assert data[0]["available_firmware_version"] == "1.2.0"
+            assert data[0]["device_type"] == "SHSW-PM"
+            assert data[0]["model_name"] == "Shelly 1PM"
 
     def test_scan_without_targets_returns_400(self):
         from core.domain.entities.exceptions import ValidationError
@@ -483,6 +485,7 @@ class TestDevicesController:
                     device_ip=request.device_ip,
                     components=[],
                     total_components=0,
+                    device_type="SHSW-PM",
                 )
 
         with create_test_client(
@@ -501,6 +504,8 @@ class TestDevicesController:
             assert "components" in data
             assert "summary" in data
             assert "firmware" in data
+            assert data["summary"]["device_type"] == "SHSW-PM"
+            assert data["summary"]["model_name"] == "Shelly 1PM"
 
     def test_bulk_operations_update_successfully(self):
         from core.use_cases.bulk_operations import BulkOperationsUseCase

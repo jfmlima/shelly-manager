@@ -3,6 +3,7 @@ import {
   WifiOff,
   Power,
   Activity,
+  Cpu,
   HardDrive,
   Clock,
   Zap,
@@ -168,6 +169,25 @@ export function DeviceHeader({ deviceStatus, isLoading }: DeviceHeaderProps) {
                   </div>
                 )}
               </div>
+
+              {(summary.model_name || summary.device_type) && (
+                <>
+                  <div className="flex items-center space-x-2">
+                    <Cpu className="h-4 w-4 text-muted-foreground" />
+                    <span>{t("deviceDetail.deviceInfo.device")}</span>
+                  </div>
+                  <div className="pl-6 space-y-1">
+                    <div className="text-xs">
+                      {summary.model_name || summary.device_type}
+                    </div>
+                    {summary.model_name && summary.device_type && (
+                      <div className="font-mono text-xs text-muted-foreground break-all">
+                        {summary.device_type}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Right Column - Uptime and Restart Required */}

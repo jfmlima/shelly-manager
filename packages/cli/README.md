@@ -104,9 +104,9 @@ shelly-manager device reboot 192.168.1.100 --force  # Skip confirmation
 
 ```
 ┌─────────────────┬──────────┬─────────────┬──────────────────┬─────────────┐
-│ IP Address      │ Status   │ Device Type │ Device Name      │ Firmware    │
+│ IP Address      │ Status   │ Model       │ Device Name      │ Firmware    │
 ├─────────────────┼──────────┼─────────────┼──────────────────┼─────────────┤
-│ 192.168.1.100   │ online   │ shelly1pm   │ Living Room      │ 20230913... │
+│ 192.168.1.100   │ online   │ Shelly 1PM  │ Living Room      │ 20230913... │
 │ 192.168.1.101   │ offline  │ unknown     │ -                │ -           │
 └─────────────────┴──────────┴─────────────┴──────────────────┴─────────────┘
 ```

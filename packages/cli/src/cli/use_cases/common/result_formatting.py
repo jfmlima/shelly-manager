@@ -46,7 +46,7 @@ class ResultFormatter:
         """Format table for DiscoveredDevice entities."""
         table = Table(title=title)
         table.add_column("IP Address", style="cyan")
-        table.add_column("Device Type", style="green")
+        table.add_column("Model", style="green")
         table.add_column("Name", style="blue")
         table.add_column("Firmware", style="magenta")
         table.add_column("Status", style="yellow")
@@ -58,7 +58,7 @@ class ResultFormatter:
             )
             table.add_row(
                 device.ip,
-                device.device_type or "Unknown",
+                device.model_name or device.device_type or "Unknown",
                 device.device_name or "Unknown",
                 device.firmware_version or "Unknown",
                 format_device_status(device.status),
@@ -77,7 +77,7 @@ class ResultFormatter:
         """Legacy format for backward compatibility."""
         table = Table(title=title)
         table.add_column("IP Address", style="cyan")
-        table.add_column("Device Type", style="green")
+        table.add_column("Model", style="green")
         table.add_column("Name", style="blue")
         table.add_column("Firmware", style="magenta")
         table.add_column("Status", style="yellow")
@@ -85,13 +85,19 @@ class ResultFormatter:
         for device in devices:
             if hasattr(device, "ip"):
                 ip = device.ip
-                device_type = getattr(device, "device_type", "Unknown")
+                device_type = (
+                    getattr(device, "model_name", None)
+                    or getattr(device, "device_type", None)
+                    or "Unknown"
+                )
                 name = getattr(device, "device_name", "Unknown")
                 firmware = getattr(device, "firmware_version", "Unknown")
                 status = getattr(device, "status", "Unknown")
             else:
                 ip = device.get("ip", "Unknown")
-                device_type = device.get("device_type", "Unknown")
+                device_type = (
+                    device.get("model_name") or device.get("device_type") or "Unknown"
+                )
                 name = device.get("device_name", "Unknown")
                 firmware = device.get("firmware_version", "Unknown")
                 status = device.get("status", "Unknown")

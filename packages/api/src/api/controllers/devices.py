@@ -82,6 +82,7 @@ async def scan_devices(
             "ip": device.ip,
             "status": device.status,
             "device_type": device.device_type,
+            "model_name": device.model_name,
             "device_name": device.device_name,
             "firmware_version": device.firmware_version,
             "available_firmware_version": device.available_firmware_version,

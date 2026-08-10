@@ -151,6 +151,24 @@ class TestDeviceStatusComponents:
         assert summary["zigbee_connected"] is True
         assert summary["zigbee_network_state"] == "joined"
 
+    def test_it_includes_model_name_in_device_summary(self):
+        device_status = DeviceStatus(
+            device_ip="192.168.1.100", components=[], device_type="SNSW-102P16EU"
+        )
+
+        summary = device_status.get_device_summary()
+
+        assert summary["device_type"] == "SNSW-102P16EU"
+        assert summary["model_name"] == "Shelly Plus 2PM"
+
+    def test_it_returns_no_model_name_for_unknown_device_type(self):
+        device_status = DeviceStatus(device_ip="192.168.1.100", components=[])
+
+        summary = device_status.get_device_summary()
+
+        assert summary["device_type"] is None
+        assert summary["model_name"] is None
+
     def test_it_handles_device_summary_no_zigbee(self):
         device_status = DeviceStatus(device_ip="192.168.1.100", components=[])
 

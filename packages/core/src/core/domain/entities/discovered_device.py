@@ -4,10 +4,11 @@ DiscoveredDevice domain model.
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from ...utils.validation import validate_ip_address
 from ..enums.enums import Status
+from ..model_names import get_model_name
 
 
 class DiscoveredDevice(BaseModel):
@@ -34,6 +35,12 @@ class DiscoveredDevice(BaseModel):
     )
     error_message: str | None = Field(None, description="Last error message if any")
     has_update: bool = Field(False, description="Whether firmware update is available")
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def model_name(self) -> str | None:
+        """Friendly marketing name for device_type, None when unmapped."""
+        return get_model_name(self.device_type)
 
     @field_validator("ip")
     @classmethod

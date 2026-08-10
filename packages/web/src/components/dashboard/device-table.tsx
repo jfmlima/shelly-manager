@@ -116,6 +116,16 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
       : label;
   };
 
+  const columnLabels: Record<string, string> = {
+    ip: t("dashboard.deviceTable.ip"),
+    status: t("dashboard.deviceTable.status"),
+    device_type: t("dashboard.deviceTable.model"),
+    device_name: t("dashboard.deviceTable.deviceName"),
+    firmware_version: t("dashboard.deviceTable.firmwareVersion"),
+    response_time: t("dashboard.deviceTable.responseTime"),
+    last_seen: t("dashboard.deviceTable.lastSeen"),
+  };
+
   const columns: ColumnDef<Device>[] = [
     {
       id: "select",
@@ -180,20 +190,33 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
       cell: ({ row }) => getStatusBadge(row.original),
     },
     {
-      accessorKey: "device_type",
+      id: "device_type",
+      accessorFn: (device) =>
+        [device.model_name, device.device_type].filter(Boolean).join(" "),
       header: ({ column }) => (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="h-8 px-2"
         >
-          {t("dashboard.deviceTable.deviceType")}
+          {t("dashboard.deviceTable.model")}
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => (
-        <div className="font-medium">{row.getValue("device_type")}</div>
-      ),
+      cell: ({ row }) => {
+        const modelName = row.original.model_name;
+        const deviceType = row.original.device_type;
+        return (
+          <div className="font-medium">
+            {modelName || deviceType}
+            {modelName && (
+              <div className="font-mono text-xs text-muted-foreground break-all">
+                {deviceType}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "device_name",
@@ -357,13 +380,12 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
                       return (
                         <DropdownMenuCheckboxItem
                           key={column.id}
-                          className="capitalize"
                           checked={column.getIsVisible()}
                           onCheckedChange={(value) =>
                             column.toggleVisibility(!!value)
                           }
                         >
-                          {column.id}
+                          {columnLabels[column.id] ?? column.id}
                         </DropdownMenuCheckboxItem>
                       );
                     })}
