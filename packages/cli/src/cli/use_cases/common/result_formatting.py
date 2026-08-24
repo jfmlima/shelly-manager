@@ -5,6 +5,7 @@ Result formatting utilities for CLI operations.
 from typing import Any
 
 from core.domain.entities import DeviceStatus, DiscoveredDevice
+from core.domain.enums.enums import Status
 from rich.console import Console
 from rich.table import Table
 
@@ -21,7 +22,10 @@ class ResultFormatter:
         self._console = console
 
     def format_device_table(
-        self, devices: list[Any], title: str = "Shelly Devices"
+        self,
+        devices: list[Any],
+        title: str = "Shelly Devices",
+        include_beta: bool = False,
     ) -> None:
         """
         Format and display a table of devices.
@@ -29,19 +33,34 @@ class ResultFormatter:
         Args:
             devices: List of device objects or dictionaries
             title: Table title
+            include_beta: Whether beta-only updates should be surfaced as
+                available, instead of reported as up to date
         """
         if not devices:
             return
 
         if devices and isinstance(devices[0], DiscoveredDevice):
-            self._format_discovered_devices_table(devices, title)
+            self._format_discovered_devices_table(devices, title, include_beta)
         elif devices and isinstance(devices[0], DeviceStatus):
-            self._format_device_status_table(devices)
+            self._format_device_status_table(devices, include_beta)
         else:
             self._format_legacy_device_table(devices, title)
 
+    def _effective_status(self, device: DiscoveredDevice, include_beta: bool) -> str:
+        """The status to display, downgrading a beta-only update to "no
+        update needed" when beta visibility is off — mirrors the same
+        allowed-channels rule the web UI applies."""
+        status = device.status
+        if (
+            not include_beta
+            and str(status) == Status.UPDATE_AVAILABLE.value
+            and getattr(device, "available_firmware_channel", None) == "beta"
+        ):
+            return Status.NO_UPDATE_NEEDED.value
+        return status
+
     def _format_discovered_devices_table(
-        self, devices: list[DiscoveredDevice], title: str
+        self, devices: list[DiscoveredDevice], title: str, include_beta: bool = False
     ) -> None:
         """Format table for DiscoveredDevice entities."""
         table = Table(title=title)
@@ -61,17 +80,19 @@ class ResultFormatter:
                 device.model_name or device.device_type or "Unknown",
                 device.device_name or "Unknown",
                 device.firmware_version or "Unknown",
-                format_device_status(device.status),
+                format_device_status(self._effective_status(device, include_beta)),
                 response_time,
             )
 
         self._console.print(table)
 
-    def _format_device_status_table(self, devices: list[DeviceStatus]) -> None:
+    def _format_device_status_table(
+        self, devices: list[DeviceStatus], include_beta: bool = False
+    ) -> None:
         """Format table for DeviceStatus entities."""
 
         for device_status in devices:
-            self.format_detailed_device_status(device_status)
+            self.format_detailed_device_status(device_status, include_beta)
 
     def _format_legacy_device_table(self, devices: list[Any], title: str) -> None:
         """Legacy format for backward compatibility."""
@@ -106,7 +127,9 @@ class ResultFormatter:
 
         self._console.print(table)
 
-    def format_detailed_device_status(self, device_status: DeviceStatus) -> None:
+    def format_detailed_device_status(
+        self, device_status: DeviceStatus, include_beta: bool = False
+    ) -> None:
         """Format detailed component information for a single device."""
         from rich.columns import Columns
         from rich.panel import Panel
@@ -132,7 +155,16 @@ class ResultFormatter:
             # Show available firmware updates with version information
             if system_info.available_updates:
                 device_summary = device_status.get_device_summary()
-                available_updates = device_summary.get("available_updates", {})
+                raw_available_updates = device_summary.get("available_updates", {})
+                available_updates = (
+                    raw_available_updates
+                    if include_beta
+                    else {
+                        channel: info
+                        for channel, info in raw_available_updates.items()
+                        if channel != "beta"
+                    }
+                )
 
                 if available_updates:
                     system_content.append("[yellow]Updates Available:[/yellow]")
@@ -140,10 +172,16 @@ class ResultFormatter:
                         version = update_info.get("version", "Unknown")
                         name = update_info.get("name", update_type) or update_type
                         system_content.append(f"  [cyan]• {name}:[/cyan] {version}")
-                else:
+                elif not raw_available_updates:
+                    # The raw component data has entries but none carried a
+                    # usable version, so get_device_summary filtered
+                    # everything out — unrelated to beta visibility.
                     system_content.append(
                         f"[yellow]Updates Available:[/yellow] {len(system_info.available_updates)}"
                     )
+                # else: only a beta release exists and beta visibility is
+                # off — show nothing, exactly like a device with no
+                # updates at all. No partial hint.
 
             system_panel = Panel(
                 "\n".join(system_content),

@@ -97,6 +97,6 @@ class DeviceStatusUseCase:
 
         return results
 
-    def display_results(self, results: list[Any]) -> None:
+    def display_results(self, results: list[Any], include_beta: bool = False) -> None:
         """Display status results to console."""
-        self._result_formatter.format_device_table(results)
+        self._result_formatter.format_device_table(results, include_beta=include_beta)

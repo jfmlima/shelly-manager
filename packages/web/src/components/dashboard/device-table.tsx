@@ -82,8 +82,19 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
     initialSettings.tableDensity,
   );
 
+  const getEffectiveStatus = (device: Device): string => {
+    if (
+      !initialSettings.showBetaUpdates &&
+      device.status === "update_available" &&
+      device.available_firmware_channel === "beta"
+    ) {
+      return "no_update_needed";
+    }
+    return device.status;
+  };
+
   const getStatusBadge = (device: Device) => {
-    const statusLower = device.status?.toLowerCase() || "";
+    const statusLower = getEffectiveStatus(device).toLowerCase();
     let variant: "default" | "secondary" | "destructive" | "outline" =
       "default";
 
@@ -104,13 +115,23 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
       variant = "outline";
     }
 
-    return <Badge variant={variant}>{getStatusLabel(device)}</Badge>;
+    return (
+      <div className="flex items-center gap-1.5">
+        <Badge variant={variant}>{getStatusLabel(device)}</Badge>
+        {initialSettings.showBetaUpdates &&
+          device.available_firmware_channel === "beta" && (
+            <Badge className="text-xs px-1.5 py-0 bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300">
+              {t("bulkActions.beta")}
+            </Badge>
+          )}
+      </div>
+    );
   };
 
   const getStatusLabel = (device: Device) => {
-    const statusLower = device.status?.toLowerCase() || "";
-    const label = t(`status.${statusLower}`, device.status);
-    return statusLower === "update_available" &&
+    const effectiveStatus = getEffectiveStatus(device).toLowerCase();
+    const label = t(`status.${effectiveStatus}`, device.status);
+    return effectiveStatus === "update_available" &&
       device.available_firmware_version
       ? `${label} (${device.available_firmware_version})`
       : label;

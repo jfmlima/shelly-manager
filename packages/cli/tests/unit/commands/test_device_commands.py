@@ -134,6 +134,28 @@ class TestScanCommand:
         assert call_args.timeout == 5.0
         assert call_args.max_workers == 20
 
+    def test_scan_help_documents_include_beta(self, cli_context):
+        runner = CliRunner()
+        result = runner.invoke(device_commands, ["scan", "--help"], obj=cli_context)
+
+        assert result.exit_code == 0
+        assert "--include-beta" in result.output
+
+    def test_scan_accepts_include_beta_flag(
+        self, cli_context_with_scan, sample_devices, mock_scan_interactor
+    ):
+        mock_scan_interactor.execute.return_value = sample_devices
+
+        runner = CliRunner()
+        result = runner.invoke(
+            device_commands,
+            ["scan", "192.168.1.1-50", "--include-beta"],
+            obj=cli_context_with_scan,
+        )
+
+        assert result.exit_code == 0
+        mock_scan_interactor.execute.assert_called_once()
+
 
 class TestListCommand:
 
@@ -173,6 +195,28 @@ class TestListCommand:
         runner = CliRunner()
         result = runner.invoke(
             device_commands, ["list", "10.0.0.1"], obj=cli_context_with_list
+        )
+
+        assert result.exit_code == 0
+        mock_scan_interactor.execute.assert_called_once()
+
+    def test_list_help_documents_include_beta(self, cli_context):
+        runner = CliRunner()
+        result = runner.invoke(device_commands, ["list", "--help"], obj=cli_context)
+
+        assert result.exit_code == 0
+        assert "--include-beta" in result.output
+
+    def test_list_accepts_include_beta_flag(
+        self, cli_context_with_list, sample_devices, mock_scan_interactor
+    ):
+        mock_scan_interactor.execute.return_value = sample_devices
+
+        runner = CliRunner()
+        result = runner.invoke(
+            device_commands,
+            ["list", "10.0.0.1", "--include-beta"],
+            obj=cli_context_with_list,
         )
 
         assert result.exit_code == 0
@@ -295,6 +339,34 @@ class TestStatusCommand:
 
         assert result.exit_code == 0
         mock_status_interactor.execute.assert_called_once()
+
+    def test_status_help_documents_include_beta(self, cli_context):
+        runner = CliRunner()
+        result = runner.invoke(device_commands, ["status", "--help"], obj=cli_context)
+
+        assert result.exit_code == 0
+        assert "--include-beta" in result.output
+
+    def test_status_accepts_include_beta_flag(
+        self,
+        cli_context_with_status,
+        mock_status_interactor,
+        mock_scan_interactor_for_status,
+        sample_devices,
+        sample_device,
+    ):
+        mock_scan_interactor_for_status.execute.return_value = sample_devices
+        mock_status_interactor.execute.return_value = sample_device
+
+        runner = CliRunner()
+        result = runner.invoke(
+            device_commands,
+            ["status", "192.168.1.100", "192.168.1.101", "--include-beta"],
+            obj=cli_context_with_status,
+        )
+
+        assert result.exit_code == 0
+        assert mock_status_interactor.execute.call_count == 2
 
 
 class TestDeviceRebootCommand:

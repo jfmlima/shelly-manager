@@ -25,6 +25,10 @@ class DiscoveredDevice(BaseModel):
     available_firmware_version: str | None = Field(
         None, description="Version an available update would install"
     )
+    available_firmware_channel: str | None = Field(
+        None,
+        description='Channel the available update was found on ("stable" or "beta")',
+    )
     device_name: str | None = Field(None, description="User-defined device name")
     auth_required: bool = Field(
         False, description="Whether device requires authentication"

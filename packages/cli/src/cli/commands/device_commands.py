@@ -35,6 +35,11 @@ def device_commands() -> None:
 @device_commands.command()
 @click.argument("targets", nargs=-1)
 @click.option("--use-mdns", is_flag=True, help="Use mDNS to discover devices")
+@click.option(
+    "--include-beta",
+    is_flag=True,
+    help="Count beta-only firmware updates as available (hidden by default)",
+)
 @device_targeting_options
 @common_options
 @click.pass_context
@@ -44,6 +49,7 @@ async def scan(
     targets: tuple[str, ...],
     targets_opt: tuple[str, ...],
     use_mdns: bool,
+    include_beta: bool,
     timeout: int,
     workers: int,
 ) -> None:
@@ -55,6 +61,7 @@ async def scan(
       shelly-manager scan 192.168.1.0/24
       shelly-manager scan -t 192.168.1.100 -t 192.168.1.101
       shelly-manager scan --use-mdns
+      shelly-manager scan 192.168.1.0/24 --include-beta
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -70,11 +77,16 @@ async def scan(
     )
 
     devices_found = await scan_use_case.execute(request)
-    scan_use_case.display_results(devices_found)
+    scan_use_case.display_results(devices_found, include_beta=include_beta)
 
 
 @device_commands.command("list")
 @click.argument("targets", nargs=-1)
+@click.option(
+    "--include-beta",
+    is_flag=True,
+    help="Count beta-only firmware updates as available (hidden by default)",
+)
 @device_targeting_options
 @common_options
 @click.pass_context
@@ -83,6 +95,7 @@ async def list_devices(
     ctx: click.Context,
     targets: tuple[str, ...],
     targets_opt: tuple[str, ...],
+    include_beta: bool,
     timeout: int,
     workers: int,
 ) -> None:
@@ -90,8 +103,9 @@ async def list_devices(
     Similar to scan but optimized for listing known devices with full details in a table format.
 
     Examples:
-      shelly-manager list 192.168.1.0/24
-      shelly-manager list -t 192.168.1.100 -t 192.168.1.101
+      shelly-manager device list 192.168.1.0/24
+      shelly-manager device list -t 192.168.1.100 -t 192.168.1.101
+      shelly-manager device list 192.168.1.0/24 --include-beta
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -108,13 +122,20 @@ async def list_devices(
     devices_found = await scan_use_case.execute(request)
 
     if devices_found:
-        scan_use_case.display_results(devices_found, show_table=True)
+        scan_use_case.display_results(
+            devices_found, show_table=True, include_beta=include_beta
+        )
     else:
         console.print(f"\n{Messages.warning('No devices found')}")
 
 
 @device_commands.command()
 @click.argument("targets", nargs=-1, required=False)
+@click.option(
+    "--include-beta",
+    is_flag=True,
+    help="Include beta-only firmware updates in the update list (hidden by default)",
+)
 @device_targeting_options
 @common_options
 @click.pass_context
@@ -123,6 +144,7 @@ async def status(
     ctx: click.Context,
     targets: tuple[str, ...],
     targets_opt: tuple[str, ...],
+    include_beta: bool,
     timeout: int,
     workers: int,
 ) -> None:
@@ -133,6 +155,7 @@ async def status(
     Examples:
       shelly-manager status 192.168.1.100 192.168.1.101
       shelly-manager status -t 192.168.1.0/24
+      shelly-manager status 192.168.1.100 --include-beta
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -156,7 +179,7 @@ async def status(
             "shelly-manager device status 192.168.1.0/24",
         )
         sys.exit(EXIT_VALIDATION)
-    status_use_case.display_results(results)
+    status_use_case.display_results(results, include_beta=include_beta)
 
 
 @click.group()

@@ -60,7 +60,10 @@ class DeviceScanUseCase:
         return devices_found
 
     def display_results(
-        self, devices_found: list[Any], show_table: bool = True
+        self,
+        devices_found: list[Any],
+        show_table: bool = True,
+        include_beta: bool = False,
     ) -> None:
         """
         Display scan results to console.
@@ -68,9 +71,12 @@ class DeviceScanUseCase:
         Args:
             devices_found: List of discovered devices
             show_table: Whether to show device table
+            include_beta: Whether beta-only updates count as available
         """
         if show_table:
-            self._result_formatter.format_device_table(devices_found)
+            self._result_formatter.format_device_table(
+                devices_found, include_beta=include_beta
+            )
 
         if devices_found:
             self._console.print(

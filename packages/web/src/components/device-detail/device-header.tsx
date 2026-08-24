@@ -21,6 +21,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getChannelReleases } from "@/lib/firmware-updates";
+import { loadAppSettings } from "@/lib/settings";
 import type { DeviceStatus } from "@/types/api";
 
 interface DeviceHeaderProps {
@@ -59,8 +60,10 @@ export function DeviceHeader({ deviceStatus, isLoading }: DeviceHeaderProps) {
   }
 
   const { summary, ip } = deviceStatus;
+  const { showBetaUpdates } = loadAppSettings();
   const channelReleases = getChannelReleases(
     deviceStatus.firmware.available_updates,
+    showBetaUpdates ? undefined : ["stable"],
   );
 
   const getStatusBadge = () => {
@@ -145,24 +148,27 @@ export function DeviceHeader({ deviceStatus, isLoading }: DeviceHeaderProps) {
                     </div>
                     <div className="space-y-1">
                       {channelReleases.map(({ channel, release }) => (
-                        <div
-                          key={channel}
-                          className="flex items-center space-x-2"
-                        >
+                        <div key={channel} className="space-y-0.5">
                           <Badge
                             variant="secondary"
-                            className="text-xs px-2 py-0"
+                            className={
+                              channel === "beta"
+                                ? "text-xs px-2 py-0 bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300"
+                                : "text-xs px-2 py-0 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                            }
                           >
-                            {channel}
+                            {t(`bulkActions.${channel}`)}
                           </Badge>
-                          <span className="text-xs font-mono">
-                            {release.version}
-                          </span>
-                          {release.name && (
-                            <span className="text-xs text-muted-foreground">
-                              ({release.name})
+                          <div className="flex flex-wrap items-center gap-x-1.5">
+                            <span className="text-xs font-mono break-all">
+                              {release.version}
                             </span>
-                          )}
+                            {release.name && (
+                              <span className="text-xs text-muted-foreground">
+                                ({release.name})
+                              </span>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -292,8 +298,10 @@ export function DeviceHeader({ deviceStatus, isLoading }: DeviceHeaderProps) {
                   <div className="h-4 w-4 text-muted-foreground">🔄</div>
                   <span>{t("deviceDetail.deviceInfo.updates")}</span>
                 </span>
-                <Badge variant={summary.has_updates ? "secondary" : "outline"}>
-                  {summary.has_updates
+                <Badge
+                  variant={channelReleases.length > 0 ? "secondary" : "outline"}
+                >
+                  {channelReleases.length > 0
                     ? t("deviceDetail.deviceInfo.available")
                     : t("deviceDetail.deviceInfo.upToDate")}
                 </Badge>

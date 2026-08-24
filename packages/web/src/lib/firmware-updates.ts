@@ -18,16 +18,25 @@ export function getChannelRelease(
 
 export function getChannelReleases(
   availableUpdates: AvailableUpdates | undefined,
+  allowedChannels?: readonly string[],
 ): { channel: string; release: FirmwareRelease }[] {
   return Object.entries(availableUpdates ?? {}).flatMap(([channel, release]) =>
-    isRelease(release) ? [{ channel, release }] : [],
+    isRelease(release) &&
+    (!allowedChannels || allowedChannels.includes(channel))
+      ? [{ channel, release }]
+      : [],
   );
 }
 
 export function hasAnyRelease(
   availableUpdates: AvailableUpdates | undefined,
+  allowedChannels?: readonly string[],
 ): boolean {
-  return Object.values(availableUpdates ?? {}).some(isRelease);
+  return Object.entries(availableUpdates ?? {}).some(
+    ([channel, release]) =>
+      isRelease(release) &&
+      (!allowedChannels || allowedChannels.includes(channel)),
+  );
 }
 
 function isRelease(

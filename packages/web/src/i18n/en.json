@@ -413,7 +413,8 @@
         "startingUpdate": "Starting Update...",
         "startUpdate": "Start Update",
         "noUpdateOnChannel": "No update available on this channel.",
-        "noUpdatesAvailable": "This device reports no firmware updates available."
+        "noUpdatesAvailable": "This device reports no firmware updates available.",
+        "onlyStableChannel": "Only the stable channel is available. Enable beta updates in Settings to choose a beta release."
       },
       "rebootDevice": {
         "title": "Reboot Device",
@@ -472,6 +473,13 @@
       "normal": "Normal",
       "comfortable": "Comfortable",
       "savePreferences": "Save Table Preferences"
+    },
+    "updates": {
+      "title": "Firmware Updates",
+      "description": "Control how beta firmware releases are surfaced across the app",
+      "showBetaUpdates": "Show beta updates",
+      "showBetaUpdatesDescription": "When off, beta-only releases are hidden from update badges and status indicators. You can still manually select the beta channel when updating a device.",
+      "save": "Save Update Preferences"
     },
     "footer": {
       "title": "Shelly Manager",

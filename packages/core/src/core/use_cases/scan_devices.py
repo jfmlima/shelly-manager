@@ -111,6 +111,7 @@ class ScanDevicesUseCase:
                 else:
                     device.status = Status.UPDATE_AVAILABLE
                     device.available_firmware_version = release.version
+                    device.available_firmware_channel = "stable"
 
     async def _lookup_release(
         self, firmware_gateway: FirmwareGateway, app_name: str
