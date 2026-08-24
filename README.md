@@ -400,16 +400,19 @@ openssl rand -base64 32 | tr '+/' '-_'
 ### 2. Set the Environment Variable
 
 **Linux / macOS**
+
 ```bash
 export SHELLY_SECRET_KEY="your-generated-key"
 ```
 
 **Docker**
+
 ```bash
 docker run -e SHELLY_SECRET_KEY="your-generated-key" ...
 ```
 
 **docker-compose.yml**
+
 ```yaml
 environment:
   - SHELLY_SECRET_KEY=your-generated-key
@@ -434,6 +437,16 @@ shelly-manager credentials delete AABBCCDDEEFF
 ```
 
 The same `SHELLY_SECRET_KEY` also encrypts device configuration **backup snapshots** at rest. Backups are stored in the local database (`{data_dir}/data.db`); if the key is rotated, existing encrypted snapshots can no longer be decrypted.
+
+## Optional Authentication
+
+By default, Shelly Manager has no login of its own — anyone who can reach the API or Web UI has full access. Set `SHELLY_AUTH_TOKEN` to require a shared auth token for both.
+
+```bash
+export SHELLY_AUTH_TOKEN="a-strong-random-token"
+```
+
+When set, every API request (except `/api/health` and `/api/auth/config`) must include `Authorization: Bearer <token>`, and the Web UI shows a login page asking for the token before it will load. Leave it unset to keep the zero-configuration default. Unlike `SHELLY_SECRET_KEY`, this is optional and unrelated to credential encryption.
 
 ## Development
 

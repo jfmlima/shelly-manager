@@ -1,13 +1,15 @@
 import { Link, useLocation } from "react-router-dom";
-import { Settings, Home, Radio, CalendarClock } from "lucide-react";
+import { Settings, Home, Radio, CalendarClock, LogOut } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/auth-provider";
 import { cn } from "@/lib/utils";
 
 export function Navbar() {
   const { t } = useTranslation();
   const location = useLocation();
+  const { isAuthenticated, logout } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -91,6 +93,18 @@ export function Navbar() {
               </Link>
             </Button>
             <ThemeToggle />
+            {isAuthenticated && (
+              <Button
+                variant="ghost"
+                size="sm"
+                title={t("auth.logout")}
+                className="h-8 w-8 px-0"
+                onClick={logout}
+              >
+                <LogOut className="h-[1.2rem] w-[1.2rem]" />
+                <span className="sr-only">{t("auth.logout")}</span>
+              </Button>
+            )}
           </div>
         </div>
       </div>

@@ -12,6 +12,9 @@ services:
       PORT: "8000"
       DEBUG: "true"
       SHELLY_SECRET_KEY: "${SHELLY_SECRET_KEY:?SHELLY_SECRET_KEY must be set - generate with: openssl rand -base64 32 | tr '+/' '-_'}"
+      # Optional: require a bearer token to use the API and Web UI. Unset by
+      # default (no login).
+      SHELLY_AUTH_TOKEN: "${SHELLY_AUTH_TOKEN:-}"
       # Scheduled backups run in-process on the API and assume a single worker.
       # Defaults shown; set SHELLY_BACKUP_SCHEDULER_ENABLED=false to disable.
       SHELLY_BACKUP_SCHEDULER_ENABLED: "${SHELLY_BACKUP_SCHEDULER_ENABLED:-true}"

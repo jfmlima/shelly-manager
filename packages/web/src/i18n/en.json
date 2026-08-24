@@ -20,6 +20,18 @@
     "settings": "Settings",
     "deviceDetail": "Device Detail"
   },
+  "auth": {
+    "logout": "Log out",
+    "login": {
+      "title": "Shelly Manager",
+      "description": "Enter the auth token to continue",
+      "tokenLabel": "Auth token",
+      "tokenPlaceholder": "Enter your auth token",
+      "rememberMe": "Remember me on this device",
+      "submit": "Log in",
+      "invalidToken": "Invalid token"
+    }
+  },
   "dashboard": {
     "title": "Shelly Manager Dashboard",
     "subtitle": "Discover and manage your Shelly devices from this central dashboard",

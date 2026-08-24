@@ -27,6 +27,13 @@ class DeviceAuthenticationError(ShellyManagerError):
         super().__init__(msg, {"ip": ip})
 
 
+class UnauthorizedError(ShellyManagerError):
+
+    def __init__(self, message: str | None = None):
+        msg = message or "Missing or invalid authentication token"
+        super().__init__(msg)
+
+
 class DeviceCommunicationError(ShellyManagerError):
 
     def __init__(self, ip: str, error: str, message: str | None = None):

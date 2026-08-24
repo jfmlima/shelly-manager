@@ -7,6 +7,9 @@ export type BackupListFilters = { limit: number; offset: number } & (
 );
 
 export const queryKeys = {
+  auth: {
+    config: () => ["auth", "config"] as const,
+  },
   devices: {
     scan: () => ["devices", "scan"] as const,
     status: (ip: string | undefined) => ["devices", "status", ip] as const,

@@ -27,6 +27,7 @@ import type {
   LocalFirmwareReleases,
 } from "@/types/api";
 import { loadAppSettings } from "./settings";
+import { clearToken, getStoredToken } from "./auth";
 import { parseResponse } from "./schemas/parse";
 import {
   backupDetailSchema,
@@ -140,6 +141,10 @@ export const validateApiUrl = (
 apiClient.interceptors.request.use(
   (config) => {
     console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+    const token = getStoredToken();
+    if (token && !config.headers.Authorization) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
@@ -155,9 +160,29 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     console.error("API Response Error:", error.response?.data || error.message);
+    // The login form's own token check 401s on a wrong password - that's
+    // expected and handled inline, not a session being kicked out.
+    const isAuthVerify = error.config?.url?.includes("/auth/verify");
+    if (error.response?.status === 401 && !isAuthVerify) {
+      clearToken();
+      window.dispatchEvent(new Event("auth:unauthorized"));
+    }
     return Promise.reject(error);
   },
 );
+
+export const authApi = {
+  getConfig: async (): Promise<{ enabled: boolean }> => {
+    const response = await apiClient.get("/auth/config");
+    return response.data;
+  },
+  verify: async (token: string): Promise<{ valid: boolean }> => {
+    const response = await apiClient.get("/auth/verify", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  },
+};
 
 export const deviceApi = {
   scanDevices: async (params: ScanRequest): Promise<Device[]> => {

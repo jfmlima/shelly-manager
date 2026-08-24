@@ -17,6 +17,7 @@ from core.domain.entities.exceptions import (
     DeviceNotFoundError,
     FirmwareConfigurationError,
     FirmwareError,
+    UnauthorizedError,
 )
 from core.domain.entities.exceptions import ValidationError as CoreValidationError
 from core.use_cases.backup_device_config import BackupError, BackupNotFoundError
@@ -91,6 +92,7 @@ def _typed_handler(status_code: int, error: str) -> ExceptionHandler:
 
 
 EXCEPTION_HANDLERS: MutableMapping[int | type[Exception], ExceptionHandler] | None = {
+    UnauthorizedError: _typed_handler(401, "Unauthorized"),
     DeviceAuthenticationError: _typed_handler(401, "Authentication Required"),
     DeviceNotFoundError: handle_device_not_found_error,
     DeviceCommunicationError: _typed_handler(502, "Device Communication Error"),
