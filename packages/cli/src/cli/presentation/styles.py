@@ -100,6 +100,27 @@ def get_device_status_style(status: str) -> str:
     return status_styles.get(str(status).lower(), Colors.DEVICE_UNKNOWN)
 
 
+_STATUS_LABELS = {
+    "detected": "Detected",
+    "updated": "Updated",
+    "update_available": "Update Available",
+    "no_update_needed": "Up to Date",
+    "auth_required": "Auth Required",
+    "not_shelly": "Not a Shelly Device",
+    "unreachable": "Unreachable",
+    "error": "Error",
+}
+
+
+def get_device_status_label(status: str) -> str:
+    key = status.value if hasattr(status, "value") else str(status)
+    label = _STATUS_LABELS.get(key.lower())
+    if label is not None:
+        return label
+    return key.replace("_", " ").title() if key else "Unknown"
+
+
 def format_device_status(status: str) -> str:
     style = get_device_status_style(status)
-    return f"[{style}]{status}[/{style}]"
+    label = get_device_status_label(status)
+    return f"[{style}]{label}[/{style}]"
