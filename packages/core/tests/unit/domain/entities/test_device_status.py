@@ -775,3 +775,203 @@ class TestDeviceStatusEMComponents:
 
         summary = device_status.get_device_summary()
         assert summary["total_power"] == 312.278
+
+
+class TestDeviceStatusOldFirmwarePayload:
+    """Regression for GitHub issue 88: a 1.4.0 device with an unsynced clock."""
+
+    def test_it_builds_device_status_from_a_capture_with_null_sys_time(self):
+        device_info_data = {
+            "name": "Flur SZ Rollo links",
+            "id": "shellyplus2pm-e86beae5f208",
+            "mac": "XXXXX",
+            "slot": 1,
+            "model": "SNSW-102P16EU",
+            "gen": 2,
+            "fw_id": "20240726-114505/1.4.0-gb2aeadb",
+            "ver": "1.4.0",
+            "app": "Plus2PM",
+            "auth_en": False,
+            "auth_domain": None,
+            "profile": "cover",
+        }
+        response_data = {
+            "components": [
+                {
+                    "key": "ble",
+                    "status": {},
+                    "config": {
+                        "enable": False,
+                        "rpc": {"enable": False},
+                        "observer": {"enable": False},
+                    },
+                },
+                {
+                    "key": "cloud",
+                    "status": {"connected": False},
+                    "config": {
+                        "enable": False,
+                        "server": "iot.shelly.cloud:6012/jrpc",
+                    },
+                },
+                {
+                    "key": "cover:0",
+                    "status": {
+                        "id": 0,
+                        "source": "timeout",
+                        "state": "stopped",
+                        "apower": 0.0,
+                        "voltage": 234.7,
+                        "current": 0.0,
+                        "pf": 0.0,
+                        "freq": 50.0,
+                        "aenergy": {"total": 966.07},
+                        "temperature": {"tC": 58.1, "tF": 136.6},
+                        "pos_control": True,
+                        "last_direction": "open",
+                        "current_pos": 50,
+                    },
+                    "config": {
+                        "id": 0,
+                        "name": None,
+                        "motor": {"idle_power_thr": 2.0, "idle_confirm_period": 0.25},
+                        "maxtime_open": 60.0,
+                        "maxtime_close": 60.0,
+                        "initial_state": "stopped",
+                        "invert_directions": True,
+                        "in_mode": "detached",
+                        "swap_inputs": False,
+                        "safety_switch": {
+                            "enable": False,
+                            "direction": "both",
+                            "action": "stop",
+                            "allowed_move": None,
+                        },
+                        "power_limit": 2800,
+                        "voltage_limit": 280,
+                        "undervoltage_limit": 0,
+                        "current_limit": 10.0,
+                        "obstruction_detection": {
+                            "enable": False,
+                            "direction": "both",
+                            "action": "stop",
+                            "power_thr": 113,
+                            "holdoff": 1.0,
+                        },
+                    },
+                },
+                {
+                    "key": "input:0",
+                    "status": {"id": 0, "state": None},
+                    "config": {
+                        "id": 0,
+                        "name": None,
+                        "type": "button",
+                        "enable": True,
+                        "invert": False,
+                        "factory_reset": True,
+                    },
+                },
+                {
+                    "key": "input:1",
+                    "status": {"id": 1, "state": None},
+                    "config": {
+                        "id": 1,
+                        "name": None,
+                        "type": "button",
+                        "enable": True,
+                        "invert": False,
+                        "factory_reset": True,
+                    },
+                },
+                {
+                    "key": "mqtt",
+                    "status": {"connected": False},
+                    "config": {
+                        "enable": False,
+                        "server": None,
+                        "client_id": "shellyplus2pm-e86beae5f208",
+                        "user": None,
+                        "ssl_ca": None,
+                        "topic_prefix": "shellyplus2pm-e86beae5f208",
+                        "rpc_ntf": True,
+                        "status_ntf": False,
+                        "use_client_cert": False,
+                        "enable_rpc": True,
+                        "enable_control": True,
+                    },
+                },
+                {
+                    "key": "sys",
+                    "status": {
+                        "mac": "E86BEAE5F208",
+                        "restart_required": False,
+                        "time": None,
+                        "unixtime": None,
+                        "uptime": 3539695,
+                        "ram_size": 252308,
+                        "ram_free": 132132,
+                        "fs_size": 393216,
+                        "fs_free": 98304,
+                        "cfg_rev": 11,
+                        "kvs_rev": 0,
+                        "schedule_rev": 1,
+                        "webhook_rev": 1,
+                        "available_updates": {},
+                        "reset_reason": 1,
+                    },
+                    "config": {
+                        "device": {
+                            "name": "Flur SZ Rollo links",
+                            "mac": "xxxx",
+                            "fw_id": "20240726-114505/1.4.0-gb2aeadb",
+                            "discoverable": True,
+                            "eco_mode": False,
+                            "profile": "cover",
+                            "addon_type": None,
+                        },
+                        "location": {"tz": None, "lat": None, "lon": None},
+                        "debug": {
+                            "level": 2,
+                            "file_level": None,
+                            "mqtt": {"enable": False},
+                            "websocket": {"enable": False},
+                            "udp": {"addr": None},
+                        },
+                        "ui_data": {"cover": ""},
+                        "rpc_udp": {"dst_addr": None, "listen_port": None},
+                        "sntp": {"server": "xxxx"},
+                        "cfg_rev": 11,
+                    },
+                },
+            ],
+            "cfg_rev": 11,
+            "offset": 0,
+            "total": 9,
+        }
+        status_data = {
+            "wifi": {
+                "sta_ip": "192.xxxx.22",
+                "status": "got ip",
+                "ssid": "xxxxIoT",
+                "rssi": -41,
+            },
+            "ws": {"connected": False},
+        }
+
+        device_status = DeviceStatus.from_raw_response(
+            "192.168.1.22",
+            response_data,
+            available_methods=["Sys.GetStatus", "Cover.Open", "Cover.Close"],
+            device_info_data=device_info_data,
+            status_data=status_data,
+        )
+
+        sys_info = device_status.get_system_info()
+        assert sys_info is not None
+        assert sys_info.unixtime == 0
+        assert sys_info.uptime == 3539695
+        assert len(device_status.get_covers()) == 1
+        assert len(device_status.get_inputs()) == 2
+        assert device_status.gen == 2
+        assert device_status.get_device_summary()["wifi_connected"] is True
