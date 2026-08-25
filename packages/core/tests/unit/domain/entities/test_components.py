@@ -7,6 +7,7 @@ from core.domain.entities.components import (
     EMDataComponent,
     InputComponent,
     SwitchComponent,
+    SystemComponent,
     WebSocketComponent,
     WifiComponent,
     ZigbeeComponent,
@@ -856,3 +857,100 @@ class TestEMComponentFactory:
         assert isinstance(component, EMComponent)
         assert component.total_act_power == 500.0
         assert component.a_act_power == 200.0
+
+
+class TestSystemComponent:
+    def test_it_parses_sys_status_with_null_time_fields(self):
+        raw_data = {
+            "key": "sys",
+            "status": {
+                "mac": "E86BEAE5F208",
+                "restart_required": False,
+                "time": None,
+                "unixtime": None,
+                "uptime": 3539695,
+                "ram_size": 252308,
+                "ram_free": 132132,
+                "fs_size": 393216,
+                "fs_free": 98304,
+                "cfg_rev": 11,
+                "kvs_rev": 0,
+                "schedule_rev": 1,
+                "webhook_rev": 1,
+                "available_updates": {},
+                "reset_reason": 1,
+            },
+            "config": {
+                "device": {
+                    "name": "Flur SZ Rollo links",
+                    "mac": "xxxx",
+                    "fw_id": "20240726-114505/1.4.0-gb2aeadb",
+                    "discoverable": True,
+                    "eco_mode": False,
+                    "profile": "cover",
+                    "addon_type": None,
+                },
+                "location": {"tz": None, "lat": None, "lon": None},
+                "sntp": {"server": "xxxx"},
+                "cfg_rev": 11,
+            },
+            "attrs": {},
+        }
+
+        component = SystemComponent.from_raw_data(raw_data)
+
+        assert component.unixtime == 0
+        assert component.uptime == 3539695
+        assert component.mac_address == "E86BEAE5F208"
+        assert component.device_name == "Flur SZ Rollo links"
+        assert component.firmware_version == "20240726-114505/1.4.0-gb2aeadb"
+        assert component.timezone is None
+
+    def test_it_parses_sys_status_with_nulls_in_every_guarded_field(self):
+        raw_data = {
+            "key": "sys",
+            "status": {
+                "restart_required": None,
+                "unixtime": None,
+                "uptime": None,
+                "ram_size": None,
+                "ram_free": None,
+                "fs_size": None,
+                "fs_free": None,
+                "available_updates": None,
+            },
+            "config": {},
+            "attrs": {},
+        }
+
+        component = SystemComponent.from_raw_data(raw_data)
+
+        assert component.unixtime == 0
+        assert component.uptime == 0
+        assert component.restart_required is False
+        assert component.ram_total == 0
+        assert component.ram_free == 0
+        assert component.fs_total == 0
+        assert component.fs_free == 0
+        assert component.available_updates == {}
+
+
+class TestComponentFactoryFallback:
+    def test_it_falls_back_to_base_component_when_typed_model_rejects_data(
+        self, caplog
+    ):
+        raw_data = {
+            "key": "sys",
+            "status": {"uptime": "not-a-number"},
+            "config": {},
+            "attrs": {},
+        }
+
+        with caplog.at_level("WARNING"):
+            component = ComponentFactory.create_component(raw_data)
+
+        assert type(component) is Component
+        assert component.key == "sys"
+        assert component.component_type == "sys"
+        assert component.status == {"uptime": "not-a-number"}
+        assert any("sys" in record.message for record in caplog.records)
