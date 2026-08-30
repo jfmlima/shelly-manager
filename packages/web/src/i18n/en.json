@@ -413,8 +413,7 @@
         "startingUpdate": "Starting Update...",
         "startUpdate": "Start Update",
         "noUpdateOnChannel": "No update available on this channel.",
-        "noUpdatesAvailable": "This device reports no firmware updates available.",
-        "onlyStableChannel": "Only the stable channel is available. Enable beta updates in Settings to choose a beta release."
+        "noUpdatesAvailable": "This device reports no firmware updates available."
       },
       "rebootDevice": {
         "title": "Reboot Device",

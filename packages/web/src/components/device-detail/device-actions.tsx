@@ -132,17 +132,15 @@ export function DeviceActions({
     showBetaUpdates ? undefined : ["stable"],
   );
 
-  // Preselect whichever channel actually explains the "Update Firmware"
-  // button's state: stable first, falling back to beta only when beta
-  // visibility is on — mirrors the same allowed-channels rule as hasUpdates
-  // so the dialog never opens showing "no update" for a device the button
-  // just said has one.
+  // Preselect whichever channel actually has a release, stable first, so the
+  // dialog opens on something installable even for a beta-only device (the
+  // channel stays manually selectable regardless of the beta setting).
   const preferredChannel: UpdateChannel = getChannelRelease(
     availableUpdates,
     "stable",
   )
     ? "stable"
-    : showBetaUpdates && getChannelRelease(availableUpdates, "beta")
+    : getChannelRelease(availableUpdates, "beta")
       ? "beta"
       : "stable";
 
@@ -279,15 +277,12 @@ export function DeviceActions({
                     onValueChange={(value: UpdateChannel) =>
                       setUpdateChannel(value)
                     }
-                    disabled={!showBetaUpdates}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {UPDATE_CHANNELS.filter(
-                        (channel) => channel !== "beta" || showBetaUpdates,
-                      ).map((channel) => {
+                      {UPDATE_CHANNELS.map((channel) => {
                         const release =
                           updateSource === "local"
                             ? localReleases?.[channel]
@@ -301,13 +296,6 @@ export function DeviceActions({
                       })}
                     </SelectContent>
                   </Select>
-                  {!showBetaUpdates && (
-                    <p className="text-xs text-muted-foreground">
-                      {t(
-                        "deviceDetail.dialogs.updateFirmware.onlyStableChannel",
-                      )}
-                    </p>
-                  )}
                 </div>
 
                 {updateSource === "internet" && selectedRelease && (

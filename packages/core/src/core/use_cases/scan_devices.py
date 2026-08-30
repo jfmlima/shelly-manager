@@ -9,7 +9,7 @@ from ..domain.entities.exceptions import (
     DeviceValidationError,
     ValidationError,
 )
-from ..domain.enums.enums import Status
+from ..domain.enums.enums import Status, UpdateChannel
 from ..domain.value_objects.firmware_release import FirmwareRelease
 from ..domain.value_objects.scan_request import ScanRequest
 from ..gateways.device import DeviceGateway
@@ -111,7 +111,7 @@ class ScanDevicesUseCase:
                 else:
                     device.status = Status.UPDATE_AVAILABLE
                     device.available_firmware_version = release.version
-                    device.available_firmware_channel = "stable"
+                    device.available_firmware_channel = UpdateChannel.STABLE
 
     async def _lookup_release(
         self, firmware_gateway: FirmwareGateway, app_name: str

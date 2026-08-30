@@ -50,14 +50,9 @@ class ResultFormatter:
         """The status to display, downgrading a beta-only update to "no
         update needed" when beta visibility is off — mirrors the same
         allowed-channels rule the web UI applies."""
-        status = device.status
-        if (
-            not include_beta
-            and str(status) == Status.UPDATE_AVAILABLE.value
-            and getattr(device, "available_firmware_channel", None) == "beta"
-        ):
+        if not include_beta and device.is_beta_only_update():
             return Status.NO_UPDATE_NEEDED.value
-        return status
+        return device.status
 
     def _format_discovered_devices_table(
         self, devices: list[DiscoveredDevice], title: str, include_beta: bool = False

@@ -16,7 +16,7 @@ from ...domain.entities.exceptions import (
     ConfigurationError,
     DeviceAuthenticationError,
 )
-from ...domain.enums.enums import Status
+from ...domain.enums.enums import Status, UpdateChannel
 from ...domain.value_objects.action_result import ActionResult
 from ...utils.validation import normalize_mac
 from ..network.legacy_http_client import LegacyHttpClient
@@ -544,13 +544,15 @@ class LegacyDeviceGateway:
 
     def _parse_update_version(
         self, status_data: dict[str, Any] | None
-    ) -> tuple[str, str] | None:
+    ) -> tuple[str, UpdateChannel] | None:
         """Parse the version and channel of an available update, if any.
 
-        Stable takes priority over beta, mirroring the RPC (Gen2+) gateway.
-        Returns ``None`` when no version-bearing update is reported (the
-        boolean-only ``has_update``/``update.has_update`` shorthand some
-        Gen1 firmwares report carries no version and isn't captured here).
+        The stable decision defers to ``_parse_update_flag`` so the two never
+        disagree; the beta channel is checked independently since the flag has
+        no notion of it. Stable takes priority over beta, mirroring the RPC
+        (Gen2+) gateway. Returns ``None`` when no version-bearing update is
+        reported (the boolean-only ``has_update``/``update.has_update``
+        shorthand some Gen1 firmwares report carries no version).
         """
         if not isinstance(status_data, dict):
             return None
@@ -560,17 +562,15 @@ class LegacyDeviceGateway:
             return None
 
         new_version = update_block.get("new_version")
-        old_version = update_block.get("old_version")
-        has_stable = bool(update_block.get("has_update")) or (
-            isinstance(new_version, str)
-            and isinstance(old_version, str)
-            and new_version != old_version
-        )
-        if has_stable and isinstance(new_version, str) and new_version:
-            return new_version, "stable"
+        if (
+            self._parse_update_flag(status_data)
+            and isinstance(new_version, str)
+            and new_version
+        ):
+            return new_version, UpdateChannel.STABLE
 
         beta_version = update_block.get("beta_version")
         if isinstance(beta_version, str) and beta_version:
-            return beta_version, "beta"
+            return beta_version, UpdateChannel.BETA
 
         return None

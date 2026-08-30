@@ -6,7 +6,7 @@ export interface Device {
   device_name: string;
   firmware_version: string;
   available_firmware_version?: string | null;
-  available_firmware_channel?: string | null;
+  available_firmware_channel?: "stable" | "beta" | null;
   response_time: number | null;
   error_message?: string | null;
   last_seen?: string | null;

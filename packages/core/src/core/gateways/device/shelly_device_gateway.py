@@ -15,7 +15,7 @@ from ...domain.entities.exceptions import (
     DeviceCommunicationError,
     DeviceUnreachableError,
 )
-from ...domain.enums.enums import Status
+from ...domain.enums.enums import Status, UpdateChannel
 from ...domain.value_objects.action_envelope import ActionEnvelope
 from ...domain.value_objects.action_name import ActionName
 from ...domain.value_objects.action_result import ActionResult
@@ -113,7 +113,7 @@ class ShellyDeviceGateway(DeviceGateway):
                 if available_version:
                     device.available_firmware_version = available_version
                     device.available_firmware_channel = (
-                        "stable" if stable_version else "beta"
+                        UpdateChannel.STABLE if stable_version else UpdateChannel.BETA
                     )
                     device.status = Status.UPDATE_AVAILABLE
                 else:

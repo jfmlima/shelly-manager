@@ -166,6 +166,28 @@ class TestLegacyDeviceGateway:
         assert device.available_firmware_version == "20240101-000000/v1.14.1-g1234567"
         assert device.available_firmware_channel == "stable"
 
+    async def test_it_trusts_an_explicit_has_update_false_over_differing_versions(
+        self, gateway, mock_http_client, sample_device_info
+    ):
+        mock_http_client.fetch_json.return_value = sample_device_info
+        mock_http_client.fetch_json_optional.side_effect = [
+            {
+                "update": {
+                    "has_update": False,
+                    "new_version": "20240101-000000/v1.14.1-g1234567",
+                    "old_version": "20230913-112003/v1.14.0-gCB16476",
+                }
+            },
+            {},
+        ]
+
+        device = await gateway.discover_device("192.168.1.100")
+
+        assert device.status == Status.NO_UPDATE_NEEDED
+        assert device.has_update is False
+        assert device.available_firmware_version is None
+        assert device.available_firmware_channel is None
+
     async def test_it_gets_device_status_successfully(
         self,
         gateway,
