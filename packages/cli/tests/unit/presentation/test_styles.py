@@ -1,5 +1,6 @@
 import pytest
 from cli.presentation.styles import (
+    Colors,
     format_device_status,
     get_device_status_label,
     get_device_status_style,
@@ -31,6 +32,19 @@ class TestGetDeviceStatusLabel:
 
     def test_it_falls_back_to_unknown_for_an_empty_status(self):
         assert get_device_status_label("") == "Unknown"
+
+
+class TestGetDeviceStatusStyle:
+
+    def test_it_resolves_the_same_color_for_a_string_or_an_enum(self):
+        assert (
+            get_device_status_style(Status.UPDATE_AVAILABLE)
+            == get_device_status_style("update_available")
+            == Colors.DEVICE_UPDATE_AVAILABLE
+        )
+
+    def test_it_falls_back_to_unknown_for_an_unmapped_status(self):
+        assert get_device_status_style("something_new") == Colors.DEVICE_UNKNOWN
 
 
 class TestFormatDeviceStatus:

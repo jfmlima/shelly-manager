@@ -2,6 +2,8 @@
 Standardized CLI colors and message formatting for consistent visualization.
 """
 
+from core.domain.enums.enums import Status
+
 
 class Colors:
 
@@ -89,7 +91,12 @@ class Messages:
         return f"[{Colors.ERROR}]{Icons.ERROR} {device_ip}: {error}[/{Colors.ERROR}]"
 
 
-def get_device_status_style(status: str) -> str:
+def _status_key(status: str | Status) -> str:
+    value = status.value if isinstance(status, Status) else str(status)
+    return value.lower()
+
+
+def get_device_status_style(status: str | Status) -> str:
     status_styles = {
         "detected": Colors.DEVICE_DETECTED,
         "updated": Colors.DEVICE_UPDATED,
@@ -97,7 +104,7 @@ def get_device_status_style(status: str) -> str:
         "unreachable": Colors.DEVICE_UNREACHABLE,
         "error": Colors.DEVICE_ERROR,
     }
-    return status_styles.get(str(status).lower(), Colors.DEVICE_UNKNOWN)
+    return status_styles.get(_status_key(status), Colors.DEVICE_UNKNOWN)
 
 
 _STATUS_LABELS = {
@@ -112,15 +119,14 @@ _STATUS_LABELS = {
 }
 
 
-def get_device_status_label(status: str) -> str:
-    key = status.value if hasattr(status, "value") else str(status)
-    label = _STATUS_LABELS.get(key.lower())
-    if label is not None:
-        return label
+def get_device_status_label(status: str | Status) -> str:
+    key = _status_key(status)
+    if key in _STATUS_LABELS:
+        return _STATUS_LABELS[key]
     return key.replace("_", " ").title() if key else "Unknown"
 
 
-def format_device_status(status: str) -> str:
+def format_device_status(status: str | Status) -> str:
     style = get_device_status_style(status)
     label = get_device_status_label(status)
     return f"[{style}]{label}[/{style}]"
