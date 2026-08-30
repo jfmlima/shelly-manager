@@ -37,6 +37,9 @@ def create_app() -> Litestar:
         allow_origins=["*"],
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
+        # So a cross-origin Web UI can read the auth guard's WWW-Authenticate
+        # and tell a manager logout apart from a device's own 401.
+        expose_headers=["WWW-Authenticate"],
     )
 
     openapi_config = OpenAPIConfig(

@@ -443,10 +443,12 @@ The same `SHELLY_SECRET_KEY` also encrypts device configuration **backup snapsho
 By default, Shelly Manager has no login of its own — anyone who can reach the API or Web UI has full access. Set `SHELLY_AUTH_TOKEN` to require a shared auth token for both.
 
 ```bash
-export SHELLY_AUTH_TOKEN="a-strong-random-token"
+export SHELLY_AUTH_TOKEN="$(openssl rand -base64 32)"
 ```
 
-When set, every API request (except `/api/health` and `/api/auth/config`) must include `Authorization: Bearer <token>`, and the Web UI shows a login page asking for the token before it will load. Leave it unset to keep the zero-configuration default. Unlike `SHELLY_SECRET_KEY`, this is optional and unrelated to credential encryption.
+Use a long, high-entropy value. The token-verification endpoint has no rate limiting, so a short or guessable token can be brute-forced.
+
+When set, every API request must include `Authorization: Bearer <token>`, except `/api/health`, `/api/auth/config`, and the API reference at `/docs` (and `/docs/openapi.json`), which stay public. The Web UI shows a login page asking for the token before it will load. Leave it unset to keep the zero-configuration default. Unlike `SHELLY_SECRET_KEY`, this is optional and unrelated to credential encryption.
 
 ## Development
 

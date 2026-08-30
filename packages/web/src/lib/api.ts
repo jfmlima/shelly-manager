@@ -160,10 +160,18 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     console.error("API Response Error:", error.response?.data || error.message);
-    // The login form's own token check 401s on a wrong password - that's
+    // Only the manager's auth guard sends WWW-Authenticate: Bearer. A device's
+    // own 401 (a password-protected device with missing/wrong stored
+    // credentials) does not, and must not clear the session or bounce to login.
+    const isManagerAuth = String(
+      error.response?.headers?.["www-authenticate"] ?? "",
+    )
+      .toLowerCase()
+      .includes("bearer");
+    // The login form's own token check 401s on a wrong token - that's
     // expected and handled inline, not a session being kicked out.
     const isAuthVerify = error.config?.url?.includes("/auth/verify");
-    if (error.response?.status === 401 && !isAuthVerify) {
+    if (error.response?.status === 401 && isManagerAuth && !isAuthVerify) {
       clearToken();
       window.dispatchEvent(new Event("auth:unauthorized"));
     }

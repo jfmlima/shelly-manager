@@ -453,7 +453,7 @@ curl -X POST "http://localhost:8000/api/backups/1/restore" \
 | `PORT`               | `8000`        | API server port            |
 | `DEBUG`              | `false`       | Enable debug mode          |
 | `SHELLY_SECRET_KEY`  | (required)    | Fernet key for credential encryption. Generate with: `openssl rand -base64 32 \| tr '+/' '-_'` |
-| `SHELLY_AUTH_TOKEN`  | (none, auth disabled) | Optional shared auth token. When set, every route except `/api/health` and `/api/auth/config` requires `Authorization: Bearer <token>` |
+| `SHELLY_AUTH_TOKEN`  | (none, auth disabled) | Optional shared auth token. When set, every route except `/api/health`, `/api/auth/config` and `/docs` (+ `/docs/openapi.json`) requires `Authorization: Bearer <token>`. Use a long random value; `/api/auth/verify` is not rate limited |
 | `SHELLY_BACKUP_SCHEDULER_ENABLED` | `true` | Run the in-process scheduled-backup poller |
 | `SHELLY_BACKUP_POLL_INTERVAL_SECONDS` | `60` | How often the scheduler checks for due backups |
 | `SHELLY_FIRMWARE_ADVERTISED_BASE_URL` | (none) | URL devices use to reach this API, e.g. `http://192.168.1.50:8000`. Required for local updates; it cannot be guessed |
@@ -513,8 +513,8 @@ volumes:
 ```
 
 Add `SHELLY_AUTH_TOKEN` to either example to require a bearer token on every request except
-`/api/health` and `/api/auth/config`. It's optional and off by default; the Web UI shows a
-login page for it automatically when it's set.
+`/api/health`, `/api/auth/config` and `/docs`. It's optional and off by default; the Web UI shows a
+login page for it automatically when it's set. Use a long random value (e.g. `openssl rand -base64 32`).
 
 ### Health Check
 

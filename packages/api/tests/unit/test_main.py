@@ -114,6 +114,7 @@ class TestOptionalAuthToken:
 
             assert response.status_code == 401
             assert response.json()["error"] == "Unauthorized"
+            assert response.headers["www-authenticate"] == "Bearer"
 
     def test_a_protected_route_is_reachable_with_the_correct_token(self, monkeypatch):
         monkeypatch.setattr(core.settings.settings, "auth_token", "secret123")

@@ -17,7 +17,6 @@ from core.domain.entities.exceptions import (
     DeviceNotFoundError,
     FirmwareConfigurationError,
     FirmwareError,
-    UnauthorizedError,
 )
 from core.domain.entities.exceptions import ValidationError as CoreValidationError
 from core.use_cases.backup_device_config import BackupError, BackupNotFoundError
@@ -56,7 +55,10 @@ def handle_device_not_found_error(
 
 def handle_http_exception(request: Request, exc: HTTPException) -> Response:
     return _error_response(
-        HTTPStatus(exc.status_code).phrase, exc.detail, exc.status_code
+        HTTPStatus(exc.status_code).phrase,
+        exc.detail,
+        exc.status_code,
+        headers=exc.headers or None,
     )
 
 
@@ -69,7 +71,11 @@ def handle_generic_exception(request: Request, exc: Exception) -> Response:
 
 
 def _error_response(
-    error: str, message: str, status_code: int, **extra: Any
+    error: str,
+    message: str,
+    status_code: int,
+    headers: dict[str, str] | None = None,
+    **extra: Any,
 ) -> Response:
     content = {
         "error": error,
@@ -81,6 +87,7 @@ def _error_response(
         content=content,
         status_code=status_code,
         media_type="application/json",
+        headers=headers,
     )
 
 
@@ -92,7 +99,6 @@ def _typed_handler(status_code: int, error: str) -> ExceptionHandler:
 
 
 EXCEPTION_HANDLERS: MutableMapping[int | type[Exception], ExceptionHandler] | None = {
-    UnauthorizedError: _typed_handler(401, "Unauthorized"),
     DeviceAuthenticationError: _typed_handler(401, "Authentication Required"),
     DeviceNotFoundError: handle_device_not_found_error,
     DeviceCommunicationError: _typed_handler(502, "Device Communication Error"),

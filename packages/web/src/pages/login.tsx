@@ -38,7 +38,7 @@ export function Login() {
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginFormSchema),
-    defaultValues: { token: "", rememberMe: true },
+    defaultValues: { token: "", rememberMe: false },
   });
 
   const onSubmit = async (values: LoginFormData) => {
