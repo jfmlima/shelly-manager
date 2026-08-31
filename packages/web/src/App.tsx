@@ -3,12 +3,15 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import type { Query } from "@tanstack/react-query";
 
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/components/auth-provider";
+import { RequireAuth } from "@/components/require-auth";
 import { Layout } from "@/components/layout/layout";
 import { Dashboard } from "@/pages/dashboard";
 import { DeviceDetail } from "@/pages/device-detail";
 import { Provisioning } from "@/pages/provisioning";
 import { BackupSchedules } from "@/pages/backup-schedules";
 import { Settings } from "@/pages/settings";
+import { Login } from "@/pages/login";
 import { queryClient, persister } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -34,15 +37,25 @@ function App() {
     >
       <ThemeProvider defaultTheme="system" storageKey="shelly-manager-theme">
         <Router>
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="devices/:ip" element={<DeviceDetail />} />
-              <Route path="provisioning" element={<Provisioning />} />
-              <Route path="backups" element={<BackupSchedules />} />
-              <Route path="settings" element={<Settings />} />
-            </Route>
-          </Routes>
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/"
+                element={
+                  <RequireAuth>
+                    <Layout />
+                  </RequireAuth>
+                }
+              >
+                <Route index element={<Dashboard />} />
+                <Route path="devices/:ip" element={<DeviceDetail />} />
+                <Route path="provisioning" element={<Provisioning />} />
+                <Route path="backups" element={<BackupSchedules />} />
+                <Route path="settings" element={<Settings />} />
+              </Route>
+            </Routes>
+          </AuthProvider>
         </Router>
       </ThemeProvider>
     </PersistQueryClientProvider>

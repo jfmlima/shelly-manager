@@ -139,6 +139,7 @@ User preferences are stored in localStorage:
 - Theme preference
 - Table pagination settings
 - Column visibility preferences
+- Auth token (only if the login page's "Remember me" is checked)
 
 ## 📱 Responsive Design
 
@@ -152,13 +153,13 @@ The interface is fully responsive and optimized for:
 
 - CSP headers configured in nginx
 - XSS protection
-- No sensitive data stored in localStorage
 - Environment-based API configuration
 - **Credential Management**: Device passwords stored encrypted on backend
   - Requires `SHELLY_SECRET_KEY` environment variable on API server
   - Passwords never exposed in UI or API responses
   - Credentials Manager UI for adding/removing device passwords
 - **Backup Snapshots**: Device configuration backups are encrypted with the same `SHELLY_SECRET_KEY` and stored server-side
+- **Authentication**: If the API sets `SHELLY_AUTH_TOKEN`, a login page collects it and it's sent as `Authorization: Bearer <token>` on every request
 
 ## 🤝 Contributing
 

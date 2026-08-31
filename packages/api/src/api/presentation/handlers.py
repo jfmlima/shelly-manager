@@ -55,7 +55,10 @@ def handle_device_not_found_error(
 
 def handle_http_exception(request: Request, exc: HTTPException) -> Response:
     return _error_response(
-        HTTPStatus(exc.status_code).phrase, exc.detail, exc.status_code
+        HTTPStatus(exc.status_code).phrase,
+        exc.detail,
+        exc.status_code,
+        headers=exc.headers or None,
     )
 
 
@@ -68,7 +71,11 @@ def handle_generic_exception(request: Request, exc: Exception) -> Response:
 
 
 def _error_response(
-    error: str, message: str, status_code: int, **extra: Any
+    error: str,
+    message: str,
+    status_code: int,
+    headers: dict[str, str] | None = None,
+    **extra: Any,
 ) -> Response:
     content = {
         "error": error,
@@ -80,6 +87,7 @@ def _error_response(
         content=content,
         status_code=status_code,
         media_type="application/json",
+        headers=headers,
     )
 
 

@@ -20,6 +20,9 @@ cd shelly-manager
 # The api and cli services require this. Put it in a .env file to keep it.
 export SHELLY_SECRET_KEY=$(openssl rand -base64 32 | tr '+/' '-_')
 
+# Optional: require a token to use the API and Web UI. Unset by default (no login).
+export SHELLY_AUTH_TOKEN="a-strong-random-token"
+
 # Start development environment
 docker compose up -d
 
@@ -104,7 +107,7 @@ uv sync --package shelly-manager-cli
 
 ### Running Backend Services
 
-Commands that read or write stored credentials or backups need `SHELLY_SECRET_KEY` in the environment, the same value the compose stack uses. Everything else, including `--help` and `scan`, runs without it.
+Commands that read or write stored credentials or backups need `SHELLY_SECRET_KEY` in the environment, the same value the compose stack uses. Everything else, including `--help` and `scan`, runs without it. The CLI talks to `core` in-process, never over HTTP, so the optional `SHELLY_AUTH_TOKEN` (API + Web UI login, see the root README) has no effect on it.
 
 ```bash
 # CLI tool

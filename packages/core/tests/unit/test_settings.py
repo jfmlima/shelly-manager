@@ -162,3 +162,41 @@ def test_it_rejects_a_missing_secret_key_on_validate(tmp_path, monkeypatch):
         settings.validate_settings()
 
     assert "SHELLY_SECRET_KEY" in str(excinfo.value)
+
+
+def test_it_builds_with_auth_disabled_by_default(monkeypatch):
+    monkeypatch.setenv(
+        "SHELLY_SECRET_KEY", "0N6fK7YkEmvA0I4d1sD4v15uvB94H4A1N1nMG8vLMOg="
+    )
+    monkeypatch.delenv("SHELLY_AUTH_TOKEN", raising=False)
+
+    settings = AppSettings(config_file="does-not-exist.json", _env_file=None)
+
+    assert settings.auth_token is None
+
+
+def test_it_reads_the_auth_token_from_the_environment(monkeypatch):
+    monkeypatch.setenv(
+        "SHELLY_SECRET_KEY", "0N6fK7YkEmvA0I4d1sD4v15uvB94H4A1N1nMG8vLMOg="
+    )
+    monkeypatch.setenv("SHELLY_AUTH_TOKEN", "my-auth-token")
+
+    settings = AppSettings(config_file="does-not-exist.json", _env_file=None)
+
+    assert settings.auth_token == "my-auth-token"
+
+
+def test_it_never_writes_the_auth_token_to_the_config_file(tmp_path, monkeypatch):
+    config_path = tmp_path / "config.json"
+
+    monkeypatch.setenv(
+        "SHELLY_SECRET_KEY", "0N6fK7YkEmvA0I4d1sD4v15uvB94H4A1N1nMG8vLMOg="
+    )
+    monkeypatch.setenv("SHELLY_AUTH_TOKEN", "my-auth-token")
+
+    settings = AppSettings(config_file=str(config_path))
+    settings.save_config()
+
+    saved = json.loads(config_path.read_text())
+    assert "auth_token" not in saved
+    assert "secret_key" not in saved

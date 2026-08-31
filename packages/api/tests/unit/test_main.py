@@ -1,12 +1,13 @@
 from datetime import datetime
 
+import core.settings
 import pytest
 from api.controllers.monitoring import health_check
 from api.main import app_factory
 from core.domain.entities.exceptions import ConfigurationError
 from litestar import Litestar
 from litestar.config.cors import CORSConfig
-from litestar.testing import create_test_client
+from litestar.testing import TestClient, create_test_client
 
 
 class TestMainApp:
@@ -88,3 +89,47 @@ class TestSecretKeyAtStartup:
                 pass
 
         assert excinfo.group_contains(ConfigurationError, match="SHELLY_SECRET_KEY")
+
+
+class TestOptionalAuthToken:
+
+    def test_health_and_auth_config_stay_public_when_a_token_is_set(self, monkeypatch):
+        monkeypatch.setattr(core.settings.settings, "auth_token", "secret123")
+
+        with TestClient(app=app_factory()) as client:
+            assert client.get("/api/health").status_code == 200
+            assert client.get("/api/auth/config").status_code == 200
+
+    def test_docs_stay_public_when_a_token_is_set(self, monkeypatch):
+        monkeypatch.setattr(core.settings.settings, "auth_token", "secret123")
+
+        with TestClient(app=app_factory()) as client:
+            assert client.get("/docs").status_code == 200
+
+    def test_a_protected_route_401s_without_the_token(self, monkeypatch):
+        monkeypatch.setattr(core.settings.settings, "auth_token", "secret123")
+
+        with TestClient(app=app_factory()) as client:
+            response = client.get("/api/devices/scan")
+
+            assert response.status_code == 401
+            assert response.json()["error"] == "Unauthorized"
+            assert response.headers["www-authenticate"] == "Bearer"
+
+    def test_a_protected_route_is_reachable_with_the_correct_token(self, monkeypatch):
+        monkeypatch.setattr(core.settings.settings, "auth_token", "secret123")
+
+        with TestClient(app=app_factory()) as client:
+            response = client.get(
+                "/api/devices/scan", headers={"Authorization": "Bearer secret123"}
+            )
+
+            assert response.status_code != 401
+
+    def test_protected_routes_are_unaffected_when_no_token_is_set(self, monkeypatch):
+        monkeypatch.setattr(core.settings.settings, "auth_token", None)
+
+        with TestClient(app=app_factory()) as client:
+            response = client.get("/api/devices/scan")
+
+            assert response.status_code != 401

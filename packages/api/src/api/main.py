@@ -13,6 +13,7 @@ from litestar.openapi import OpenAPIConfig
 from litestar.openapi.config import Contact, License, Server, Tag
 from sqlalchemy import text
 
+from .controllers.auth import auth_router
 from .controllers.backup_schedules import backup_schedules_router
 from .controllers.backups import backups_router
 from .controllers.credentials import credentials_router
@@ -24,6 +25,7 @@ from .controllers.monitoring import (
 )
 from .controllers.provisioning import provisioning_router
 from .dependencies.container import APIContainer, get_dependencies
+from .guards.auth import require_auth
 from .presentation.handlers import EXCEPTION_HANDLERS
 from .scheduler import BackupScheduler
 
@@ -35,6 +37,9 @@ def create_app() -> Litestar:
         allow_origins=["*"],
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
+        # So a cross-origin Web UI can read the auth guard's WWW-Authenticate
+        # and tell a manager logout apart from a device's own 401.
+        expose_headers=["WWW-Authenticate"],
     )
 
     openapi_config = OpenAPIConfig(
@@ -52,6 +57,7 @@ def create_app() -> Litestar:
         ),
         tags=[
             Tag(name="Health", description="Service health and monitoring"),
+            Tag(name="Auth", description="Optional authentication gating the API"),
             Tag(name="Devices", description="Device discovery and management"),
             Tag(name="Components", description="Device component actions"),
             Tag(name="Configuration", description="Device configuration management"),
@@ -84,8 +90,14 @@ def create_app() -> Litestar:
         enabled_endpoints={"swagger", "openapi.json"},
     )
 
-    api_router = Router(
+    public_router = Router(
         path="/api",
+        route_handlers=[health_check, auth_router],
+    )
+
+    protected_router = Router(
+        path="/api",
+        guards=[require_auth],
         route_handlers=[
             devices_router,
             credentials_router,
@@ -94,7 +106,6 @@ def create_app() -> Litestar:
             backup_schedules_router,
             firmware_router,
             metadata_router,
-            health_check,
         ],
     )
 
@@ -134,7 +145,7 @@ def create_app() -> Litestar:
             await engine.dispose()
 
     app = Litestar(
-        route_handlers=[api_router],
+        route_handlers=[public_router, protected_router],
         cors_config=cors_config,
         openapi_config=openapi_config,
         exception_handlers=EXCEPTION_HANDLERS,

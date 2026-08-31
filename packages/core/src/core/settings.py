@@ -196,6 +196,15 @@ class AppSettings(BaseSettings):
         exclude=True,  # Prevent secret from being logged
     )
 
+    auth_token: str | None = Field(
+        default=None,
+        description=(
+            "Shared auth token gating API + Web UI access. "
+            "Unset disables authentication (default)."
+        ),
+        exclude=True,  # Prevent secret from being logged
+    )
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._load_config_file()
