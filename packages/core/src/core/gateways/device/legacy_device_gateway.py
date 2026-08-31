@@ -16,7 +16,7 @@ from ...domain.entities.exceptions import (
     ConfigurationError,
     DeviceAuthenticationError,
 )
-from ...domain.enums.enums import Status
+from ...domain.enums.enums import Status, UpdateChannel
 from ...domain.value_objects.action_result import ActionResult
 from ...utils.validation import normalize_mac
 from ..network.legacy_http_client import LegacyHttpClient
@@ -157,16 +157,23 @@ class LegacyDeviceGateway:
             )
 
             has_update_flag = self._parse_update_flag(status_data)
-            if has_update_flag is None:
+            update_version = self._parse_update_version(status_data)
+            available_version, available_channel = (
+                update_version if update_version is not None else (None, None)
+            )
+
+            if has_update_flag is None and available_version is None:
                 device_status = Status.DETECTED
                 has_update_value = False
             else:
+                has_update_value = (
+                    bool(has_update_flag) or available_version is not None
+                )
                 device_status = (
                     Status.UPDATE_AVAILABLE
-                    if has_update_flag
+                    if has_update_value
                     else Status.NO_UPDATE_NEEDED
                 )
-                has_update_value = has_update_flag
 
             return DiscoveredDevice(
                 ip=ip,
@@ -175,6 +182,8 @@ class LegacyDeviceGateway:
                 device_type=device_info.get("model") or device_info.get("type"),
                 device_name=device_name,
                 firmware_version=firmware_version,
+                available_firmware_version=available_version,
+                available_firmware_channel=available_channel,
                 response_time=response_time,
                 last_seen=datetime.now(),
                 has_update=has_update_value,
@@ -530,5 +539,38 @@ class LegacyDeviceGateway:
             old_version = update_block.get("old_version")
             if isinstance(new_version, str) and isinstance(old_version, str):
                 return new_version != old_version
+
+        return None
+
+    def _parse_update_version(
+        self, status_data: dict[str, Any] | None
+    ) -> tuple[str, UpdateChannel] | None:
+        """Parse the version and channel of an available update, if any.
+
+        The stable decision defers to ``_parse_update_flag`` so the two never
+        disagree; the beta channel is checked independently since the flag has
+        no notion of it. Stable takes priority over beta, mirroring the RPC
+        (Gen2+) gateway. Returns ``None`` when no version-bearing update is
+        reported (the boolean-only ``has_update``/``update.has_update``
+        shorthand some Gen1 firmwares report carries no version).
+        """
+        if not isinstance(status_data, dict):
+            return None
+
+        update_block = status_data.get("update")
+        if not isinstance(update_block, dict):
+            return None
+
+        new_version = update_block.get("new_version")
+        if (
+            self._parse_update_flag(status_data)
+            and isinstance(new_version, str)
+            and new_version
+        ):
+            return new_version, UpdateChannel.STABLE
+
+        beta_version = update_block.get("beta_version")
+        if isinstance(beta_version, str) and beta_version:
+            return beta_version, UpdateChannel.BETA
 
         return None

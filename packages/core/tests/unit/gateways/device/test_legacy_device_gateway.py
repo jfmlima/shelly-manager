@@ -73,6 +73,8 @@ class TestLegacyDeviceGateway:
         assert device.device_name == "Custom Name"
         assert device.status == Status.NO_UPDATE_NEEDED
         assert device.has_update is False
+        assert device.available_firmware_version is None
+        assert device.available_firmware_channel is None
 
     async def test_it_handles_discovery_failure(self, gateway, mock_http_client):
         mock_http_client.fetch_json.side_effect = Exception("Connection error")
@@ -94,6 +96,97 @@ class TestLegacyDeviceGateway:
 
         assert device.status == Status.UPDATE_AVAILABLE
         assert device.has_update is True
+        assert device.available_firmware_version is None
+        assert device.available_firmware_channel is None
+
+    async def test_it_captures_the_stable_version_from_the_update_block(
+        self, gateway, mock_http_client, sample_device_info
+    ):
+        mock_http_client.fetch_json.return_value = sample_device_info
+        mock_http_client.fetch_json_optional.side_effect = [
+            {
+                "update": {
+                    "has_update": True,
+                    "new_version": "20240101-000000/v1.14.1-g1234567",
+                    "old_version": "20230913-112003/v1.14.0-gCB16476",
+                }
+            },
+            {},
+        ]
+
+        device = await gateway.discover_device("192.168.1.100")
+
+        assert device.status == Status.UPDATE_AVAILABLE
+        assert device.has_update is True
+        assert device.available_firmware_version == "20240101-000000/v1.14.1-g1234567"
+        assert device.available_firmware_channel == "stable"
+
+    async def test_it_captures_a_beta_only_update_from_the_update_block(
+        self, gateway, mock_http_client, sample_device_info
+    ):
+        mock_http_client.fetch_json.return_value = sample_device_info
+        mock_http_client.fetch_json_optional.side_effect = [
+            {
+                "update": {
+                    "has_update": False,
+                    "beta_version": "20231107-162940/v1.14.1-rc1-g0617c15",
+                }
+            },
+            {},
+        ]
+
+        device = await gateway.discover_device("192.168.1.100")
+
+        assert device.status == Status.UPDATE_AVAILABLE
+        assert device.has_update is True
+        assert (
+            device.available_firmware_version == "20231107-162940/v1.14.1-rc1-g0617c15"
+        )
+        assert device.available_firmware_channel == "beta"
+
+    async def test_it_prefers_stable_over_beta_when_both_are_reported(
+        self, gateway, mock_http_client, sample_device_info
+    ):
+        mock_http_client.fetch_json.return_value = sample_device_info
+        mock_http_client.fetch_json_optional.side_effect = [
+            {
+                "update": {
+                    "has_update": True,
+                    "new_version": "20240101-000000/v1.14.1-g1234567",
+                    "old_version": "20230913-112003/v1.14.0-gCB16476",
+                    "beta_version": "20231107-162940/v1.14.1-rc1-g0617c15",
+                }
+            },
+            {},
+        ]
+
+        device = await gateway.discover_device("192.168.1.100")
+
+        assert device.status == Status.UPDATE_AVAILABLE
+        assert device.available_firmware_version == "20240101-000000/v1.14.1-g1234567"
+        assert device.available_firmware_channel == "stable"
+
+    async def test_it_trusts_an_explicit_has_update_false_over_differing_versions(
+        self, gateway, mock_http_client, sample_device_info
+    ):
+        mock_http_client.fetch_json.return_value = sample_device_info
+        mock_http_client.fetch_json_optional.side_effect = [
+            {
+                "update": {
+                    "has_update": False,
+                    "new_version": "20240101-000000/v1.14.1-g1234567",
+                    "old_version": "20230913-112003/v1.14.0-gCB16476",
+                }
+            },
+            {},
+        ]
+
+        device = await gateway.discover_device("192.168.1.100")
+
+        assert device.status == Status.NO_UPDATE_NEEDED
+        assert device.has_update is False
+        assert device.available_firmware_version is None
+        assert device.available_firmware_channel is None
 
     async def test_it_gets_device_status_successfully(
         self,

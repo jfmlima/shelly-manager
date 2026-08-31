@@ -83,6 +83,7 @@ shelly-manager scan --target 192.168.1.0/24 --export csv --export-file devices.c
 - `--use-mdns`: Use mDNS service discovery
 - `--timeout`: Timeout per device (default: 3.0s)
 - `--workers`: Concurrent workers (default: 50)
+- `--include-beta`: Count beta-only firmware updates as available (hidden by default)
 - `--export`: Export format (json, csv)
 - `--export-file`: Output file path
 
@@ -94,11 +95,18 @@ shelly-manager scan --target 192.168.1.0/24 --export csv --export-file devices.c
 # Check device status
 shelly-manager device status 192.168.1.100
 shelly-manager device status 192.168.1.100 192.168.1.101
+shelly-manager device status 192.168.1.100 --include-beta  # Also surface beta-only updates
+
+# List known devices in a table
+shelly-manager device list 192.168.1.0/24
+shelly-manager device list 192.168.1.0/24 --include-beta
 
 # Reboot devices
 shelly-manager device reboot 192.168.1.100
 shelly-manager device reboot 192.168.1.100 --force  # Skip confirmation
 ```
+
+By default, `scan`, `device list`, and `device status` report a device as up to date when the only firmware update available is on the beta channel — pass `--include-beta` to see it. A beta release is always installable explicitly regardless of this flag, via `device update --channel beta`.
 
 **Device Status Output:**
 

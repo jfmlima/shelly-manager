@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -41,6 +42,7 @@ import {
   hasAnyRelease,
   type UpdateChannel,
 } from "@/lib/firmware-updates";
+import { loadAppSettings } from "@/lib/settings";
 import type { DeviceStatus, UpdateSource } from "@/types/api";
 
 interface DeviceActionsProps {
@@ -122,9 +124,25 @@ export function DeviceActions({
     },
   });
 
+  const { showBetaUpdates } = loadAppSettings();
   const availableUpdates = deviceStatus?.firmware.available_updates;
   const selectedRelease = getChannelRelease(availableUpdates, updateChannel);
-  const hasUpdates = hasAnyRelease(availableUpdates);
+  const hasUpdates = hasAnyRelease(
+    availableUpdates,
+    showBetaUpdates ? undefined : ["stable"],
+  );
+
+  // Preselect whichever channel actually has a release, stable first, so the
+  // dialog opens on something installable even for a beta-only device (the
+  // channel stays manually selectable regardless of the beta setting).
+  const preferredChannel: UpdateChannel = getChannelRelease(
+    availableUpdates,
+    "stable",
+  )
+    ? "stable"
+    : getChannelRelease(availableUpdates, "beta")
+      ? "beta"
+      : "stable";
 
   // The device's own available_updates answer for the internet source; an
   // offline device reports none, so the local source asks the manager what
@@ -169,14 +187,32 @@ export function DeviceActions({
           </Button>
 
           {/* Update Firmware */}
-          <Dialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
+          <Dialog
+            open={updateDialogOpen}
+            onOpenChange={(open) => {
+              setUpdateDialogOpen(open);
+              if (open) {
+                setUpdateChannel(preferredChannel);
+              }
+            }}
+          >
             <DialogTrigger asChild>
               <Button
                 variant={hasUpdates ? "default" : "outline"}
-                className="flex items-center space-x-2"
+                className="flex items-center gap-2 min-w-0"
               >
-                <Download className="h-4 w-4" />
-                <span>{t("deviceDetail.actions.update")}</span>
+                <Download className="h-4 w-4 shrink-0" />
+                <span className="truncate">
+                  {t("deviceDetail.actions.update")}
+                </span>
+                <Badge
+                  variant={hasUpdates ? "secondary" : "outline"}
+                  className="shrink-0 text-[10px] px-1.5 py-0 h-4 leading-none"
+                >
+                  {hasUpdates
+                    ? t("deviceDetail.deviceInfo.available")
+                    : t("deviceDetail.deviceInfo.upToDate")}
+                </Badge>
               </Button>
             </DialogTrigger>
             <DialogContent>

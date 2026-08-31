@@ -15,6 +15,7 @@ import {
   X,
   Loader2,
   Clock,
+  Download,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -361,6 +363,41 @@ export function Settings() {
               </div>
               <Button onClick={saveSettings} className="w-full">
                 Save Network Settings
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Firmware Updates */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Download className="h-5 w-5" />
+                <span>{t("settings.updates.title")}</span>
+              </CardTitle>
+              <CardDescription>
+                {t("settings.updates.description")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start space-x-2">
+                <Checkbox
+                  id="showBetaUpdates"
+                  checked={settings.showBetaUpdates}
+                  onCheckedChange={(checked) =>
+                    updateSetting("showBetaUpdates", checked === true)
+                  }
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="showBetaUpdates" className="cursor-pointer">
+                    {t("settings.updates.showBetaUpdates")}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t("settings.updates.showBetaUpdatesDescription")}
+                  </p>
+                </div>
+              </div>
+              <Button onClick={saveSettings} className="w-full">
+                {t("settings.updates.save")}
               </Button>
             </CardContent>
           </Card>

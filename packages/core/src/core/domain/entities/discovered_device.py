@@ -7,7 +7,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from ...utils.validation import validate_ip_address
-from ..enums.enums import Status
+from ..enums.enums import Status, UpdateChannel
 from ..model_names import get_model_name
 
 
@@ -24,6 +24,10 @@ class DiscoveredDevice(BaseModel):
     firmware_version: str | None = Field(None, description="Current firmware version")
     available_firmware_version: str | None = Field(
         None, description="Version an available update would install"
+    )
+    available_firmware_channel: UpdateChannel | None = Field(
+        None,
+        description="Channel the available update was found on",
     )
     device_name: str | None = Field(None, description="User-defined device name")
     auth_required: bool = Field(
@@ -46,3 +50,14 @@ class DiscoveredDevice(BaseModel):
     @classmethod
     def validate_ip(cls, v: str) -> str:
         return validate_ip_address(v)
+
+    def is_beta_only_update(self) -> bool:
+        """The device has an available update, but only on the beta channel.
+
+        Stable wins when both channels have a release, so a beta channel here
+        means beta is the only option.
+        """
+        return (
+            self.status == Status.UPDATE_AVAILABLE
+            and self.available_firmware_channel == UpdateChannel.BETA
+        )

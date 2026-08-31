@@ -2,12 +2,14 @@ export interface AppSettings {
   tablePageSize: number;
   tableDensity: "compact" | "normal" | "comfortable";
   scanRequestTimeout: number; // in milliseconds
+  showBetaUpdates: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   tablePageSize: 10,
   tableDensity: "normal",
   scanRequestTimeout: 600000, // 10 minutes default
+  showBetaUpdates: false,
 };
 
 const STORAGE_KEY = "shelly-manager-settings";

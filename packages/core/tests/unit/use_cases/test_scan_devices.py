@@ -286,6 +286,7 @@ class TestScanSettlesUpdateStatus:
 
         assert result[0].status == Status.UPDATE_AVAILABLE
         assert result[0].available_firmware_version == "1.8.0"
+        assert result[0].available_firmware_channel == "stable"
         firmware_gateway.get_latest.assert_awaited_once_with("Plus2PM")
 
     async def test_it_marks_a_device_already_on_the_published_build(
@@ -358,6 +359,7 @@ class TestScanSettlesUpdateStatus:
 
         assert result[0].status == Status.UPDATE_AVAILABLE
         assert result[0].available_firmware_version == "1.9.0"
+        assert result[0].available_firmware_channel is None
         firmware_gateway.get_latest.assert_not_awaited()
 
     async def test_it_skips_a_device_without_an_app_name(

@@ -822,6 +822,7 @@ class TestShellyDeviceGateway:
         assert result is not None
         assert result.status == Status.NO_UPDATE_NEEDED
         assert result.available_firmware_version is None
+        assert result.available_firmware_channel is None
 
     async def test_it_captures_the_available_update_version(
         self, gateway, mock_rpc_client
@@ -842,6 +843,7 @@ class TestShellyDeviceGateway:
         assert result is not None
         assert result.status == Status.UPDATE_AVAILABLE
         assert result.available_firmware_version == "2.6.0"
+        assert result.available_firmware_channel == "stable"
 
     async def test_it_captures_a_beta_only_update_version(
         self, gateway, mock_rpc_client
@@ -859,6 +861,7 @@ class TestShellyDeviceGateway:
         assert result is not None
         assert result.status == Status.UPDATE_AVAILABLE
         assert result.available_firmware_version == "2.7.0-beta1"
+        assert result.available_firmware_channel == "beta"
 
     async def test_it_handles_null_update_info(self, gateway, mock_rpc_client):
         device_info = {"id": "test-device", "model": "SHSW-1", "fw_id": "1.0.0"}

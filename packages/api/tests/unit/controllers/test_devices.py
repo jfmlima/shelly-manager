@@ -43,6 +43,7 @@ class TestDevicesController:
                     device_name="Test Device",
                     firmware_version="1.0.0",
                     available_firmware_version="1.2.0",
+                    available_firmware_channel="stable",
                     response_time=0.5,
                     last_seen=datetime.now(),
                 )
@@ -64,6 +65,7 @@ class TestDevicesController:
             assert data[0]["ip"] == "192.168.1.100"
             assert data[0]["status"] == "detected"
             assert data[0]["available_firmware_version"] == "1.2.0"
+            assert data[0]["available_firmware_channel"] == "stable"
             assert data[0]["device_type"] == "SHSW-PM"
             assert data[0]["model_name"] == "Shelly 1PM"
 
