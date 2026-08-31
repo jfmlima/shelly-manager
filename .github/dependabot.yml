@@ -1,0 +1,68 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Europe/Lisbon"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Europe/Lisbon"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      python:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "npm"
+    directory: "/packages/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Europe/Lisbon"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      web:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "docker"
+    directories:
+      - "/packages/api"
+      - "/packages/cli"
+      - "/packages/core"
+      - "/packages/web"
+    schedule:
+      interval: "monthly"
+      timezone: "Europe/Lisbon"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      base-images:
+        patterns:
+          - "*"
