@@ -16,12 +16,12 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest==8.4.1",
-    "pytest-asyncio==1.1.0",
+    "pytest-asyncio==1.4.0",
     "pytest-cov==6.2.1",
     "black==25.1.0",
-    "ruff==0.12.9",
+    "ruff==0.16.5",
     "mypy==1.17.1",
-    "pre-commit==4.3.0",
+    "pre-commit==4.6.2",
     "types-PyYAML==6.0.12.20250516",
 ]
 
@@ -76,6 +76,7 @@ ignore = [
     "E501",  # line too long, handled by black
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
+    "UP042", # StrEnum changes str() and f-string output for existing enums
 ]
 
 [tool.ruff.lint.per-file-ignores]
