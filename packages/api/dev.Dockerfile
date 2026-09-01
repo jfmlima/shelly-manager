@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 ENV UV_CACHE_DIR=/tmp/uv-cache

@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ ENV VITE_BASE_API_URL=$VITE_BASE_API_URL
 
 RUN npm run build
 
-FROM nginx:1.25-alpine AS runtime
+FROM nginx:1.31-alpine AS runtime
 
 RUN apk add --no-cache curl dumb-init && \
     rm -rf /var/cache/apk/*
