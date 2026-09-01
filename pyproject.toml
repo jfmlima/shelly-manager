@@ -20,7 +20,7 @@ dev = [
     "pytest-cov==6.2.1",
     "black==25.1.0",
     "ruff==0.16.5",
-    "mypy==1.17.1",
+    "mypy==2.3.1",
     "pre-commit==4.6.2",
     "types-PyYAML==6.0.12.20250516",
 ]
@@ -101,9 +101,6 @@ disable_error_code = ["call-arg"]
 
 [[tool.mypy.overrides]]
 module = [
-    "litestar.*",
-    "uvicorn.*",
-    "structlog.*",
     "click.*",
     "rich.*",
     "apscheduler.*",
