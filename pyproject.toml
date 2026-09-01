@@ -18,7 +18,7 @@ dev = [
     "pytest==8.4.1",
     "pytest-asyncio==1.4.0",
     "pytest-cov==7.1.0",
-    "black==25.1.0",
+    "black==26.5.1",
     "ruff==0.16.5",
     "mypy==2.3.1",
     "pre-commit==4.6.2",
