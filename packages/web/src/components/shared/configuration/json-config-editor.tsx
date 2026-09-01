@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { AlertTriangle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -37,30 +37,15 @@ export function JsonConfigEditor({
   className = "",
   disabled = false,
 }: JsonConfigEditorProps) {
-  const [validationError, setValidationError] = useState<string>("");
-  const [isValid, setIsValid] = useState(true);
+  const { isValid, validationError, parsed } = useMemo(
+    () => parseConfig(value),
+    [value],
+  );
 
+  // The parent tracks validity, so it has to hear about every change.
   useEffect(() => {
-    if (!value.trim()) {
-      setValidationError("");
-      setIsValid(true);
-      onValidChange?.(true, undefined);
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(value);
-      setValidationError("");
-      setIsValid(true);
-      onValidChange?.(true, parsed);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Invalid JSON format";
-      setValidationError(errorMessage);
-      setIsValid(false);
-      onValidChange?.(false, undefined);
-    }
-  }, [value, onValidChange]);
+    onValidChange?.(isValid, parsed);
+  }, [isValid, parsed, onValidChange]);
 
   const handleExampleClick = (exampleValue: string) => {
     if (isValid && value.trim()) {
@@ -157,4 +142,25 @@ export function JsonConfigEditor({
       )}
     </div>
   );
+}
+
+function parseConfig(value: string): {
+  isValid: boolean;
+  validationError: string;
+  parsed: unknown;
+} {
+  if (!value.trim()) {
+    return { isValid: true, validationError: "", parsed: undefined };
+  }
+
+  try {
+    return { isValid: true, validationError: "", parsed: JSON.parse(value) };
+  } catch (error) {
+    return {
+      isValid: false,
+      validationError:
+        error instanceof Error ? error.message : "Invalid JSON format",
+      parsed: undefined,
+    };
+  }
 }

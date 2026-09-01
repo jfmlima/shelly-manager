@@ -1,11 +1,7 @@
 import type { AppSettings } from "@/lib/settings";
-import {
-  DEFAULT_SETTINGS,
-  loadAppSettings,
-  saveAppSettings,
-} from "@/lib/settings";
+import { loadAppSettings, saveAppSettings } from "@/lib/settings";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Settings as SettingsIcon,
@@ -55,25 +51,15 @@ interface ApiConnectionStatus {
 export function Settings() {
   const { t } = useTranslation();
   const { theme, setTheme } = useTheme();
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<AppSettings>(loadAppSettings);
 
-  const [apiUrl, setApiUrl] = useState("");
-  const [tempApiUrl, setTempApiUrl] = useState("");
+  const [apiUrl, setApiUrl] = useState(readStoredApiUrl);
+  const [tempApiUrl, setTempApiUrl] = useState(readStoredApiUrl);
   const [connectionStatus, setConnectionStatus] = useState<ApiConnectionStatus>(
     {
       status: "unknown",
     },
   );
-
-  useEffect(() => {
-    setSettings(loadAppSettings());
-
-    const currentApiUrl =
-      localStorage.getItem(API_URL_STORAGE_KEY) || getDefaultApiBaseUrl();
-
-    setApiUrl(currentApiUrl);
-    setTempApiUrl(currentApiUrl);
-  }, [t]);
 
   const saveSettings = () => {
     saveAppSettings(settings);
@@ -408,4 +394,8 @@ export function Settings() {
       <Footer className="mt-6" />
     </div>
   );
+}
+
+function readStoredApiUrl(): string {
+  return localStorage.getItem(API_URL_STORAGE_KEY) || getDefaultApiBaseUrl();
 }
