@@ -2,6 +2,8 @@ name: CLI CI
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "packages/cli/**"
       - "packages/core/**"

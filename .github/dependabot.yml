@@ -13,6 +13,9 @@ updates:
       github-actions:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "uv"
     directory: "/"
@@ -66,3 +69,6 @@ updates:
       base-images:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
