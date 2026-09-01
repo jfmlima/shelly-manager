@@ -95,8 +95,7 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
 
   const getStatusBadge = (device: Device) => {
     const statusLower = getEffectiveStatus(device).toLowerCase();
-    let variant: "default" | "secondary" | "destructive" | "outline" =
-      "default";
+    let variant: "default" | "secondary" | "destructive" | "outline";
 
     if (
       statusLower.includes("detected") ||
