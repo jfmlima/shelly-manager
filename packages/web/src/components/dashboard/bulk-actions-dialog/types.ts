@@ -1,11 +1,7 @@
 import type { Device, ActionResult, UpdateSource } from "@/types/api";
 
 export type BulkActionType =
-  | "update"
-  | "reboot"
-  | "factory_reset"
-  | "export_config"
-  | "apply_config";
+  "update" | "reboot" | "factory_reset" | "export_config" | "apply_config";
 
 export interface BulkProgress {
   total: number;

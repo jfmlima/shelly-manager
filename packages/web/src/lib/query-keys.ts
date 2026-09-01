@@ -2,8 +2,7 @@
 // device list still waiting for its MAC would otherwise share a cache entry
 // with the list of every device's backups.
 export type BackupListFilters = { limit: number; offset: number } & (
-  | { scope: "all" }
-  | { scope: "device"; deviceMac: string | null }
+  { scope: "all" } | { scope: "device"; deviceMac: string | null }
 );
 
 export const queryKeys = {
