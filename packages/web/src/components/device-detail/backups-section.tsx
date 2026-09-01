@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Save, RotateCcw, Trash2, AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -70,9 +70,11 @@ export function BackupsSection({
   const total = backups?.total ?? 0;
 
   // A device switch should start from the first page, not inherit the old one.
-  useEffect(() => {
+  const [renderedMac, setRenderedMac] = useState(deviceMac);
+  if (renderedMac !== deviceMac) {
+    setRenderedMac(deviceMac);
     setOffset(0);
-  }, [deviceMac]);
+  }
 
   useRewindEmptyPage(isSuccess, items.length, offset, setOffset);
 

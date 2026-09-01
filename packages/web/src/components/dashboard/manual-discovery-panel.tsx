@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AlertCircle,
@@ -18,6 +18,7 @@ import {
   cidrToRange,
   getCommonCIDR,
   isValidRangeOrCIDR,
+  ipToInt,
   parseManualIPs,
 } from "@/lib/ip-utils";
 
@@ -41,52 +42,11 @@ export function ManualDiscoveryPanel({
   onRangeCIDRChange,
 }: ManualDiscoveryPanelProps) {
   const { t } = useTranslation();
-  const [ipCount, setIPCount] = useState<number | null>(null);
 
-  // Calculate IP count when inputs change
-  useEffect(() => {
-    if (manualMode === "ips") {
-      const ips = parseManualIPs(manualIPs);
-      setIPCount(ips.length > 0 ? ips.length : null);
-    } else if (manualMode === "range_cidr") {
-      const trimmed = rangeCIDR.trim();
-      if (trimmed.includes("/")) {
-        const range = cidrToRange(trimmed);
-        setIPCount(range?.count || null);
-      } else if (trimmed.includes("-")) {
-        const parts = trimmed.split("-");
-        if (parts.length === 2) {
-          const [start, end] = parts;
-          if (isValidIPv4(start)) {
-            let fullEnd = end;
-            if (!end.includes(".")) {
-              const startParts = start.split(".");
-              fullEnd = [...startParts.slice(0, 3), end].join(".");
-            }
-            if (isValidIPv4(fullEnd)) {
-              const startInt = ipToInt(start);
-              const endInt = ipToInt(fullEnd);
-              setIPCount(endInt >= startInt ? endInt - startInt + 1 : null);
-              return;
-            }
-          }
-        }
-        setIPCount(null);
-      } else if (isValidIPv4(trimmed)) {
-        setIPCount(1);
-      } else {
-        setIPCount(null);
-      }
-    }
-  }, [manualMode, manualIPs, rangeCIDR]);
-
-  // ipToInt helper for local calculation
-  function ipToInt(ip: string): number {
-    const parts = ip.split(".").map(Number);
-    return (
-      ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0
-    );
-  }
+  const ipCount = useMemo(
+    () => countTargets(manualMode, manualIPs, rangeCIDR),
+    [manualMode, manualIPs, rangeCIDR],
+  );
 
   // Quick fill handlers
   const handleQuickFill = (size: "24" | "16") => {
@@ -261,4 +221,48 @@ export function ManualDiscoveryPanel({
       )}
     </div>
   );
+}
+
+function countTargets(
+  manualMode: ManualMode,
+  manualIPs: string,
+  rangeCIDR: string,
+): number | null {
+  if (manualMode === "ips") {
+    const ips = parseManualIPs(manualIPs);
+    return ips.length > 0 ? ips.length : null;
+  }
+
+  if (manualMode !== "range_cidr") {
+    return null;
+  }
+
+  const trimmed = rangeCIDR.trim();
+
+  if (trimmed.includes("/")) {
+    return cidrToRange(trimmed)?.count || null;
+  }
+
+  if (trimmed.includes("-")) {
+    const parts = trimmed.split("-");
+    if (parts.length !== 2) {
+      return null;
+    }
+    const [start, end] = parts;
+    if (!isValidIPv4(start)) {
+      return null;
+    }
+    // A range may end with a bare last octet, as in 192.168.1.10-20.
+    const fullEnd = end.includes(".")
+      ? end
+      : [...start.split(".").slice(0, 3), end].join(".");
+    if (!isValidIPv4(fullEnd)) {
+      return null;
+    }
+    const startInt = ipToInt(start);
+    const endInt = ipToInt(fullEnd);
+    return endInt >= startInt ? endInt - startInt + 1 : null;
+  }
+
+  return isValidIPv4(trimmed) ? 1 : null;
 }
