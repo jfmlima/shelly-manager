@@ -27,7 +27,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Set up Python
-        run: uv python install 3.11
+        run: uv python install 3.14
 
       - name: Install core package with dev dependencies
         run: uv sync --package shelly-manager-core --extra dev
@@ -51,7 +51,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Set up Python
-        run: uv python install 3.11
+        run: uv python install 3.14
 
       - name: Install core package with dev dependencies
         run: uv sync --package shelly-manager-core --extra dev
@@ -70,7 +70,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Set up Python
-        run: uv python install 3.11
+        run: uv python install 3.14
 
       - name: Install core package
         run: uv sync --package shelly-manager-core --no-dev

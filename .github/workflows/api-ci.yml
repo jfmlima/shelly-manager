@@ -29,7 +29,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Set up Python
-        run: uv python install 3.11
+        run: uv python install 3.14
 
       - name: Install API package with dev dependencies
         run: uv sync --package shelly-manager-api --extra dev
@@ -53,7 +53,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Set up Python
-        run: uv python install 3.11
+        run: uv python install 3.14
 
       - name: Install API package with dev dependencies
         run: uv sync --package shelly-manager-api --extra dev
