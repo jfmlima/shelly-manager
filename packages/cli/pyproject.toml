@@ -12,7 +12,7 @@ requires-python = ">=3.11"
 dependencies = [
     "shelly-manager-core",  # Local package dependency
     "click==8.5.0",
-    "rich==14.1.0",
+    "rich==15.0.0",
 ]
 
 [project.optional-dependencies]
