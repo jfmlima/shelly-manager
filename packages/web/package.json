@@ -44,7 +44,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-hook-form": "^7.86.0",
-    "react-i18next": "^15.6.1",
+    "react-i18next": "^17.0.13",
     "react-router-dom": "^7.18.3",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.6.0",
