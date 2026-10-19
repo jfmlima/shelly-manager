@@ -12,7 +12,7 @@ requires-python = ">=3.11"
 dependencies = [
     "shelly-manager-core",  # Local package dependency
     "litestar[standard]==2.24.0",
-    "uvicorn[standard]==0.40.0",
+    "uvicorn[standard]==0.54.0",
     "apscheduler>=3.10.4,<4.0",
 ]
 
