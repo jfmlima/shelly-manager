@@ -28,6 +28,12 @@ class ScanRequest(BaseModel):
         le=200,
         description="Maximum concurrent workers",
     )
+    include_failed: bool = Field(
+        False,
+        description=(
+            "Also return the addresses that did not answer or failed, " "with a reason"
+        ),
+    )
 
     @field_validator("targets")
     @classmethod

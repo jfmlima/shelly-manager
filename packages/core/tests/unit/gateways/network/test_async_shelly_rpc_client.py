@@ -222,6 +222,16 @@ class TestAsyncShellyRPCClient:
         with pytest.raises(DeviceUnreachableError):
             await client.make_rpc_request("192.168.1.100", "Shelly.GetDeviceInfo")
 
+    async def test_it_names_the_exception_when_it_has_no_text(
+        self, client, mock_session
+    ):
+        mock_session.post.side_effect = httpx.ConnectTimeout("")
+
+        with pytest.raises(DeviceUnreachableError) as exc_info:
+            await client.make_rpc_request("192.168.1.100", "Shelly.GetDeviceInfo")
+
+        assert str(exc_info.value).endswith("ConnectTimeout")
+
     async def test_it_creates_timeout_correctly(self, client, mock_session):
         mock_response = MagicMock()
         mock_response.status_code = 200

@@ -26,6 +26,7 @@ class DeviceDiscoveryUseCase:
             use_mdns=request.use_mdns,
             timeout=request.timeout,
             max_workers=request.workers,
+            include_failed=request.include_failed,
         )
         scan_interactor = self._container.get_scan_interactor()
         return await scan_interactor.execute(scan_request)

@@ -14,6 +14,10 @@ class DeviceScanRequest(BaseModel):
     use_mdns: bool = Field(default=False)
     timeout: float = Field(default=3.0, gt=0)
     workers: int = Field(default=50, gt=0, le=200)
+    include_failed: bool = Field(
+        default=False,
+        description="Also return the addresses that did not answer or failed",
+    )
     task_description: str = Field(
         default="Scanning for devices...",
         description="Description shown in progress bar",

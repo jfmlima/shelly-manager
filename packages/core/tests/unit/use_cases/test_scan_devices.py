@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import AsyncMock
 
 import pytest
@@ -93,6 +94,142 @@ class TestScanDevicesUseCase:
 
         assert len(result) == 2
         assert all(device.status == Status.DETECTED for device in result)
+
+    async def test_it_keeps_failed_addresses_when_asked(
+        self, use_case, mock_device_gateway
+    ):
+        request = ScanRequest(
+            targets=["192.168.1.1-3"], timeout=3.0, max_workers=10, include_failed=True
+        )
+        mock_device_gateway.discover_device = AsyncMock(
+            side_effect=[
+                DiscoveredDevice(
+                    ip="192.168.1.1",
+                    status=Status.DETECTED,
+                    device_type="Shelly1",
+                    firmware_version="1.14.0",
+                ),
+                DiscoveredDevice(
+                    ip="192.168.1.2",
+                    status=Status.UNREACHABLE,
+                    error_message="Communication error: ConnectTimeout",
+                ),
+                RuntimeError("boom"),
+            ]
+        )
+
+        result = await use_case.execute(request)
+
+        assert [d.ip for d in result] == ["192.168.1.1", "192.168.1.2", "192.168.1.3"]
+        assert result[1].status == Status.UNREACHABLE
+        assert result[1].error_message == "Communication error: ConnectTimeout"
+        assert result[2].status == Status.ERROR
+        assert "boom" in result[2].error_message
+        assert "Device scan failed" not in result[2].error_message
+
+    async def test_it_names_the_exception_type_when_it_has_no_text(
+        self, use_case, mock_device_gateway
+    ):
+        request = ScanRequest(
+            targets=["192.168.1.1"], timeout=3.0, max_workers=10, include_failed=True
+        )
+        mock_device_gateway.discover_device = AsyncMock(side_effect=RuntimeError())
+
+        result = await use_case.execute(request)
+
+        assert result[0].status == Status.ERROR
+        assert "RuntimeError" in result[0].error_message
+
+    async def test_it_reports_a_silent_gateway_as_unreachable_when_asked(
+        self, use_case, mock_device_gateway
+    ):
+        request = ScanRequest(
+            targets=["192.168.1.1"], timeout=3.0, max_workers=10, include_failed=True
+        )
+        mock_device_gateway.discover_device = AsyncMock(return_value=None)
+
+        result = await use_case.execute(request)
+
+        assert len(result) == 1
+        assert result[0].ip == "192.168.1.1"
+        assert result[0].status == Status.UNREACHABLE
+
+    async def test_it_hides_failed_addresses_by_default(
+        self, use_case, valid_scan_request, mock_device_gateway
+    ):
+        mock_device_gateway.discover_device = AsyncMock(
+            side_effect=[
+                DiscoveredDevice(
+                    ip="192.168.1.1",
+                    status=Status.DETECTED,
+                    device_type="Shelly1",
+                    firmware_version="1.14.0",
+                ),
+                DiscoveredDevice(ip="192.168.1.2", status=Status.UNREACHABLE),
+                RuntimeError("boom"),
+                None,
+                None,
+            ]
+        )
+
+        result = await use_case.execute(valid_scan_request)
+
+        assert [d.ip for d in result] == ["192.168.1.1"]
+
+    async def test_it_logs_one_summary_line_per_scan(
+        self, use_case, valid_scan_request, mock_device_gateway, caplog
+    ):
+        mock_device_gateway.discover_device = AsyncMock(
+            side_effect=[
+                DiscoveredDevice(
+                    ip="192.168.1.1",
+                    status=Status.DETECTED,
+                    device_type="Shelly1",
+                    firmware_version="1.14.0",
+                ),
+                DiscoveredDevice(ip="192.168.1.2", status=Status.UNREACHABLE),
+                DiscoveredDevice(ip="192.168.1.3", status=Status.UNREACHABLE),
+                RuntimeError("boom"),
+                None,
+            ]
+        )
+
+        with caplog.at_level(logging.INFO, logger="core.use_cases.scan_devices"):
+            await use_case.execute(valid_scan_request)
+
+        summaries = [
+            r
+            for r in caplog.records
+            if r.levelno == logging.INFO and "Scan of" in r.msg
+        ]
+        assert len(summaries) == 1
+        assert summaries[0].getMessage() == (
+            "Scan of 5 addresses: 1 devices, 3 did not answer, 1 failed"
+        )
+
+    async def test_it_warns_once_per_failed_address(
+        self, use_case, mock_device_gateway, caplog
+    ):
+        request = ScanRequest(targets=["192.168.1.1-2"], timeout=3.0, max_workers=10)
+        mock_device_gateway.discover_device = AsyncMock(
+            side_effect=[
+                RuntimeError("boom"),
+                DiscoveredDevice(
+                    ip="192.168.1.2",
+                    status=Status.UNREACHABLE,
+                    error_message="ConnectTimeout",
+                ),
+            ]
+        )
+
+        with caplog.at_level(logging.DEBUG, logger="core.use_cases.scan_devices"):
+            await use_case.execute(request)
+
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warnings) == 1
+        assert "192.168.1.1" in warnings[0].getMessage()
+        assert "boom" in warnings[0].getMessage()
+        assert not any("192.168.1.2" in r.getMessage() for r in caplog.records)
 
     async def test_it_handles_discovery_service_exceptions(
         self, use_case, valid_scan_request, mock_device_gateway

@@ -69,6 +69,76 @@ class TestDevicesController:
             assert data[0]["device_type"] == "SHSW-PM"
             assert data[0]["model_name"] == "Shelly 1PM"
 
+    def test_scan_passes_include_failed_through(self):
+        captured = []
+
+        class MockScanDevicesUseCase(ScanDevicesUseCase):
+            def __init__(self):
+                pass
+
+            async def execute(self, scan_request):
+                captured.append(scan_request)
+                return []
+
+        with create_test_client(
+            route_handlers=[scan_devices],
+            dependencies={
+                "scan_interactor": Provide(
+                    lambda: MockScanDevicesUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            client.get("/scan", params={"targets": "192.168.1.1"})
+            client.get(
+                "/scan", params={"targets": "192.168.1.1", "include_failed": "true"}
+            )
+
+        assert [r.include_failed for r in captured] == [False, True]
+
+    def test_scan_serializes_an_unreachable_address(self):
+        class MockScanDevicesUseCase(ScanDevicesUseCase):
+            def __init__(self):
+                pass
+
+            async def execute(self, scan_request):
+                return [
+                    DiscoveredDevice(
+                        ip="192.168.1.7",
+                        status=Status.UNREACHABLE,
+                        error_message="ConnectTimeout",
+                    )
+                ]
+
+        with create_test_client(
+            route_handlers=[scan_devices],
+            dependencies={
+                "scan_interactor": Provide(
+                    lambda: MockScanDevicesUseCase(), sync_to_thread=False
+                )
+            },
+        ) as client:
+            response = client.get(
+                "/scan", params={"targets": "192.168.1.7", "include_failed": "true"}
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data == [
+            {
+                "ip": "192.168.1.7",
+                "status": "unreachable",
+                "device_type": None,
+                "model_name": None,
+                "device_name": None,
+                "firmware_version": None,
+                "available_firmware_version": None,
+                "available_firmware_channel": None,
+                "response_time": None,
+                "error_message": "ConnectTimeout",
+                "last_seen": None,
+            }
+        ]
+
     def test_scan_without_targets_returns_400(self):
         from core.domain.entities.exceptions import ValidationError
 

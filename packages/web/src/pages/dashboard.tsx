@@ -3,10 +3,15 @@ import { useTranslation } from "react-i18next";
 
 import { ScanForm } from "@/components/dashboard/scan-form";
 import { DeviceTable } from "@/components/dashboard/device-table";
+import { ScanFailures } from "@/components/dashboard/scan-failures";
 import { BulkActionsDialog } from "@/components/dashboard/bulk-actions-dialog";
 import { Footer } from "@/components/ui/footer";
 import { handleApiError } from "@/lib/api";
-import { useScanDevices, useScannedDevices } from "@/hooks/useScannedDevices";
+import {
+  isScanFailure,
+  useScanDevices,
+  useScannedDevices,
+} from "@/hooks/useScannedDevices";
 import type { Device, ScanRequest } from "@/types/api";
 
 export function Dashboard() {
@@ -21,6 +26,7 @@ export function Dashboard() {
   } = useScannedDevices();
 
   const scanMutation = useScanDevices();
+  const scanFailures = (scanMutation.data ?? []).filter(isScanFailure);
 
   const handleScan = (request: ScanRequest) => {
     scanMutation.mutate(request);
@@ -77,6 +83,9 @@ export function Dashboard() {
         {devices.length > 0 && (
           <DeviceTable devices={devices} onBulkAction={handleBulkAction} />
         )}
+
+        {/* Addresses the last scan could not reach */}
+        {scanFailures.length > 0 && <ScanFailures failures={scanFailures} />}
 
         {/* Empty State */}
         {!isLoadingCached &&

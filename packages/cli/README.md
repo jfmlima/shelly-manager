@@ -81,9 +81,10 @@ shelly-manager scan --target 192.168.1.0/24 --export csv --export-file devices.c
 
 - `--target`: IP target (IP, range, or CIDR). Can be used multiple times.
 - `--use-mdns`: Use mDNS service discovery
-- `--timeout`: Timeout per device (default: 3.0s)
+- `--timeout`: Seconds to wait for each device to answer (default: 3.0s). The TCP connect phase is capped by `NETWORK_CONNECT_TIMEOUT` (default 2s), which this option does not raise.
 - `--workers`: Concurrent workers (default: 50)
 - `--include-beta`: Count beta-only firmware updates as available (hidden by default)
+- `--show-unreachable`: List every address that did not answer, with the reason. Without it the scan prints the counts and lists only the addresses where discovery failed
 - `--export`: Export format (json, csv)
 - `--export-file`: Output file path
 
@@ -296,7 +297,8 @@ than backfilling every slot it missed. The first run happens one interval after 
 
 | Variable             | Default       | Description                |
 | -------------------- | ------------- | -------------------------- |
-| `NETWORK_TIMEOUT`    | `3.0`         | Default timeout per device |
+| `NETWORK_TIMEOUT`    | `3.0`         | Default seconds to wait for a device to answer |
+| `NETWORK_CONNECT_TIMEOUT` | `2.0`    | Seconds to wait for a device to accept a TCP connection; `--timeout` does not raise it |
 | `NETWORK_MAX_WORKERS` | `50`          | Default concurrent workers |
 
 

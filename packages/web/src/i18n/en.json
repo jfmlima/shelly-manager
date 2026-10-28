@@ -112,7 +112,15 @@
     },
     "messages": {
       "scanSuccess": "Found {{count}} device(s)",
+      "scanPartial": "Found {{count}} device(s), {{failed}} address(es) returned no device",
       "scanError": "Device scan failed"
+    },
+    "scanFailures": {
+      "title": "{{count}} address(es) returned no device",
+      "description": "These addresses were scanned but returned no device. A device that answers direct requests and still shows here may need a longer connect timeout; see the API documentation for NETWORK_CONNECT_TIMEOUT.",
+      "unreachable": "did not answer",
+      "error": "failed",
+      "noReason": "no reason reported"
     },
     "lastScanned": "Last scanned",
     "lastScannedShort": "Scanned",

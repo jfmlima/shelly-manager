@@ -21,6 +21,10 @@ class DeviceDiscoveryRequest(BaseModel):
     workers: int = Field(
         default=50, gt=0, le=200, description="Maximum number of concurrent workers"
     )
+    include_failed: bool = Field(
+        default=False,
+        description="Also return the addresses that did not answer or failed",
+    )
 
     @field_validator("targets")
     @classmethod

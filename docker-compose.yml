@@ -23,6 +23,11 @@ services:
       # internet access, e.g. http://192.168.1.50:8000. Unset, only the
       # internet update source works.
       SHELLY_FIRMWARE_ADVERTISED_BASE_URL: "${SHELLY_FIRMWARE_ADVERTISED_BASE_URL:-}"
+      # How long a scan waits for a device to accept a TCP connection. Raise
+      # it when devices that answer direct requests go missing from scans.
+      NETWORK_CONNECT_TIMEOUT: "${NETWORK_CONNECT_TIMEOUT:-2.0}"
+      # DEBUG prints why each scanned address was skipped.
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
     volumes:
       - shelly-data:/data
       - ./packages/api/src:/app/packages/api/src:rw
