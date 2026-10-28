@@ -79,7 +79,7 @@ jobs:
         run: uv build --package shelly-manager-core
 
       - name: Upload core wheel
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: core-wheel
           path: dist/*.whl
