@@ -106,6 +106,30 @@ class TestOptionalAuthToken:
         with TestClient(app=app_factory()) as client:
             assert client.get("/docs").status_code == 200
 
+    def test_firmware_download_stays_public_when_a_token_is_set(self, monkeypatch):
+        monkeypatch.setattr(core.settings.settings, "auth_token", "secret123")
+
+        with TestClient(app=app_factory()) as client:
+            # 404 shows the handler ran and looked the bundle up; the guard did
+            # not short-circuit it. The high id keeps the 404 reliable against
+            # whatever the shared ./data database holds.
+            response = client.get("/api/firmware/999999/download")
+
+            assert response.status_code == 404
+
+    def test_other_firmware_routes_stay_protected_when_a_token_is_set(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(core.settings.settings, "auth_token", "secret123")
+
+        with TestClient(app=app_factory()) as client:
+            for response in (
+                client.get("/api/firmware/"),
+                client.delete("/api/firmware/999999"),
+            ):
+                assert response.status_code == 401
+                assert response.headers["www-authenticate"] == "Bearer"
+
     def test_a_protected_route_401s_without_the_token(self, monkeypatch):
         monkeypatch.setattr(core.settings.settings, "auth_token", "secret123")
 

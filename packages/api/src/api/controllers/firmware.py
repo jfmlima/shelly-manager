@@ -112,8 +112,12 @@ firmware_router = Router(
     route_handlers=[
         list_firmware,
         delete_firmware,
-        download_firmware,
     ],
+)
+
+firmware_download_router = Router(
+    path="/firmware",
+    route_handlers=[download_firmware],
 )
 
 
