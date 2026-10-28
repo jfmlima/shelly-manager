@@ -55,7 +55,9 @@ export function ScanForm({ onSubmit, isLoading = false }: ScanFormProps) {
   const useAuth = form.watch("use_auth");
 
   const credentialsQuery = useCredentials({ enabled: useAuth });
-  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
     const subscription = form.watch((value) => {
