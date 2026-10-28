@@ -18,7 +18,7 @@ from .controllers.backup_schedules import backup_schedules_router
 from .controllers.backups import backups_router
 from .controllers.credentials import credentials_router
 from .controllers.devices import devices_router
-from .controllers.firmware import firmware_router
+from .controllers.firmware import firmware_download_router, firmware_router
 from .controllers.metadata import metadata_router
 from .controllers.monitoring import (
     health_check,
@@ -92,7 +92,12 @@ def create_app() -> Litestar:
 
     public_router = Router(
         path="/api",
-        route_handlers=[health_check, auth_router],
+        route_handlers=[
+            health_check,
+            auth_router,
+            # Devices fetch cached firmware from here and cannot send the token.
+            firmware_download_router,
+        ],
     )
 
     protected_router = Router(

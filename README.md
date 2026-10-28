@@ -448,7 +448,7 @@ export SHELLY_AUTH_TOKEN="$(openssl rand -base64 32)"
 
 Use a long, high-entropy value. The token-verification endpoint has no rate limiting, so a short or guessable token can be brute-forced.
 
-When set, every API request must include `Authorization: Bearer <token>`, except `/api/health`, `/api/auth/config`, and the API reference at `/docs` (and `/docs/openapi.json`), which stay public. The Web UI shows a login page asking for the token before it will load. Leave it unset to keep the zero-configuration default. Unlike `SHELLY_SECRET_KEY`, this is optional and unrelated to credential encryption.
+When set, every API request must include `Authorization: Bearer <token>`, except `/api/health`, `/api/auth/config`, the API reference at `/docs` (and `/docs/openapi.json`), and `/api/firmware/{id}/download`, which stay public. The download route serves cached firmware to devices, and a device cannot send the token. The Web UI shows a login page asking for the token before it will load. Leave it unset to keep the zero-configuration default. Unlike `SHELLY_SECRET_KEY`, this is optional and unrelated to credential encryption.
 
 ## Development
 
