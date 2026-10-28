@@ -19,6 +19,7 @@ from ...domain.enums.enums import Status, UpdateChannel
 from ...domain.value_objects.action_envelope import ActionEnvelope
 from ...domain.value_objects.action_name import ActionName
 from ...domain.value_objects.action_result import ActionResult
+from ...domain.value_objects.generation import Generation
 from ...services.auth_state_cache import AuthStateCache
 from ...utils.validation import normalize_mac
 from ..network.network import RpcNetworkGateway
@@ -173,7 +174,15 @@ class ShellyDeviceGateway(DeviceGateway):
                 return status
             logger.debug("No RPC read answered for %s, attempting legacy fallback", ip)
         except DeviceAuthenticationError:
-            raise
+            # A password-protected Gen1 answers /rpc with 401, which the RPC
+            # path reads as a digest challenge it cannot complete.
+            if await self._legacy.generation(ip) is not Generation.GEN1:
+                raise
+            logger.debug(
+                "Protected Gen1 at %s answered RPC with 401, reading over the "
+                "legacy path",
+                ip,
+            )
         except ConfigurationError:
             raise
         except Exception as e:
