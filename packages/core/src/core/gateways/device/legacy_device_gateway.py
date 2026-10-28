@@ -18,6 +18,7 @@ from ...domain.entities.exceptions import (
 )
 from ...domain.enums.enums import Status, UpdateChannel
 from ...domain.value_objects.action_result import ActionResult
+from ...domain.value_objects.generation import Generation
 from ...utils.validation import normalize_mac
 from ..network.legacy_http_client import LegacyHttpClient
 from .legacy_component_mapper import LegacyComponentMapper
@@ -107,6 +108,24 @@ class LegacyDeviceGateway:
         """Clear cached credentials for a device."""
         normalized_mac = normalize_mac(mac)
         self._basic_auth_cache.pop(normalized_mac, None)
+
+    async def identify_generation(
+        self, ip: str, timeout: float | None = None
+    ) -> Generation | None:
+        """Which protocol family answers at ``ip``, read from ``/shelly``.
+
+        ``None`` when nothing readable answers there.
+        """
+        try:
+            device_info = await self._http_client.fetch_json(
+                ip, "shelly", timeout=timeout
+            )
+        except ConfigurationError:
+            raise
+        except Exception as e:
+            logger.debug("No /shelly identification from %s: %s", ip, e)
+            return None
+        return Generation.from_shelly_payload(device_info)
 
     async def discover_device(
         self, ip: str, timeout: float | None = None

@@ -12,6 +12,7 @@ from ...domain.entities.device_status import DeviceStatus
 from ...domain.entities.discovered_device import DiscoveredDevice
 from ...domain.value_objects.action_envelope import ActionEnvelope
 from ...domain.value_objects.action_result import ActionResult
+from ...domain.value_objects.generation import Generation
 from .legacy_device_gateway import LegacyDeviceGateway
 
 
@@ -29,6 +30,11 @@ class LegacyRoute:
         if self._gateway is None:
             return None
         return await self._gateway.get_device_status(ip)
+
+    async def generation(self, ip: str) -> Generation | None:
+        if self._gateway is None:
+            return None
+        return await self._gateway.identify_generation(ip)
 
     async def get_settings(self, ip: str) -> dict[str, Any] | None:
         if self._gateway is None:

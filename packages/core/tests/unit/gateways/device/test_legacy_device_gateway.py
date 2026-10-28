@@ -4,6 +4,7 @@ import pytest
 from core.domain.entities.device_status import DeviceStatus
 from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.enums.enums import Status
+from core.domain.value_objects.generation import Generation
 from core.gateways.device.legacy_component_mapper import LegacyComponentMapper
 from core.gateways.device.legacy_device_gateway import LegacyDeviceGateway
 from core.gateways.network.legacy_http_client import LegacyHttpClient
@@ -75,6 +76,33 @@ class TestLegacyDeviceGateway:
         assert device.has_update is False
         assert device.available_firmware_version is None
         assert device.available_firmware_channel is None
+
+    async def test_it_identifies_a_gen1_from_shelly(
+        self, gateway, mock_http_client, sample_device_info
+    ):
+        mock_http_client.fetch_json.return_value = sample_device_info
+
+        assert await gateway.identify_generation("192.168.1.100") is Generation.GEN1
+        mock_http_client.fetch_json.assert_awaited_once_with(
+            "192.168.1.100", "shelly", timeout=None
+        )
+
+    async def test_it_identifies_a_gen2_from_shelly(self, gateway, mock_http_client):
+        mock_http_client.fetch_json.return_value = {
+            "id": "shellyplus1-aabbccddeeff",
+            "mac": "AABBCCDDEEFF",
+            "gen": 2,
+            "auth_en": True,
+        }
+
+        assert await gateway.identify_generation("192.168.1.100") is Generation.GEN2
+
+    async def test_it_identifies_nothing_when_shelly_does_not_answer(
+        self, gateway, mock_http_client
+    ):
+        mock_http_client.fetch_json.side_effect = Exception("Connection refused")
+
+        assert await gateway.identify_generation("192.168.1.100") is None
 
     async def test_it_handles_discovery_failure(self, gateway, mock_http_client):
         mock_http_client.fetch_json.side_effect = Exception("Connection error")

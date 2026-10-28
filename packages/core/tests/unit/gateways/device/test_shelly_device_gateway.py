@@ -10,6 +10,7 @@ from core.domain.entities.exceptions import (
 )
 from core.domain.enums.enums import Status
 from core.domain.value_objects.action_result import ActionResult
+from core.domain.value_objects.generation import Generation
 from core.gateways.device.legacy_device_gateway import LegacyDeviceGateway
 from core.gateways.device.shelly_device_gateway import ShellyDeviceGateway
 from core.services.auth_state_cache import AuthStateCache
@@ -437,6 +438,7 @@ class TestShellyDeviceGateway:
                 ({"methods": []}, 0.05),
             ]
         )
+        mock_legacy_gateway.identify_generation.return_value = Generation.GEN2
 
         with pytest.raises(DeviceAuthenticationError):
             await gateway.get_device_status("192.168.1.100")
@@ -1505,6 +1507,57 @@ class TestLegacyRouting:
         assert result is legacy_status
         mock_legacy_gateway.get_device_status.assert_awaited_once_with("192.168.1.200")
 
+    async def test_it_reads_a_protected_gen1_over_the_legacy_path(
+        self, gateway, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=DeviceAuthenticationError(
+                "192.168.1.200", "Could not resolve device MAC address"
+            )
+        )
+        mock_legacy_gateway.identify_generation.return_value = Generation.GEN1
+        legacy_status = DeviceStatus(
+            device_ip="192.168.1.200",
+            components=[],
+            total_components=0,
+            device_name="Protected Gen1",
+        )
+        mock_legacy_gateway.get_device_status.return_value = legacy_status
+
+        result = await gateway.get_device_status("192.168.1.200")
+
+        assert result is legacy_status
+        mock_legacy_gateway.identify_generation.assert_awaited_once_with(
+            "192.168.1.200"
+        )
+        mock_legacy_gateway.get_device_status.assert_awaited_once_with("192.168.1.200")
+
+    async def test_it_propagates_an_auth_error_from_a_protected_gen2(
+        self, gateway, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=DeviceAuthenticationError("192.168.1.100", "No credentials")
+        )
+        mock_legacy_gateway.identify_generation.return_value = Generation.GEN2
+
+        with pytest.raises(DeviceAuthenticationError):
+            await gateway.get_device_status("192.168.1.100")
+
+        mock_legacy_gateway.get_device_status.assert_not_called()
+
+    async def test_it_propagates_an_auth_error_when_the_device_does_not_identify(
+        self, gateway, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=DeviceAuthenticationError("192.168.1.100", "No credentials")
+        )
+        mock_legacy_gateway.identify_generation.return_value = None
+
+        with pytest.raises(DeviceAuthenticationError):
+            await gateway.get_device_status("192.168.1.100")
+
+        mock_legacy_gateway.get_device_status.assert_not_called()
+
     async def test_it_keeps_the_rpc_status_when_a_single_read_answers(
         self, gateway, mock_rpc_client, mock_legacy_gateway
     ):
@@ -1592,6 +1645,16 @@ class TestLegacyRouting:
         mock_rpc_client.make_rpc_request = AsyncMock(side_effect=Exception("RPC fail"))
 
         assert await rpc_only_gateway.get_device_status("192.168.1.200") is None
+
+    async def test_it_propagates_an_auth_error_when_there_is_no_legacy_path(
+        self, rpc_only_gateway, mock_rpc_client
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=DeviceAuthenticationError("192.168.1.200", "No credentials")
+        )
+
+        with pytest.raises(DeviceAuthenticationError):
+            await rpc_only_gateway.get_device_status("192.168.1.200")
 
     async def test_it_refuses_a_legacy_action_when_there_is_no_legacy_path(
         self, rpc_only_gateway, mock_rpc_client
