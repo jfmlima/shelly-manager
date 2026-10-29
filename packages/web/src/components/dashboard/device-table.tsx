@@ -2,16 +2,28 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type {
   ColumnDef,
+  ColumnVisibilityState,
+  RowSelectionState,
   SortingState,
-  VisibilityState,
 } from "@tanstack/react-table";
 import {
+  columnFilteringFeature,
+  columnVisibilityFeature,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  filterFn_includesString,
   flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
+  globalFilteringFeature,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
+  sortFn_alphanumeric,
+  sortFn_basic,
+  sortFn_datetime,
+  sortFn_text,
+  tableFeatures,
+  useTable,
 } from "@tanstack/react-table";
 import { ArrowUpDown, ChevronDown, ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -68,13 +80,35 @@ const densityClasses: Record<TableDensity, string> = {
   comfortable: "py-4",
 };
 
+const features = tableFeatures({
+  columnFilteringFeature,
+  columnVisibilityFeature,
+  globalFilteringFeature,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
+  filteredRowModel: createFilteredRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  sortedRowModel: createSortedRowModel(),
+  filterFns: { includesString: filterFn_includesString },
+  sortFns: {
+    alphanumeric: sortFn_alphanumeric,
+    basic: sortFn_basic,
+    datetime: sortFn_datetime,
+    text: sortFn_text,
+  },
+});
+
+type DeviceTableFeatures = typeof features;
+
 export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState<string>("");
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = useState({});
+  const [columnVisibility, setColumnVisibility] =
+    useState<ColumnVisibilityState>({});
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
   const initialSettings = loadAppSettings();
   const [pageSize, setPageSize] = useState(initialSettings.tablePageSize);
@@ -146,7 +180,7 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
     last_seen: t("dashboard.deviceTable.lastSeen"),
   };
 
-  const columns: ColumnDef<Device>[] = [
+  const columns: ColumnDef<DeviceTableFeatures, Device>[] = [
     {
       id: "select",
       header: ({ table }) => (
@@ -316,20 +350,18 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
     },
   ];
 
-  const table = useReactTable({
+  const table = useTable({
+    features,
     data: devices,
     columns,
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     globalFilterFn: "includesString",
     onGlobalFilterChange: setGlobalFilter,
     initialState: {
       pagination: {
+        pageIndex: 0,
         pageSize,
       },
     },
