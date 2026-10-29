@@ -46,6 +46,21 @@ class TestProviderWiring:
         assert isinstance(gateway, ShellyDeviceGateway)
         assert container.get_device_gateway() is gateway
 
+    def test_it_gives_the_scan_interactor_the_retry_settings(
+        self, container, monkeypatch
+    ):
+        monkeypatch.setattr(
+            "core.dependencies.container_base.core_settings.network.retry_attempts", 4
+        )
+        monkeypatch.setattr(
+            "core.dependencies.container_base.core_settings.network.retry_delay", 0.2
+        )
+
+        interactor = container.get_scan_interactor()
+
+        assert interactor._retry_attempts == 4
+        assert interactor._retry_delay == 0.2
+
     async def test_it_builds_the_rpc_client_with_auth_wiring(self):
         container = BaseContainer()
 
