@@ -134,6 +134,41 @@ class TestScanCommand:
         assert call_args.timeout == 5.0
         assert call_args.max_workers == 20
 
+    def test_scan_asks_for_failed_addresses(
+        self, cli_context_with_scan, sample_devices, mock_scan_interactor
+    ):
+        mock_scan_interactor.execute.return_value = sample_devices
+
+        runner = CliRunner()
+        result = runner.invoke(
+            device_commands, ["scan", "192.168.1.1-50"], obj=cli_context_with_scan
+        )
+
+        assert result.exit_code == 0
+        call_args = mock_scan_interactor.execute.call_args[0][0]
+        assert call_args.include_failed is True
+
+    def test_list_does_not_ask_for_failed_addresses(
+        self, cli_context_with_scan, sample_devices, mock_scan_interactor
+    ):
+        mock_scan_interactor.execute.return_value = sample_devices
+
+        runner = CliRunner()
+        result = runner.invoke(
+            device_commands, ["list", "192.168.1.1-50"], obj=cli_context_with_scan
+        )
+
+        assert result.exit_code == 0
+        call_args = mock_scan_interactor.execute.call_args[0][0]
+        assert call_args.include_failed is False
+
+    def test_scan_help_documents_show_unreachable(self, cli_context):
+        runner = CliRunner()
+        result = runner.invoke(device_commands, ["scan", "--help"], obj=cli_context)
+
+        assert result.exit_code == 0
+        assert "--show-unreachable" in result.output
+
     def test_scan_help_documents_include_beta(self, cli_context):
         runner = CliRunner()
         result = runner.invoke(device_commands, ["scan", "--help"], obj=cli_context)

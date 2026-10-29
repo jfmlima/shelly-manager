@@ -40,6 +40,11 @@ def device_commands() -> None:
     is_flag=True,
     help="Count beta-only firmware updates as available (hidden by default)",
 )
+@click.option(
+    "--show-unreachable",
+    is_flag=True,
+    help="List every address that did not answer, with the reason",
+)
 @device_targeting_options
 @common_options
 @click.pass_context
@@ -50,6 +55,7 @@ async def scan(
     targets_opt: tuple[str, ...],
     use_mdns: bool,
     include_beta: bool,
+    show_unreachable: bool,
     timeout: int,
     workers: int,
 ) -> None:
@@ -62,6 +68,7 @@ async def scan(
       shelly-manager scan -t 192.168.1.100 -t 192.168.1.101
       shelly-manager scan --use-mdns
       shelly-manager scan 192.168.1.0/24 --include-beta
+      shelly-manager scan -t 192.168.1.100 -t 192.168.1.101 --show-unreachable
     """
     console = ctx.obj.console
     container = ctx.obj.container
@@ -73,11 +80,14 @@ async def scan(
         timeout=timeout,
         workers=workers,
         use_mdns=use_mdns,
+        include_failed=True,
         task_description="Scanning for devices...",
     )
 
     devices_found = await scan_use_case.execute(request)
-    scan_use_case.display_results(devices_found, include_beta=include_beta)
+    scan_use_case.display_results(
+        devices_found, include_beta=include_beta, show_unreachable=show_unreachable
+    )
 
 
 @device_commands.command("list")

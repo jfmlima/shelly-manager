@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 import core.settings
@@ -64,6 +65,32 @@ class TestMainApp:
             response = client.get("/unknown/route")
 
             assert response.status_code == 404
+
+
+class TestLogLevel:
+
+    @pytest.fixture(autouse=True)
+    def reset_app_loggers(self):
+        yield
+        for name in ("core", "api"):
+            logging.getLogger(name).setLevel(logging.NOTSET)
+
+    def test_it_applies_the_configured_log_level_to_the_app_loggers(self, monkeypatch):
+        monkeypatch.setattr(core.settings.settings.logging, "level", "DEBUG")
+
+        app = app_factory()
+
+        assert logging.getLogger("core").getEffectiveLevel() == logging.DEBUG
+        assert logging.getLogger("api").getEffectiveLevel() == logging.DEBUG
+        assert app.logging_config.root["level"] == "INFO"
+        assert "litestar" in app.logging_config.loggers
+
+    def test_it_keeps_the_app_loggers_at_info_by_default(self, monkeypatch):
+        monkeypatch.setattr(core.settings.settings.logging, "level", "INFO")
+
+        app_factory()
+
+        assert logging.getLogger("core").getEffectiveLevel() == logging.INFO
 
 
 class TestSecretKeyAtStartup:

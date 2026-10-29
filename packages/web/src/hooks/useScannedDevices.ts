@@ -11,6 +11,12 @@ import {
 } from "@/lib/storage";
 import type { Device, ScanRequest } from "@/types/api";
 
+const FAILED_SCAN_STATUSES = ["unreachable", "error"];
+
+export function isScanFailure(device: Device): boolean {
+  return FAILED_SCAN_STATUSES.includes(device.status);
+}
+
 export function useScannedDevices() {
   return useQuery<Device[]>({
     queryKey: queryKeys.devices.scan(),
@@ -30,13 +36,22 @@ export function useScanDevices() {
     mutationFn: async (params: ScanRequest) => {
       clearScanResults();
       queryClient.removeQueries({ queryKey: queryKeys.devices.scan() });
-      return deviceApi.scanDevices(params);
+      return deviceApi.scanDevices({ ...params, include_failed: true });
     },
-    onSuccess: (devices, params) => {
+    onSuccess: (results, params) => {
+      // Only devices reach the cache: the backup schedule form offers the
+      // cached list as targets, and a dead address must not be one of them.
+      const devices = results.filter((device) => !isScanFailure(device));
+      const failed = results.length - devices.length;
       saveScanResults(devices, params);
       queryClient.setQueryData(queryKeys.devices.scan(), devices);
       toast.success(
-        t("dashboard.messages.scanSuccess", { count: devices.length }),
+        failed > 0
+          ? t("dashboard.messages.scanPartial", {
+              count: devices.length,
+              failed,
+            })
+          : t("dashboard.messages.scanSuccess", { count: devices.length }),
       );
     },
     onError: (error) => toast.error(handleApiError(error)),

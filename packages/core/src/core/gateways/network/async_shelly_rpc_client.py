@@ -236,9 +236,10 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
             # Flag them so callers can skip the (expensive) legacy fallback probe.
             # PoolTimeout is deliberately excluded: it signals local pool
             # exhaustion, not an unreachable host, so it must not skip fallback.
+            detail = str(e) or type(e).__name__
             if isinstance(e, httpx.ConnectError | httpx.ConnectTimeout):
-                raise DeviceUnreachableError(ip, str(e)) from e
-            raise DeviceCommunicationError(ip, str(e)) from e
+                raise DeviceUnreachableError(ip, detail) from e
+            raise DeviceCommunicationError(ip, detail) from e
 
     def _invalidate_auth_cache(self, ip: str) -> None:
         """Invalidate authentication cache for a device.

@@ -61,8 +61,9 @@ GET /api/auth/verify                # 200 with a valid token, 401 otherwise - ga
 GET /api/devices/scan              # Scan network for devices
   ?targets=192.168.1.0/24          # Comma-separated targets
   &use_mdns=false                  # Use mDNS discovery
-  &timeout=3.0                     # Timeout per device
+  &timeout=3.0                     # Seconds to wait for each device to answer
   &max_workers=50                  # Concurrent workers
+  &include_failed=false            # Also list addresses that did not answer, with a reason
 ```
 
 ### Device Operations
@@ -214,6 +215,16 @@ GET /api/health
 ```bash
 curl "http://localhost:8000/api/devices/scan?targets=192.168.1.1-10"
 ```
+
+Add `include_failed=true` to also get the addresses that did not answer. Each comes back
+with status `unreachable` (nothing accepted the connection) or `error` (something answered
+but discovery failed) and the reason in `error_message`. The API log also prints one line
+per scan with the counts, and a warning for every `error` address.
+
+The `timeout` parameter is how long the scan waits for a device to answer a request. The
+TCP connect phase has its own cap, `NETWORK_CONNECT_TIMEOUT`, 2 seconds by default, and a
+larger `timeout` does not raise it. A device that answers direct requests but goes missing
+from scans on a congested network may need a higher cap.
 
 **Response:**
 
@@ -462,6 +473,10 @@ curl -X POST "http://localhost:8000/api/backups/1/restore" \
 | `SHELLY_FIRMWARE_INDEX_URL` | `https://updates.shelly.cloud/update` | Where published firmware is looked up, by the app name a device reports |
 | `SHELLY_FIRMWARE_ALLOWED_DOWNLOAD_HOSTS` | `shelly.cloud` | Comma separated hosts firmware may be downloaded from, matched exactly or as a parent domain and re-checked on every redirect. `*` accepts any host |
 | `SHELLY_FIRMWARE_VERIFY_SSL` | `false` | Verify TLS when talking to the firmware index and CDN. Off by default because Shelly signs those hosts with a private CA absent from public trust stores; devices verify firmware signatures themselves |
+| `NETWORK_TIMEOUT` | `3.0` | Default seconds to wait for a device to answer a request |
+| `NETWORK_CONNECT_TIMEOUT` | `2.0` | Seconds to wait for a device to accept a TCP connection. Keeps dead addresses cheap in a subnet scan. A scan's `timeout` does not raise it |
+| `NETWORK_MAX_WORKERS` | `50` | Default concurrent device requests |
+| `LOG_LEVEL` | `INFO` | Log level of the manager's own loggers. `DEBUG` prints why each scanned address was skipped |
 
 `SHELLY_SECRET_KEY` also encrypts configuration **backup snapshots** at rest. Backups are
 stored in the local database (`{data_dir}/data.db`); rotating the key makes existing snapshots

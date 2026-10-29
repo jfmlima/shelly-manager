@@ -48,6 +48,7 @@ async def scan_devices(
     use_mdns: bool = False,
     max_workers: int = 50,
     timeout: float = 3.0,
+    include_failed: bool = False,
     scan_interactor: ScanDevicesUseCase | None = None,
 ) -> list[dict]:
     """
@@ -61,7 +62,13 @@ async def scan_devices(
         use_predefined: Whether to use predefined IP ranges from config
         use_mdns: Whether to use mDNS to discover devices
         max_workers: Maximum concurrent workers for scanning
-        timeout: Connection timeout per device (seconds) or mDNS scan duration
+        timeout: Seconds to wait for each device to answer a request, or the
+            mDNS scan duration. The TCP connect phase has its own cap,
+            NETWORK_CONNECT_TIMEOUT (default 2 seconds), that this value does
+            not raise.
+        include_failed: Also return the addresses that did not answer
+            (status "unreachable") or failed (status "error"), each with its
+            reason in error_message
 
     Returns:
         list[dict]: List of discovered devices with their information
@@ -73,6 +80,7 @@ async def scan_devices(
         use_mdns=use_mdns,
         timeout=timeout,
         max_workers=max_workers,
+        include_failed=include_failed,
     )
 
     devices = await scan_interactor.execute(scan_request)

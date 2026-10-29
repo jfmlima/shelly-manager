@@ -4,7 +4,9 @@ Device scanning use case for CLI operations.
 
 from typing import Any
 
+from core.domain.enums.enums import Status
 from rich.console import Console
+from rich.markup import escape
 
 from cli.dependencies.container import CLIContainer
 from cli.entities import DeviceScanRequest
@@ -40,47 +42,96 @@ class DeviceScanUseCase:
             request: Scan request parameters
 
         Returns:
-            List of discovered devices
+            The devices found, followed by the addresses that did not answer
+            or failed when the request asks for them
         """
         discovery_request = DeviceDiscoveryRequest(
             targets=request.targets,
             timeout=request.timeout,
             workers=request.workers,
             use_mdns=request.use_mdns,
+            include_failed=request.include_failed,
         )
 
         async with self._progress_tracker.track_progress(
             request.task_description, total=None
         ) as task:
-            devices_found = await self._device_discovery.discover_devices(
-                discovery_request
-            )
-            task.update(f"Found {len(devices_found)} devices")
+            results = await self._device_discovery.discover_devices(discovery_request)
+            devices, _ = _split_failures(results)
+            task.update(f"Found {len(devices)} devices")
 
-        return devices_found
+        return results
 
     def display_results(
         self,
         devices_found: list[Any],
         show_table: bool = True,
         include_beta: bool = False,
+        show_unreachable: bool = False,
     ) -> None:
         """
         Display scan results to console.
 
         Args:
-            devices_found: List of discovered devices
+            devices_found: Scan results, devices and failed addresses alike
             show_table: Whether to show device table
             include_beta: Whether beta-only updates count as available
+            show_unreachable: Whether to list every address that did not
+                answer, not only the ones that failed
         """
+        devices, failures = _split_failures(devices_found)
+
         if show_table:
             self._result_formatter.format_device_table(
-                devices_found, include_beta=include_beta
+                devices, include_beta=include_beta
             )
 
-        if devices_found:
+        if failures:
+            self._display_failures(devices, failures, show_unreachable)
+        elif devices:
             self._console.print(
-                f"\n{Messages.success(f'Found {len(devices_found)} devices')}"
+                f"\n{Messages.success(f'Found {len(devices)} devices')}"
             )
         else:
             self._console.print(f"\n{Messages.warning('No devices found')}")
+
+    def _display_failures(
+        self, devices: list[Any], failures: list[Any], show_unreachable: bool
+    ) -> None:
+        unanswered = [d for d in failures if d.status == Status.UNREACHABLE]
+        errored = [d for d in failures if d.status != Status.UNREACHABLE]
+        scanned = len(devices) + len(failures)
+        self._console.print(
+            "\n"
+            + Messages.warning(
+                f"Scanned {scanned} addresses: {len(devices)} devices, "
+                f"{len(unanswered)} did not answer, {len(errored)} failed"
+            )
+        )
+        for device in errored:
+            self._console.print(
+                f"  {device.ip}  failed: {escape(device.error_message or 'unknown')}"
+            )
+        if show_unreachable:
+            for device in unanswered:
+                reason = escape(device.error_message or "no answer")
+                self._console.print(f"  {device.ip}  did not answer: {reason}")
+        elif unanswered:
+            self._console.print(
+                Messages.muted(
+                    f"  Run again with --show-unreachable to list the "
+                    f"{len(unanswered)} addresses that did not answer."
+                )
+            )
+
+
+def _split_failures(results: list[Any]) -> tuple[list[Any], list[Any]]:
+    devices = []
+    failures = []
+    for result in results:
+        status = getattr(result, "status", None)
+        if status in (Status.UNREACHABLE, Status.ERROR):
+            failures.append(result)
+        else:
+            devices.append(result)
+    return devices, failures

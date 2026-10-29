@@ -374,6 +374,7 @@ export interface ScanRequest {
   use_mdns?: boolean;
   timeout?: number;
   max_workers?: number;
+  include_failed?: boolean;
 }
 
 export interface Credential {

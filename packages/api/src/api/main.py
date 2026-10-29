@@ -149,6 +149,21 @@ def create_app() -> Litestar:
             await _container.close()
             await engine.dispose()
 
+    # The 500 body redacts the cause, so the log is the only place it lives.
+    logging_config = LoggingConfig(log_exceptions="always")
+    # LOG_LEVEL applies to this app's own loggers. The root logger stays at
+    # INFO, because DEBUG there echoes every httpcore event of every request.
+    app_logger = {
+        "level": core_settings.logging.level,
+        "handlers": ["queue_listener"],
+        "propagate": False,
+    }
+    logging_config.loggers = {
+        **logging_config.loggers,
+        "core": app_logger,
+        "api": dict(app_logger),
+    }
+
     app = Litestar(
         route_handlers=[public_router, protected_router],
         cors_config=cors_config,
@@ -157,8 +172,7 @@ def create_app() -> Litestar:
         dependencies=get_dependencies(_container),
         debug=os.getenv("DEBUG", "false").lower() == "true",
         lifespan=[lifespan],
-        # The 500 body redacts the cause, so the log is the only place it lives.
-        logging_config=LoggingConfig(log_exceptions="always"),
+        logging_config=logging_config,
     )
 
     return app
@@ -177,5 +191,5 @@ if __name__ == "__main__":
         host=os.getenv("HOST", "0.0.0.0"),
         port=int(os.getenv("PORT", "8000")),
         factory=True,
-        log_level="info",
+        log_level=core_settings.logging.level.lower(),
     )

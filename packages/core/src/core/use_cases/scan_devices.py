@@ -18,6 +18,15 @@ from ..gateways.network import MDNSGateway
 
 logger = logging.getLogger(__name__)
 
+FOUND_STATUSES = frozenset(
+    {
+        Status.DETECTED,
+        Status.UPDATE_AVAILABLE,
+        Status.NO_UPDATE_NEEDED,
+        Status.AUTH_REQUIRED,
+    }
+)
+
 
 class ScanDevicesUseCase:
 
@@ -41,7 +50,8 @@ class ScanDevicesUseCase:
             request: ScanRequest containing scan parameters
 
         Returns:
-            List of discovered DiscoveredDevice objects
+            The devices found, followed by the addresses that did not answer
+            or failed when the request asks for them
 
         Raises:
             ValidationError: If request validation fails
@@ -62,19 +72,23 @@ class ScanDevicesUseCase:
             if isinstance(result, ConfigurationError):
                 raise result
 
-        discovered_devices = []
+        found: list[DiscoveredDevice] = []
+        failed: list[DiscoveredDevice] = []
         for result in results:
-            if isinstance(result, DiscoveredDevice) and result.status in [
-                Status.DETECTED,
-                Status.UPDATE_AVAILABLE,
-                Status.NO_UPDATE_NEEDED,
-                Status.AUTH_REQUIRED,
-            ]:
-                discovered_devices.append(result)
+            if not isinstance(result, DiscoveredDevice):
+                continue
+            if result.status in FOUND_STATUSES:
+                found.append(result)
+            else:
+                failed.append(result)
 
-        await self._settle_update_status(discovered_devices)
+        self._log_outcome(len(ips), found, failed)
 
-        return discovered_devices
+        await self._settle_update_status(found)
+
+        if request.include_failed:
+            return found + failed
+        return found
 
     async def _settle_update_status(self, devices: list[DiscoveredDevice]) -> None:
         """Answer stalled update checks from the manager's own index lookup.
@@ -144,19 +158,22 @@ class ScanDevicesUseCase:
 
     async def _scan_single_device(
         self, ip: str, timeout: float, semaphore: asyncio.Semaphore
-    ) -> DiscoveredDevice | None:
+    ) -> DiscoveredDevice:
         async with semaphore:
             try:
-                return await self._discover_device(ip, timeout)
+                device = await self._discover_device(ip, timeout)
             except ConfigurationError:
                 raise
-            except Exception:
+            except Exception as e:
                 return DiscoveredDevice(
                     ip=ip,
                     status=Status.ERROR,
                     last_seen=datetime.now(),
-                    error_message="Device scan failed",
+                    error_message=str(e) or type(e).__name__,
                 )
+            if device is None:
+                return DiscoveredDevice(ip=ip, status=Status.UNREACHABLE)
+            return device
 
     async def _discover_device(
         self, ip: str, timeout: float = 3.0
@@ -164,7 +181,7 @@ class ScanDevicesUseCase:
         try:
             device = await self._device_gateway.discover_device(ip, timeout=timeout)
 
-            if device:
+            if device and device.status in FOUND_STATUSES:
                 self._validate_discovered_device(device)
                 self._apply_device_status_rules(device)
 
@@ -173,8 +190,9 @@ class ScanDevicesUseCase:
         except ConfigurationError:
             raise
         except Exception as e:
+            reason = str(e) or type(e).__name__
             raise DeviceValidationError(
-                ip, f"Failed to discover device at {ip}: {str(e)}"
+                ip, f"Failed to discover device at {ip}: {reason}"
             ) from e
 
     def _validate_discovered_device(self, device: DiscoveredDevice) -> None:
@@ -208,3 +226,21 @@ class ScanDevicesUseCase:
         except Exception as e:
             logger.error(f"mDNS discovery failed: {e}", exc_info=True)
             return []
+
+    def _log_outcome(
+        self,
+        scanned: int,
+        found: list[DiscoveredDevice],
+        failed: list[DiscoveredDevice],
+    ) -> None:
+        unanswered = [d for d in failed if d.status == Status.UNREACHABLE]
+        errored = [d for d in failed if d.status != Status.UNREACHABLE]
+        logger.info(
+            "Scan of %d addresses: %d devices, %d did not answer, %d failed",
+            scanned,
+            len(found),
+            len(unanswered),
+            len(errored),
+        )
+        for device in errored:
+            logger.warning("Scan of %s failed: %s", device.ip, device.error_message)
