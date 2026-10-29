@@ -33,7 +33,7 @@
     "@tanstack/query-devtools": "^5.105.0",
     "@tanstack/react-query": "^5.105.0",
     "@tanstack/react-query-persist-client": "^5.105.0",
-    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-table": "^9.3.1",
     "axios": "^1.20.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
