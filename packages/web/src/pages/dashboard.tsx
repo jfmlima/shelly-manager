@@ -9,6 +9,7 @@ import { Footer } from "@/components/ui/footer";
 import { handleApiError } from "@/lib/api";
 import {
   isScanFailure,
+  useClearScanResults,
   useScanDevices,
   useScannedDevices,
 } from "@/hooks/useScannedDevices";
@@ -26,7 +27,13 @@ export function Dashboard() {
   } = useScannedDevices();
 
   const scanMutation = useScanDevices();
-  const scanFailures = (scanMutation.data ?? []).filter(isScanFailure);
+  const clearScanResults = useClearScanResults();
+  // A known device that the scan missed carries a badge in the table, so the
+  // panel lists only addresses that are not in the list.
+  const knownIps = new Set(devices.map((device) => device.ip));
+  const scanFailures = (scanMutation.data ?? []).filter(
+    (device) => isScanFailure(device) && !knownIps.has(device.ip),
+  );
 
   const handleScan = (request: ScanRequest) => {
     scanMutation.mutate(request);
@@ -81,7 +88,11 @@ export function Dashboard() {
 
         {/* Device Table */}
         {devices.length > 0 && (
-          <DeviceTable devices={devices} onBulkAction={handleBulkAction} />
+          <DeviceTable
+            devices={devices}
+            onBulkAction={handleBulkAction}
+            onClear={clearScanResults}
+          />
         )}
 
         {/* Addresses the last scan could not reach */}

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { deviceApi, handleApiError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
+import { isScanFailure, mergeScanResults } from "@/lib/scan-merge";
 import {
   clearScanResults,
   loadScanResults,
@@ -11,11 +12,7 @@ import {
 } from "@/lib/storage";
 import type { Device, ScanRequest } from "@/types/api";
 
-const FAILED_SCAN_STATUSES = ["unreachable", "error"];
-
-export function isScanFailure(device: Device): boolean {
-  return FAILED_SCAN_STATUSES.includes(device.status);
-}
+export { isScanFailure };
 
 export function useScannedDevices() {
   return useQuery<Device[]>({
@@ -33,27 +30,34 @@ export function useScanDevices() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (params: ScanRequest) => {
-      clearScanResults();
-      queryClient.removeQueries({ queryKey: queryKeys.devices.scan() });
-      return deviceApi.scanDevices({ ...params, include_failed: true });
-    },
+    mutationFn: (params: ScanRequest) =>
+      deviceApi.scanDevices({ ...params, include_failed: true }),
     onSuccess: (results, params) => {
-      // Only devices reach the cache: the backup schedule form offers the
-      // cached list as targets, and a dead address must not be one of them.
-      const devices = results.filter((device) => !isScanFailure(device));
-      const failed = results.length - devices.length;
+      // Failed addresses never enter the list on their own: the backup
+      // schedule form offers the cached list as targets.
+      const previous =
+        queryClient.getQueryData<Device[]>(queryKeys.devices.scan()) ??
+        loadScanResults()?.devices ??
+        [];
+      const devices = mergeScanResults(previous, results);
+      const found = results.filter((device) => !isScanFailure(device)).length;
+      const failed = results.length - found;
       saveScanResults(devices, params);
       queryClient.setQueryData(queryKeys.devices.scan(), devices);
       toast.success(
         failed > 0
-          ? t("dashboard.messages.scanPartial", {
-              count: devices.length,
-              failed,
-            })
-          : t("dashboard.messages.scanSuccess", { count: devices.length }),
+          ? t("dashboard.messages.scanPartial", { count: found, failed })
+          : t("dashboard.messages.scanSuccess", { count: found }),
       );
     },
     onError: (error) => toast.error(handleApiError(error)),
   });
+}
+
+export function useClearScanResults() {
+  const queryClient = useQueryClient();
+  return () => {
+    clearScanResults();
+    queryClient.setQueryData(queryKeys.devices.scan(), []);
+  };
 }

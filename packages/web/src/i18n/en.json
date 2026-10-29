@@ -102,9 +102,12 @@
       "firmwareVersion": "Firmware Version",
       "responseTime": "Response Time",
       "lastSeen": "Last Seen",
+      "notSeen": "Not seen",
+      "notSeenTitle": "Not found by the latest scan that covered this address",
       "noDevices": "No devices found",
       "bulkActions": "Bulk Actions",
       "columns": "Columns",
+      "clearList": "Clear list",
       "filterDevices": "Filter devices...",
       "rowsSelected": "{{selected}} of {{total}} row(s) selected.",
       "previous": "Previous",
@@ -117,7 +120,7 @@
     },
     "scanFailures": {
       "title": "{{count}} address(es) returned no device",
-      "description": "These addresses were scanned but returned no device. A device that answers direct requests and still shows here may need a longer connect timeout; see the API documentation for NETWORK_CONNECT_TIMEOUT.",
+      "description": "These addresses were scanned but returned no device. A known device the scan missed stays in the list above, marked not seen. See the API documentation for NETWORK_RETRY_ATTEMPTS and NETWORK_CONNECT_TIMEOUT.",
       "unreachable": "did not answer",
       "error": "failed",
       "noReason": "no reason reported"

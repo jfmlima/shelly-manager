@@ -10,6 +10,10 @@ export interface Device {
   response_time: number | null;
   error_message?: string | null;
   last_seen?: string | null;
+  // Set by the web cache, never by the API: the latest scan covered this
+  // device's address and did not find it.
+  not_seen?: boolean;
+  not_seen_reason?: string | null;
 }
 
 export interface Component {

@@ -68,6 +68,7 @@ import type { Device } from "@/types/api";
 interface DeviceTableProps {
   devices: Device[];
   onBulkAction: (selectedDevices: Device[]) => void;
+  onClear?: () => void;
 }
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100, 250, 500] as const;
@@ -101,7 +102,11 @@ const features = tableFeatures({
 
 type DeviceTableFeatures = typeof features;
 
-export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
+export function DeviceTable({
+  devices,
+  onBulkAction,
+  onClear,
+}: DeviceTableProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -150,6 +155,19 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
 
     return (
       <div className="flex items-center gap-1.5">
+        {device.not_seen && (
+          <Badge
+            variant="outline"
+            className="text-muted-foreground"
+            title={
+              device.not_seen_reason
+                ? `${t("dashboard.deviceTable.notSeenTitle")}: ${device.not_seen_reason}`
+                : t("dashboard.deviceTable.notSeenTitle")
+            }
+          >
+            {t("dashboard.deviceTable.notSeen")}
+          </Badge>
+        )}
         <Badge variant={variant}>{getStatusLabel(device)}</Badge>
         {initialSettings.showBetaUpdates &&
           device.available_firmware_channel === "beta" && (
@@ -389,7 +407,7 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
             <CardTitle>{t("dashboard.deviceTable.title")}</CardTitle>
             <CardDescription>
               {t("dashboard.deviceTable.description", {
-                count: devices.length,
+                count: devices.filter((device) => !device.not_seen).length,
               })}
             </CardDescription>
           </div>
@@ -415,6 +433,11 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
                 >
                   {t("dashboard.deviceTable.bulkActions")} (
                   {selectedDevices.length})
+                </Button>
+              )}
+              {onClear && (
+                <Button onClick={onClear} variant="ghost" size="sm">
+                  {t("dashboard.deviceTable.clearList")}
                 </Button>
               )}
               <DropdownMenu>
@@ -473,7 +496,9 @@ export function DeviceTable({ devices, onBulkAction }: DeviceTableProps) {
                     <TableRow
                       key={row.id}
                       data-state={row.getIsSelected() && "selected"}
-                      className="cursor-pointer hover:bg-muted/50"
+                      className={`cursor-pointer hover:bg-muted/50 ${
+                        row.original.not_seen ? "opacity-60" : ""
+                      }`}
                       onClick={() => handleRowClick(row.original)}
                     >
                       {row.getVisibleCells().map((cell) => (
