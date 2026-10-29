@@ -15,7 +15,7 @@ const PROGRESS_UPDATE_INTERVAL = 1000; // Update every second
 export function useBulkProgress() {
   const [progress, setProgressState] = useState<BulkProgress | null>(null);
   const [showDetails, setShowDetails] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setProgress = (
     value:
