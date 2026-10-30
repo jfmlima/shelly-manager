@@ -70,10 +70,16 @@ class NetworkSettings(BaseSettings):
         default=50, ge=1, le=200, description="Maximum concurrent workers"
     )
     retry_attempts: int = Field(
-        default=3, ge=0, le=10, description="Number of retry attempts"
+        default=1,
+        ge=0,
+        le=10,
+        description="Extra discovery attempts for a scanned address that did not answer",
     )
     retry_delay: float = Field(
-        default=1.0, ge=0.1, le=10.0, description="Delay between retries"
+        default=0.5,
+        ge=0.1,
+        le=10.0,
+        description="Seconds to wait before the next discovery attempt",
     )
     verify_ssl: bool = Field(default=False, description="Verify SSL certificates")
 

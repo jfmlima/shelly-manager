@@ -528,3 +528,105 @@ class TestScanSettlesUpdateStatus:
         await use_case.execute(request)
 
         firmware_gateway.get_latest.assert_awaited_once_with("Plus2PM")
+
+
+class TestScanRetries:
+
+    @pytest.fixture
+    def request_for_one_address(self):
+        return ScanRequest(
+            targets=["192.168.1.1"], timeout=3.0, max_workers=1, include_failed=True
+        )
+
+    @pytest.fixture
+    def found_device(self):
+        return DiscoveredDevice(
+            ip="192.168.1.1",
+            status=Status.DETECTED,
+            device_type="Shelly1",
+            firmware_version="1.14.0",
+        )
+
+    async def test_it_retries_an_address_that_did_not_answer(
+        self, mock_device_gateway, request_for_one_address, found_device
+    ):
+        mock_device_gateway.discover_device = AsyncMock(
+            side_effect=[None, found_device]
+        )
+        use_case = ScanDevicesUseCase(
+            device_gateway=mock_device_gateway, retry_attempts=1, retry_delay=0.0
+        )
+
+        result = await use_case.execute(request_for_one_address)
+
+        assert [d.status for d in result] == [Status.DETECTED]
+        assert mock_device_gateway.discover_device.call_count == 2
+
+    async def test_it_reports_the_last_failure_after_the_configured_attempts(
+        self, mock_device_gateway, request_for_one_address
+    ):
+        mock_device_gateway.discover_device = AsyncMock(
+            side_effect=[None, RuntimeError("connection reset")]
+        )
+        use_case = ScanDevicesUseCase(
+            device_gateway=mock_device_gateway, retry_attempts=1, retry_delay=0.0
+        )
+
+        result = await use_case.execute(request_for_one_address)
+
+        assert result[0].status == Status.ERROR
+        assert "connection reset" in result[0].error_message
+        assert mock_device_gateway.discover_device.call_count == 2
+
+    async def test_it_does_not_retry_a_found_device(
+        self, mock_device_gateway, request_for_one_address, found_device
+    ):
+        mock_device_gateway.discover_device = AsyncMock(return_value=found_device)
+        use_case = ScanDevicesUseCase(
+            device_gateway=mock_device_gateway, retry_attempts=3, retry_delay=0.0
+        )
+
+        await use_case.execute(request_for_one_address)
+
+        assert mock_device_gateway.discover_device.call_count == 1
+
+    async def test_it_makes_one_request_without_retries(
+        self, mock_device_gateway, request_for_one_address
+    ):
+        mock_device_gateway.discover_device = AsyncMock(return_value=None)
+        use_case = ScanDevicesUseCase(device_gateway=mock_device_gateway)
+
+        result = await use_case.execute(request_for_one_address)
+
+        assert result[0].status == Status.UNREACHABLE
+        assert mock_device_gateway.discover_device.call_count == 1
+
+    async def test_it_waits_between_attempts(
+        self, mock_device_gateway, request_for_one_address, monkeypatch
+    ):
+        sleep = AsyncMock()
+        monkeypatch.setattr("core.use_cases.scan_devices.asyncio.sleep", sleep)
+        mock_device_gateway.discover_device = AsyncMock(return_value=None)
+        use_case = ScanDevicesUseCase(
+            device_gateway=mock_device_gateway, retry_attempts=2, retry_delay=0.5
+        )
+
+        await use_case.execute(request_for_one_address)
+
+        assert sleep.await_args_list == [((0.5,),), ((0.5,),)]
+        assert mock_device_gateway.discover_device.call_count == 3
+
+    async def test_it_does_not_retry_a_configuration_error(
+        self, mock_device_gateway, request_for_one_address
+    ):
+        mock_device_gateway.discover_device = AsyncMock(
+            side_effect=ConfigurationError("scan", "bad config")
+        )
+        use_case = ScanDevicesUseCase(
+            device_gateway=mock_device_gateway, retry_attempts=2, retry_delay=0.0
+        )
+
+        with pytest.raises(ConfigurationError):
+            await use_case.execute(request_for_one_address)
+
+        assert mock_device_gateway.discover_device.call_count == 1

@@ -36,11 +36,15 @@ class ScanDevicesUseCase:
         mdns_client: MDNSGateway | None = None,
         auth_state_cache: Any | None = None,
         firmware_gateway: FirmwareGateway | None = None,
+        retry_attempts: int = 0,
+        retry_delay: float = 0.0,
     ):
         self._device_gateway = device_gateway
         self._mdns_client = mdns_client
         self._auth_state_cache = auth_state_cache
         self._firmware_gateway = firmware_gateway
+        self._retry_attempts = retry_attempts
+        self._retry_delay = retry_delay
 
     async def execute(self, request: ScanRequest) -> list[DiscoveredDevice]:
         """
@@ -160,20 +164,36 @@ class ScanDevicesUseCase:
         self, ip: str, timeout: float, semaphore: asyncio.Semaphore
     ) -> DiscoveredDevice:
         async with semaphore:
-            try:
-                device = await self._discover_device(ip, timeout)
-            except ConfigurationError:
-                raise
-            except Exception as e:
-                return DiscoveredDevice(
-                    ip=ip,
-                    status=Status.ERROR,
-                    last_seen=datetime.now(),
-                    error_message=str(e) or type(e).__name__,
+            device = await self._attempt_discovery(ip, timeout)
+            for attempt in range(1, self._retry_attempts + 1):
+                if device.status in FOUND_STATUSES:
+                    break
+                logger.debug(
+                    "Retrying %s (%d of %d): %s",
+                    ip,
+                    attempt,
+                    self._retry_attempts,
+                    device.error_message or device.status,
                 )
-            if device is None:
-                return DiscoveredDevice(ip=ip, status=Status.UNREACHABLE)
+                await asyncio.sleep(self._retry_delay)
+                device = await self._attempt_discovery(ip, timeout)
             return device
+
+    async def _attempt_discovery(self, ip: str, timeout: float) -> DiscoveredDevice:
+        try:
+            device = await self._discover_device(ip, timeout)
+        except ConfigurationError:
+            raise
+        except Exception as e:
+            return DiscoveredDevice(
+                ip=ip,
+                status=Status.ERROR,
+                last_seen=datetime.now(),
+                error_message=str(e) or type(e).__name__,
+            )
+        if device is None:
+            return DiscoveredDevice(ip=ip, status=Status.UNREACHABLE)
+        return device
 
     async def _discover_device(
         self, ip: str, timeout: float = 3.0

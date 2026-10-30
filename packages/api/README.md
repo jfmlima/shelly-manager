@@ -219,7 +219,9 @@ curl "http://localhost:8000/api/devices/scan?targets=192.168.1.1-10"
 Add `include_failed=true` to also get the addresses that did not answer. Each comes back
 with status `unreachable` (nothing accepted the connection) or `error` (something answered
 but discovery failed) and the reason in `error_message`. The API log also prints one line
-per scan with the counts, and a warning for every `error` address.
+per scan with the counts, and a warning for every `error` address. An address that returns
+no device is tried again after `NETWORK_RETRY_DELAY` seconds, `NETWORK_RETRY_ATTEMPTS`
+times, so one lost packet does not hide a device.
 
 The `timeout` parameter is how long the scan waits for a device to answer a request. The
 TCP connect phase has its own cap, `NETWORK_CONNECT_TIMEOUT`, 2 seconds by default, and a
@@ -476,6 +478,8 @@ curl -X POST "http://localhost:8000/api/backups/1/restore" \
 | `NETWORK_TIMEOUT` | `3.0` | Default seconds to wait for a device to answer a request |
 | `NETWORK_CONNECT_TIMEOUT` | `2.0` | Seconds to wait for a device to accept a TCP connection. Keeps dead addresses cheap in a subnet scan. A scan's `timeout` does not raise it |
 | `NETWORK_MAX_WORKERS` | `50` | Default concurrent device requests |
+| `NETWORK_RETRY_ATTEMPTS` | `1` | Extra attempts for a scanned address that returns no device. Each one costs another connect timeout on a dead address, so a subnet scan takes about twice as long as with `0` |
+| `NETWORK_RETRY_DELAY` | `0.5` | Seconds to wait before the next attempt |
 | `LOG_LEVEL` | `INFO` | Log level of the manager's own loggers. `DEBUG` prints why each scanned address was skipped |
 
 `SHELLY_SECRET_KEY` also encrypts configuration **backup snapshots** at rest. Backups are

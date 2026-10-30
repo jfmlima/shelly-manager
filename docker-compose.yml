@@ -26,6 +26,9 @@ services:
       # How long a scan waits for a device to accept a TCP connection. Raise
       # it when devices that answer direct requests go missing from scans.
       NETWORK_CONNECT_TIMEOUT: "${NETWORK_CONNECT_TIMEOUT:-2.0}"
+      # Extra attempts for a scanned address that returns no device. 0 makes
+      # subnet scans faster and lets one lost packet hide a device.
+      NETWORK_RETRY_ATTEMPTS: "${NETWORK_RETRY_ATTEMPTS:-1}"
       # DEBUG prints why each scanned address was skipped.
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
     volumes:

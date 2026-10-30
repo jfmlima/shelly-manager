@@ -2,7 +2,7 @@ import json
 
 import pytest
 from core.domain.entities.exceptions import ValidationError
-from core.settings import AppSettings
+from core.settings import AppSettings, NetworkSettings
 
 
 def test_it_loads_backup_settings_from_config_file(tmp_path, monkeypatch):
@@ -200,3 +200,13 @@ def test_it_never_writes_the_auth_token_to_the_config_file(tmp_path, monkeypatch
     saved = json.loads(config_path.read_text())
     assert "auth_token" not in saved
     assert "secret_key" not in saved
+
+
+def test_it_retries_a_scanned_address_once_by_default(monkeypatch):
+    monkeypatch.delenv("NETWORK_RETRY_ATTEMPTS", raising=False)
+    monkeypatch.delenv("NETWORK_RETRY_DELAY", raising=False)
+
+    network = NetworkSettings()
+
+    assert network.retry_attempts == 1
+    assert network.retry_delay == 0.5

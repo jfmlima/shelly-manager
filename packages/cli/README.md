@@ -300,6 +300,8 @@ than backfilling every slot it missed. The first run happens one interval after 
 | `NETWORK_TIMEOUT`    | `3.0`         | Default seconds to wait for a device to answer |
 | `NETWORK_CONNECT_TIMEOUT` | `2.0`    | Seconds to wait for a device to accept a TCP connection; `--timeout` does not raise it |
 | `NETWORK_MAX_WORKERS` | `50`          | Default concurrent workers |
+| `NETWORK_RETRY_ATTEMPTS` | `1`       | Extra attempts for a scanned address that returns no device; `0` makes subnet scans about twice as fast |
+| `NETWORK_RETRY_DELAY` | `0.5`        | Seconds to wait before the next attempt |
 
 
 ## Export Formats
