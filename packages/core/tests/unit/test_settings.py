@@ -3,6 +3,7 @@ import json
 import pytest
 from core.domain.entities.exceptions import ValidationError
 from core.settings import AppSettings, NetworkSettings
+from pydantic import ValidationError as SettingsValidationError
 
 
 def test_it_loads_backup_settings_from_config_file(tmp_path, monkeypatch):
@@ -210,3 +211,24 @@ def test_it_retries_a_scanned_address_once_by_default(monkeypatch):
 
     assert network.retry_attempts == 1
     assert network.retry_delay == 0.5
+
+
+def test_it_allows_four_connections_per_device_by_default(monkeypatch):
+    monkeypatch.delenv("NETWORK_MAX_CONNECTIONS_PER_DEVICE", raising=False)
+
+    assert NetworkSettings().max_connections_per_device == 4
+
+
+@pytest.mark.parametrize("value", ["1", "6"])
+def test_it_accepts_a_connection_budget_within_the_device_limit(monkeypatch, value):
+    monkeypatch.setenv("NETWORK_MAX_CONNECTIONS_PER_DEVICE", value)
+
+    assert NetworkSettings().max_connections_per_device == int(value)
+
+
+@pytest.mark.parametrize("value", ["0", "7"])
+def test_it_rejects_a_connection_budget_outside_the_device_limit(monkeypatch, value):
+    monkeypatch.setenv("NETWORK_MAX_CONNECTIONS_PER_DEVICE", value)
+
+    with pytest.raises(SettingsValidationError):
+        NetworkSettings()

@@ -98,6 +98,9 @@ class BaseContainer:
             self._rpc_client = AsyncShellyRPCClient(
                 timeout=core_settings.network.timeout,
                 connect_timeout=core_settings.network.connect_timeout,
+                max_connections_per_device=(
+                    core_settings.network.max_connections_per_device
+                ),
                 verify=core_settings.network.verify_ssl,
                 authentication_service=self.get_authentication_service(),
                 auth_state_cache=self.get_auth_state_cache(),

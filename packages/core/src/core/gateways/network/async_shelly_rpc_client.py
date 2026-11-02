@@ -1,6 +1,8 @@
+import asyncio
 import logging
 import time
 import uuid
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -22,6 +24,12 @@ from .shelly_digest_auth import ShellyDigestAuth
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class _DeviceGate:
+    semaphore: asyncio.Semaphore
+    in_flight: int = 0
+
+
 class AsyncShellyRPCClient(RpcNetworkGateway):
 
     def __init__(
@@ -30,10 +38,13 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
         timeout: float = 3.0,
         connect_timeout: float = 2.0,
         max_connections: int | None = None,
+        max_connections_per_device: int = 4,
         verify: bool | None = None,
         authentication_service: AuthenticationService | None = None,
         auth_state_cache: AuthStateCache | None = None,
     ):
+        if max_connections_per_device < 1:
+            raise ValueError("max_connections_per_device must be at least 1")
         self.timeout = timeout
         self._connect_timeout = connect_timeout
         if session is not None:
@@ -55,6 +66,8 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
         self._closed = False
         self._ip_to_mac: dict[str, str] = {}
         self._digest_auth_cache: dict[str, ShellyDigestAuth] = {}
+        self._max_connections_per_device = max_connections_per_device
+        self._device_gates: dict[str, _DeviceGate] = {}
 
     def _build_timeout(self, timeout: float) -> httpx.Timeout:
         """Build an httpx timeout with a short, capped connect phase.
@@ -101,7 +114,7 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
 
         # Execute request
         response, _ = await self._execute_http_request(
-            url, payload, headers, timeout=timeout, auth=req_auth
+            ip, url, payload, headers, timeout=timeout, auth=req_auth
         )
 
         # Handle 401 authentication challenge
@@ -196,6 +209,7 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
 
     async def _execute_http_request(
         self,
+        ip: str,
         url: str,
         payload: dict[str, Any],
         headers: dict[str, str],
@@ -205,6 +219,7 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
         """Execute HTTP POST request and track timing.
 
         Args:
+            ip: Device IP address
             url: Request URL
             payload: JSON payload
             headers: HTTP headers
@@ -219,7 +234,8 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
             auth if auth is not None else httpx.USE_CLIENT_DEFAULT
         )
         try:
-            response = await self._session.post(
+            response = await self._post(
+                ip,
                 url,
                 json=payload,
                 headers=headers,
@@ -230,8 +246,6 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
             return response, elapsed
         except httpx.RequestError as e:
             elapsed = time.time() - start_time
-            # Extract IP from URL for error context
-            ip = url.replace("http://", "").replace("/rpc", "")
             # Connect-level failures mean nothing is listening at this address.
             # Flag them so callers can skip the (expensive) legacy fallback probe.
             # PoolTimeout is deliberately excluded: it signals local pool
@@ -321,7 +335,8 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
 
         # Retry with authentication
         logger.debug("Retrying with DigestAuth for %s", mac)
-        response = await self._session.post(
+        response = await self._post(
+            ip,
             url,
             json=payload,
             headers=headers,
@@ -354,8 +369,8 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
             url = f"http://{ip}/rpc"
             payload = {"id": str(uuid.uuid4()), "method": "Shelly.GetDeviceInfo"}
             logger.debug("Probing MAC address for %s", ip)
-            response = await self._session.post(
-                url, json=payload, timeout=self._build_timeout(timeout)
+            response = await self._post(
+                ip, url, json=payload, timeout=self._build_timeout(timeout)
             )
 
             if response.status_code == 200:
@@ -392,3 +407,17 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
         if not self._closed:
             await self._session.aclose()
             self._closed = True
+
+    async def _post(self, ip: str, url: str, **kwargs: Any) -> httpx.Response:
+        gate = self._device_gates.get(ip)
+        if gate is None:
+            gate = _DeviceGate(asyncio.Semaphore(self._max_connections_per_device))
+            self._device_gates[ip] = gate
+        gate.in_flight += 1
+        try:
+            async with gate.semaphore:
+                return await self._session.post(url, **kwargs)
+        finally:
+            gate.in_flight -= 1
+            if gate.in_flight == 0:
+                del self._device_gates[ip]

@@ -290,3 +290,173 @@ class TestAuthStateCacheGating:
         client._invalidate_auth_cache("192.168.1.100")
 
         assert auth_state_cache.is_known("AABBCCDDEEFF") is True
+
+
+def _ok_response(body: dict | None = None) -> MagicMock:
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = body if body is not None else {"result": {}}
+    return response
+
+
+class TestConnectionBudget:
+
+    @pytest.fixture
+    def mock_session(self):
+        return AsyncMock(spec=httpx.AsyncClient)
+
+    @staticmethod
+    def _track_in_flight(mock_session):
+        state = {"now": 0, "peak": 0}
+
+        async def post(*args, **kwargs):
+            state["now"] += 1
+            state["peak"] = max(state["peak"], state["now"])
+            for _ in range(3):
+                await asyncio.sleep(0)
+            state["now"] -= 1
+            return _ok_response()
+
+        mock_session.post.side_effect = post
+        return state
+
+    async def test_it_allows_four_connections_per_device_by_default(self, mock_session):
+        client = AsyncShellyRPCClient(session=mock_session)
+        state = self._track_in_flight(mock_session)
+
+        await asyncio.gather(
+            *(client.make_rpc_request("192.168.1.100", "Test.Method") for _ in range(8))
+        )
+
+        assert state["peak"] == 4
+
+    @pytest.mark.parametrize("budget", [1, 2, 3])
+    async def test_it_caps_concurrent_posts_to_one_device(self, mock_session, budget):
+        client = AsyncShellyRPCClient(
+            session=mock_session, max_connections_per_device=budget
+        )
+        state = self._track_in_flight(mock_session)
+
+        await asyncio.gather(
+            *(client.make_rpc_request("192.168.1.100", "Test.Method") for _ in range(8))
+        )
+
+        assert state["peak"] == budget
+        assert mock_session.post.call_count == 8
+
+    async def test_it_gives_each_device_its_own_budget(self, mock_session):
+        client = AsyncShellyRPCClient(
+            session=mock_session, max_connections_per_device=4
+        )
+        state = self._track_in_flight(mock_session)
+
+        await asyncio.gather(
+            *(
+                client.make_rpc_request(ip, "Test.Method")
+                for ip in ["192.168.1.100", "192.168.1.101"] * 4
+            )
+        )
+
+        assert state["peak"] == 8
+
+    async def test_it_answers_an_auth_challenge_at_a_budget_of_one(self, mock_session):
+        challenge = MagicMock()
+        challenge.status_code = 401
+        mock_session.post.side_effect = [
+            challenge,
+            _ok_response({"result": {"mac": "AABBCCDDEEFF"}}),
+            _ok_response({"result": "ok"}),
+        ]
+        authentication_service = AsyncMock()
+        authentication_service.resolve_credentials.return_value = MagicMock(
+            username="admin", password="secret"
+        )
+        client = AsyncShellyRPCClient(
+            session=mock_session,
+            max_connections_per_device=1,
+            authentication_service=authentication_service,
+            auth_state_cache=AuthStateCache(),
+        )
+
+        result, _ = await asyncio.wait_for(
+            client.make_rpc_request("192.168.1.100", "Test.Method"), timeout=1
+        )
+
+        assert result == {"result": "ok"}
+        assert mock_session.post.call_count == 3
+
+    async def test_it_frees_the_slot_when_a_post_fails(self, mock_session):
+        mock_session.post.side_effect = [httpx.ReadTimeout("x"), _ok_response()]
+        client = AsyncShellyRPCClient(
+            session=mock_session, max_connections_per_device=1
+        )
+
+        with pytest.raises(DeviceCommunicationError):
+            await client.make_rpc_request("192.168.1.100", "Test.Method")
+        await asyncio.wait_for(
+            client.make_rpc_request("192.168.1.100", "Test.Method"), timeout=1
+        )
+
+        assert client._device_gates == {}
+
+    async def test_it_frees_the_slot_when_a_waiting_request_is_cancelled(
+        self, mock_session
+    ):
+        release = asyncio.Event()
+
+        async def post(*args, **kwargs):
+            await release.wait()
+            return _ok_response()
+
+        mock_session.post.side_effect = post
+        client = AsyncShellyRPCClient(
+            session=mock_session, max_connections_per_device=1
+        )
+        holder = asyncio.create_task(
+            client.make_rpc_request("192.168.1.100", "Test.Method")
+        )
+        waiter = asyncio.create_task(
+            client.make_rpc_request("192.168.1.100", "Test.Method")
+        )
+        await asyncio.sleep(0)
+
+        waiter.cancel()
+        release.set()
+        await holder
+
+        with pytest.raises(asyncio.CancelledError):
+            await waiter
+        assert client._device_gates == {}
+
+    @pytest.mark.parametrize("budget", [0, -1])
+    def test_it_rejects_a_budget_below_one(self, mock_session, budget):
+        with pytest.raises(ValueError, match="max_connections_per_device"):
+            AsyncShellyRPCClient(
+                session=mock_session, max_connections_per_device=budget
+            )
+
+    async def test_it_keeps_a_separate_budget_for_a_port_on_another_host(
+        self, mock_session
+    ):
+        client = AsyncShellyRPCClient(
+            session=mock_session, max_connections_per_device=1
+        )
+        state = self._track_in_flight(mock_session)
+
+        await asyncio.gather(
+            client.make_rpc_request("10.0.0.1:80", "Test.Method"),
+            client.make_rpc_request("10.0.0.180", "Test.Method"),
+        )
+
+        assert state["peak"] == 2
+
+    async def test_it_forgets_a_device_after_its_last_request(self, mock_session):
+        mock_session.post.return_value = _ok_response()
+        client = AsyncShellyRPCClient(session=mock_session)
+
+        await asyncio.gather(
+            client.make_rpc_request("192.168.1.100", "Test.Method"),
+            client.make_rpc_request("192.168.1.101", "Test.Method"),
+        )
+
+        assert client._device_gates == {}

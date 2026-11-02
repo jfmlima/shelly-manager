@@ -69,6 +69,15 @@ class NetworkSettings(BaseSettings):
     max_workers: int = Field(
         default=50, ge=1, le=200, description="Maximum concurrent workers"
     )
+    max_connections_per_device: int = Field(
+        default=4,
+        ge=1,
+        le=6,
+        description=(
+            "Requests sent to one Gen2 or newer device at the same time; "
+            "Shelly documents 6"
+        ),
+    )
     retry_attempts: int = Field(
         default=1,
         ge=0,

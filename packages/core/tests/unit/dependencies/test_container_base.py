@@ -75,6 +75,20 @@ class TestProviderWiring:
         finally:
             await client.close()
 
+    async def test_it_gives_the_rpc_client_the_connection_budget(self, monkeypatch):
+        monkeypatch.setattr(
+            "core.dependencies.container_base.core_settings.network"
+            ".max_connections_per_device",
+            2,
+        )
+        container = BaseContainer()
+
+        client = container.get_rpc_client()
+        try:
+            assert client._max_connections_per_device == 2
+        finally:
+            await client.close()
+
     async def test_it_gives_the_device_gateway_the_shared_auth_state_cache(self):
         container = BaseContainer()
 

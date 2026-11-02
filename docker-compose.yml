@@ -26,6 +26,9 @@ services:
       # How long a scan waits for a device to accept a TCP connection. Raise
       # it when devices that answer direct requests go missing from scans.
       NETWORK_CONNECT_TIMEOUT: "${NETWORK_CONNECT_TIMEOUT:-2.0}"
+      # How many requests the manager sends to one Gen2 or newer device at
+      # the same time, 1 to 6. Shelly documents 6.
+      NETWORK_MAX_CONNECTIONS_PER_DEVICE: "${NETWORK_MAX_CONNECTIONS_PER_DEVICE:-4}"
       # Extra attempts for a scanned address that returns no device. 0 makes
       # subnet scans faster and lets one lost packet hide a device.
       NETWORK_RETRY_ATTEMPTS: "${NETWORK_RETRY_ATTEMPTS:-1}"
