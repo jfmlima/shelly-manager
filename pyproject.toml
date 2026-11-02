@@ -15,12 +15,12 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest==9.1.1",
+    "pytest==9.2.0",
     "pytest-asyncio==1.4.1",
     "pytest-cov==7.1.0",
     "black==26.10.1",
-    "ruff==0.17.2",
-    "mypy==2.4.0",
+    "ruff==0.17.3",
+    "mypy==2.4.1",
     "pre-commit==4.7.0",
     "types-PyYAML==6.0.12.20250516",
 ]
