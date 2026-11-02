@@ -408,16 +408,33 @@ class AsyncShellyRPCClient(RpcNetworkGateway):
             await self._session.aclose()
             self._closed = True
 
-    async def _post(self, ip: str, url: str, **kwargs: Any) -> httpx.Response:
+    async def _post(
+        self, ip: str, url: str, *, timeout: httpx.Timeout, **kwargs: Any
+    ) -> httpx.Response:
         gate = self._device_gates.get(ip)
         if gate is None:
             gate = _DeviceGate(asyncio.Semaphore(self._max_connections_per_device))
             self._device_gates[ip] = gate
         gate.in_flight += 1
         try:
-            async with gate.semaphore:
-                return await self._session.post(url, **kwargs)
+            await self._acquire_slot(ip, gate.semaphore, timeout.pool)
+            try:
+                return await self._session.post(url, timeout=timeout, **kwargs)
+            finally:
+                gate.semaphore.release()
         finally:
             gate.in_flight -= 1
             if gate.in_flight == 0:
                 del self._device_gates[ip]
+
+    @staticmethod
+    async def _acquire_slot(
+        ip: str, semaphore: asyncio.Semaphore, wait: float | None
+    ) -> None:
+        try:
+            async with asyncio.timeout(wait):
+                await semaphore.acquire()
+        except TimeoutError as e:
+            raise DeviceCommunicationError(
+                ip, "Timed out waiting for a free connection to the device"
+            ) from e

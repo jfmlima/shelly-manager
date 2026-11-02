@@ -450,6 +450,55 @@ class TestConnectionBudget:
 
         assert state["peak"] == 2
 
+    async def test_it_gives_up_on_a_slot_after_the_request_timeout(self, mock_session):
+        release = asyncio.Event()
+        sent: list[str] = []
+
+        async def post(*args, **kwargs):
+            sent.append(kwargs["json"]["method"])
+            await release.wait()
+            return _ok_response()
+
+        mock_session.post.side_effect = post
+        client = AsyncShellyRPCClient(
+            session=mock_session, max_connections_per_device=1
+        )
+        holder = asyncio.create_task(
+            client.make_rpc_request("192.168.1.100", "Slow.Read")
+        )
+        await asyncio.sleep(0)
+
+        with pytest.raises(DeviceCommunicationError) as exc_info:
+            await asyncio.wait_for(
+                client.make_rpc_request("192.168.1.100", "Switch.Toggle", timeout=0.05),
+                timeout=1,
+            )
+        release.set()
+        await holder
+
+        assert not isinstance(exc_info.value, DeviceUnreachableError)
+        assert sent == ["Slow.Read"]
+        assert client._device_gates == {}
+
+    async def test_it_sends_a_queued_request_that_gets_a_slot_in_time(
+        self, mock_session
+    ):
+        mock_session.post.return_value = _ok_response()
+        client = AsyncShellyRPCClient(
+            session=mock_session, max_connections_per_device=1
+        )
+        state = self._track_in_flight(mock_session)
+
+        await asyncio.gather(
+            *(
+                client.make_rpc_request("192.168.1.100", "Test.Method", timeout=1)
+                for _ in range(4)
+            )
+        )
+
+        assert state["peak"] == 1
+        assert mock_session.post.call_count == 4
+
     async def test_it_forgets_a_device_after_its_last_request(self, mock_session):
         mock_session.post.return_value = _ok_response()
         client = AsyncShellyRPCClient(session=mock_session)
