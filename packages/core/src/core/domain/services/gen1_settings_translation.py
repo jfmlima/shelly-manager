@@ -11,6 +11,7 @@ Pure dict-in/dict-out: no I/O, independently testable against the documented
 Gen1 API (https://shelly-api-docs.shelly.cloud/gen1/).
 """
 
+from copy import deepcopy
 from typing import Any
 
 # Section of the raw /settings holding each component's config. "" is the top level.
@@ -212,6 +213,21 @@ def wifi_subresources(settings: dict[str, Any]) -> list[tuple[str, dict[str, Any
         if params:
             subresources.append((subtype, params))
     return subresources
+
+
+def without_identity(settings: dict[str, Any]) -> dict[str, Any]:
+    """A copy of ``settings`` without the device name and the MQTT client id.
+
+    Both name one physical device, so a restore onto another device keeps the
+    target's own values. Per-relay and per-input names are configuration and
+    stay.
+    """
+    stripped = deepcopy(settings)
+    stripped.pop("name", None)
+    mqtt = stripped.get("mqtt")
+    if isinstance(mqtt, dict):
+        mqtt.pop("id", None)
+    return stripped
 
 
 def _section(key: str, ctype: str, settings: dict[str, Any]) -> dict[str, Any] | None:

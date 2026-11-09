@@ -7,6 +7,7 @@ from core.domain.entities.config_snapshot import (
     ComponentSnapshot,
     DeviceSnapshot,
     SnapshotDeviceInfo,
+    without_device_identity,
 )
 
 # A snapshot in the shape stored by every backup taken before this type existed:
@@ -180,6 +181,123 @@ class TestDeviceSnapshot:
         snapshot = DeviceSnapshot.from_dict(GEN2_SNAPSHOT)
 
         assert snapshot.legacy_settings is None
+
+
+class TestWithoutDeviceIdentity:
+    def _gen2(self):
+        return DeviceSnapshot.from_dict(
+            {
+                "device_info": {"mac_address": "AABBCCDDEEFF"},
+                "components": {
+                    "sys": {
+                        "type": "sys",
+                        "success": True,
+                        "config": {
+                            "device": {"name": "Master", "eco_mode": True},
+                            "location": {"tz": "Europe/Lisbon"},
+                        },
+                    },
+                    "mqtt": {
+                        "type": "mqtt",
+                        "success": True,
+                        "config": {
+                            "enable": True,
+                            "server": "10.0.0.1:1883",
+                            "client_id": "shellyplus010v-master",
+                            "topic_prefix": "shellyplus010v-master",
+                        },
+                    },
+                    "light:0": {
+                        "type": "light",
+                        "success": True,
+                        "config": {"name": "Ceiling"},
+                    },
+                },
+            }
+        )
+
+    def _gen1(self):
+        return DeviceSnapshot.from_dict(
+            {
+                "components": {
+                    "legacy_settings": {
+                        "type": "legacy_settings",
+                        "success": True,
+                        "config": {
+                            "name": "Hallway",
+                            "timezone": "Europe/Lisbon",
+                            "relays": [{"name": "Hallway light"}],
+                            "inputs": [{"name": "Left button"}],
+                            "mqtt": {"enable": True, "id": "shelly1-DDEEFF"},
+                        },
+                    }
+                }
+            }
+        )
+
+    def test_it_removes_the_gen2_device_name_and_mqtt_ids(self):
+        stripped = without_device_identity(self._gen2())
+
+        assert stripped.components["sys"].config == {
+            "device": {"eco_mode": True},
+            "location": {"tz": "Europe/Lisbon"},
+        }
+        assert stripped.components["mqtt"].config == {
+            "enable": True,
+            "server": "10.0.0.1:1883",
+        }
+        assert stripped.components["light:0"].config == {"name": "Ceiling"}
+
+    def test_it_leaves_the_original_gen2_snapshot_untouched(self):
+        snapshot = self._gen2()
+        before = snapshot.to_dict()
+
+        without_device_identity(snapshot)
+
+        assert snapshot.to_dict() == before
+
+    def test_it_removes_the_gen1_device_name_and_mqtt_id(self):
+        stripped = without_device_identity(self._gen1())
+
+        assert stripped.legacy_settings == {
+            "timezone": "Europe/Lisbon",
+            "relays": [{"name": "Hallway light"}],
+            "inputs": [{"name": "Left button"}],
+            "mqtt": {"enable": True},
+        }
+
+    def test_it_leaves_the_original_gen1_snapshot_untouched(self):
+        snapshot = self._gen1()
+        before = snapshot.to_dict()
+
+        without_device_identity(snapshot)
+
+        assert snapshot.to_dict() == before
+
+    def test_it_passes_through_a_snapshot_without_identity_components(self):
+        snapshot = DeviceSnapshot.from_dict(GEN2_SNAPSHOT)
+
+        assert without_device_identity(snapshot).to_dict() == GEN2_SNAPSHOT
+
+    def test_it_passes_through_configs_that_are_not_dicts(self):
+        raw = {
+            "device_info": {},
+            "components": {
+                "sys": {"type": "sys", "success": True, "config": {"device": "x"}},
+                "mqtt": {"type": "mqtt", "success": False, "config": None},
+                "legacy_settings": {
+                    "type": "legacy_settings",
+                    "success": True,
+                    "config": {"mqtt": "x"},
+                },
+            },
+        }
+
+        stripped = without_device_identity(DeviceSnapshot.from_dict(raw))
+
+        assert stripped.components["sys"].config == {"device": "x"}
+        assert stripped.components["mqtt"].config is None
+        assert stripped.legacy_settings == {"mqtt": "x"}
 
 
 class TestComponentTypeVocabulary:

@@ -107,13 +107,16 @@ Per-device configuration snapshots, stored in the local database and encrypted w
 `SHELLY_SECRET_KEY`. A backup captures every component's config (plus script code and
 schedules) and is keyed by device MAC.
 
-> **Backup/restore vs. bulk config:** restore puts a single device's own captured config back,
-> for recovery. `POST /api/devices/bulk/config/apply` does the opposite, pushing one config out
-> to many devices for templating. They cover different needs, so both are kept.
+> **Backup/restore vs. bulk config:** restore applies one device's whole captured config to one
+> device: the same device, to recover it, or another device of the same model, to clone it.
+> `POST /api/devices/bulk/config/apply` pushes one component config out to many devices. They
+> cover different needs, so both are kept.
 
 ```bash
 GET /api/backups                   # List backup summaries (newest first)
   ?device_mac=AABBCCDDEEFF          # Optional: filter by device MAC
+  ?device_type=SNDM-0013US          # Optional: filter by device model
+  ?exclude_mac=AABBCCDDEEFF         # Optional: leave out one device's backups
 
 POST /api/backups                  # Capture a backup of a device
   # Body: {"device_ip": "192.168.1.100", "name": "before-upgrade"}
@@ -124,6 +127,8 @@ POST /api/backups/{id}/restore     # Restore a backup onto a device
   # Body: {"device_ip": "192.168.1.100",
   #        "component_keys": ["switch:0", "sys"],   # null = all except network types
   #        "allow_mac_mismatch": false,             # restore even if target MAC differs
+  #        "allow_model_mismatch": false,           # restore even if model/profile differs
+  #        "keep_target_identity": false,           # keep target's name and MQTT ids
   #        "reboot": false}                          # reboot after a successful restore
 
 DELETE /api/backups/{id}           # Delete a backup
@@ -132,6 +137,15 @@ DELETE /api/backups/{id}           # Delete a backup
 Restore is per-component and **excludes network components (`wifi`/`eth`/`mqtt`/`ws`/`cloud`)
 by default** to avoid locking the device off-network; pass their keys in `component_keys` to
 include them.
+
+Every restore checks the target's model and profile against the backup and answers `409` when
+either differs, or when the target does not report one the backup has, unless
+`allow_model_mismatch` is set. This also applies to a restore onto the
+same device after its profile changed: change the profile back first, or pick a backup taken in
+the current profile. The device profile itself is never restored. To clone onto another device
+of the same model, set `allow_mac_mismatch` and `keep_target_identity`: the target keeps its own
+device name and MQTT client id and topic prefix, and takes every other captured key. Scripts are
+only restored onto a target that already has a script in the same slot.
 
 Gen1 relay/roller/plug/i3 devices restore too, by replaying the raw `/settings` captured in the
 snapshot over the legacy HTTP endpoints, including the device mode (relay/roller), which is

@@ -27,6 +27,29 @@ export function useBackups(
   });
 }
 
+export function useBackupsByModel(
+  deviceType: string | null | undefined,
+  excludeMac: string | null | undefined,
+  options?: BackupPageOptions,
+) {
+  const page = pageOf(options);
+  return useQuery({
+    queryKey: queryKeys.backups.list({
+      scope: "model",
+      deviceType: deviceType ?? null,
+      excludeMac: excludeMac ?? null,
+      ...page,
+    }),
+    queryFn: () =>
+      backupApi.listBackups({
+        deviceType: deviceType ?? undefined,
+        excludeMac: excludeMac ?? undefined,
+        ...page,
+      }),
+    enabled: !!deviceType,
+  });
+}
+
 export function useAllBackups(options?: BackupPageOptions) {
   const page = pageOf(options);
   return useQuery({

@@ -226,6 +226,9 @@ shelly-manager backup restore 1 --target 192.168.1.100
 # Restore only selected components
 shelly-manager backup restore 1 --target 192.168.1.100 --component switch:0 --component sys
 
+# Clone a backup onto another device of the same model, keeping its own name and MQTT ids
+shelly-manager backup restore 1 --target 192.168.1.101 --allow-mac-mismatch --keep-identity
+
 # Delete a backup
 shelly-manager backup delete 1
 ```
@@ -238,11 +241,16 @@ shelly-manager backup delete 1
 - `--all`: Include network components (`wifi`/`eth`/`mqtt`/`ws`/`cloud`), which are excluded by
   default to avoid losing connectivity.
 - `--allow-mac-mismatch`: Restore even if the target MAC differs from the backup.
+- `--allow-model-mismatch`: Restore even if the target model or profile differs from the
+  backup. Without it, a model or profile mismatch stops the restore, also on the same device.
+- `--keep-identity`: Keep the target's own device name and MQTT client id and topic prefix. Use
+  it when cloning onto another device.
 - `--reboot`: Reboot the device after a successful restore.
 - `--force`: Skip the confirmation prompt.
 
 > **Backup/restore vs. `bulk config`:** use backup/restore to recover a single device from its
-> own snapshot. Use `bulk config apply` to push the same settings out to many devices at once.
+> own snapshot, or to clone it onto another device of the same model. Use `bulk config apply` to
+> push the same settings out to many devices at once.
 > Restore works on Gen1 and Gen2+ devices, but the backup and the target must be the same
 > generation. On Gen1, secrets never leave the device in a backup, so restoring `wifi` or `mqtt`
 > re-applies everything except the password. A Gen1 backup taken in a different device mode

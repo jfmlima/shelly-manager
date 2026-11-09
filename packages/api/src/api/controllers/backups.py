@@ -27,16 +27,27 @@ class BackupsController(Controller):
         self,
         backup_use_case: BackupDeviceConfig,
         device_mac: str | None = None,
+        device_type: str | None = None,
+        exclude_mac: str | None = None,
         limit: int = DEFAULT_PAGE_SIZE,
         offset: int = 0,
     ) -> PaginatedBackupsResponse:
-        """List stored backups, newest first, optionally filtered by device MAC.
+        """List stored backups, newest first.
+
+        Optionally filtered by MAC and model, or without one device's backups
+        (``exclude_mac``).
 
         Paginated: ``limit`` is clamped to 1..200 and ``offset`` floored at 0.
         """
         limit = max(1, min(limit, MAX_PAGE_SIZE))
         offset = max(0, offset)
-        page = await backup_use_case.list_backups_page(device_mac, limit, offset)
+        page = await backup_use_case.list_backups_page(
+            device_mac,
+            limit,
+            offset,
+            device_type=device_type,
+            exclude_mac=exclude_mac,
+        )
         return PaginatedBackupsResponse(
             items=[_to_summary(s) for s in page.items],
             total=page.total,
@@ -79,6 +90,8 @@ class BackupsController(Controller):
             data.device_ip,
             component_keys=data.component_keys,
             allow_mac_mismatch=data.allow_mac_mismatch,
+            allow_model_mismatch=data.allow_model_mismatch,
+            keep_target_identity=data.keep_target_identity,
             reboot=data.reboot,
         )
 

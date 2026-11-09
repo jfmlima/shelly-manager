@@ -3,13 +3,16 @@
 import logging
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
+from typing import Any
 
 from core.domain.entities.config_snapshot import (
     LEGACY_SETTINGS_KEY,
     NETWORK_TYPES,
     ComponentSnapshot,
     DeviceSnapshot,
+    without_device_identity,
 )
+from core.domain.entities.device_status import DeviceStatus
 from core.domain.entities.exceptions import DeviceNotFoundError
 from core.domain.value_objects.generation import Generation
 from core.domain.value_objects.restore_result import (
@@ -28,15 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 class DeviceMismatchError(Exception):
-    """Raised when the target device MAC does not match the backup."""
-
-    def __init__(self, expected_mac: str, actual_mac: str | None):
-        self.expected_mac = expected_mac
-        self.actual_mac = actual_mac
-        super().__init__(
-            f"Device MAC mismatch: backup is for {expected_mac}, "
-            f"target is {actual_mac or 'unknown'}"
-        )
+    """Raised when the target device's MAC, model or profile differs from the backup."""
 
 
 class RestoreDeviceConfig:
@@ -67,6 +62,8 @@ class RestoreDeviceConfig:
         *,
         component_keys: list[str] | None = None,
         allow_mac_mismatch: bool = False,
+        allow_model_mismatch: bool = False,
+        keep_target_identity: bool = False,
         reboot: bool = False,
     ) -> RestoreResult:
         """Restore selected components from a backup onto a device.
@@ -78,12 +75,17 @@ class RestoreDeviceConfig:
                 restores every component except network types (wifi/eth/mqtt/
                 ws/cloud), which are excluded by default to avoid lockout.
             allow_mac_mismatch: Restore even if the target MAC differs.
+            allow_model_mismatch: Restore even if the target model or profile
+                differs from the backup's.
+            keep_target_identity: Leave the target's own device name and MQTT
+                ids in place, for a restore onto another device.
             reboot: Reboot the device after a successful restore.
 
         Raises:
             BackupNotFoundError: If the backup does not exist.
             DeviceNotFoundError: If the device is unreachable.
-            DeviceMismatchError: If the MAC differs and the mismatch is not allowed.
+            DeviceMismatchError: If the MAC, model or profile differs and that
+                mismatch is not allowed.
 
         Note:
             Auth restore is out of scope for v1 (Gen2 auth is set via
@@ -99,6 +101,10 @@ class RestoreDeviceConfig:
             raise DeviceNotFoundError(device_ip)
 
         snapshot = DeviceSnapshot.from_dict(backup.snapshot)
+        # Before anything reads the snapshot: the Gen1 strategy copies the raw
+        # settings it replays in prepare.
+        if keep_target_identity:
+            snapshot = without_device_identity(snapshot)
 
         # Identity check is anchored to the MAC inside the (decrypted) snapshot,
         # not the mutable plaintext column. Cross-check the column for corruption.
@@ -117,7 +123,10 @@ class RestoreDeviceConfig:
         if not allow_mac_mismatch:
             actual = normalize_mac(status.mac_address) if status.mac_address else None
             if actual != expected_mac:
-                raise DeviceMismatchError(expected_mac, status.mac_address)
+                raise DeviceMismatchError(
+                    f"Device MAC mismatch: backup is for {expected_mac}, "
+                    f"target is {status.mac_address or 'unknown'}"
+                )
 
         components = snapshot.components
 
@@ -135,6 +144,9 @@ class RestoreDeviceConfig:
             return self._generation_mismatch(
                 backup_id, snapshot, device_ip, component_keys
             )
+
+        if not allow_model_mismatch:
+            self._check_model_and_profile(backup_id, snapshot, status)
 
         strategy = self._build_strategy(Generation.GEN1 if is_gen1 else Generation.GEN2)
         outcome = await strategy.prepare(device_ip, snapshot, status)
@@ -223,6 +235,45 @@ class RestoreDeviceConfig:
             ),
             components=results,
         )
+
+    def _check_model_and_profile(
+        self, backup_id: int, snapshot: DeviceSnapshot, status: DeviceStatus
+    ) -> None:
+        backup_model = snapshot.device_info.device_type
+        if backup_model is None:
+            logger.warning(
+                "Backup %s has no model; skipping the model check", backup_id
+            )
+        elif status.device_type is None:
+            # The device info read failed, so neither the model nor the MAC
+            # was verified. Refuse rather than write to an unknown device.
+            raise DeviceMismatchError(
+                f"Device model unknown: backup is for {backup_model}, "
+                "the target did not report its model"
+            )
+        elif backup_model != status.device_type:
+            raise DeviceMismatchError(
+                f"Device model mismatch: backup is for {backup_model}, "
+                f"target is {status.device_type}"
+            )
+
+        backup_profile = _snapshot_profile(snapshot)
+        if backup_profile is None:
+            return
+        system = status.get_system_info()
+        target_profile = system.profile if system is not None else None
+        if target_profile is None:
+            # The sys config was not read (a sys rebuilt from GetStatus alone
+            # has none), so the target's profile is unverified.
+            raise DeviceMismatchError(
+                f"Device profile unknown: backup is in the {backup_profile} "
+                "profile, the target did not report its profile"
+            )
+        if backup_profile != target_profile:
+            raise DeviceMismatchError(
+                f"Device profile mismatch: backup is in the {backup_profile} "
+                f"profile, target is in the {target_profile} profile"
+            )
 
     def _build_strategy(self, generation: Generation) -> ComponentRestoreStrategy:
         # Strategies are stateful per run (Gen1 holds the loaded settings), so
@@ -320,3 +371,11 @@ class RestoreDeviceConfig:
             message=message or reason,
             components=results,
         )
+
+
+def _snapshot_profile(snapshot: DeviceSnapshot) -> str | None:
+    entry = snapshot.components.get("sys")
+    config: Any = entry.config if entry is not None else None
+    device = config.get("device") if isinstance(config, dict) else None
+    profile = device.get("profile") if isinstance(device, dict) else None
+    return profile if isinstance(profile, str) else None

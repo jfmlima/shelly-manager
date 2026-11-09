@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Save, RotateCcw, Trash2, AlertTriangle } from "lucide-react";
+import { Save, RotateCcw, Trash2, AlertTriangle, Copy } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +31,7 @@ import { handleApiError } from "@/lib/api";
 import {
   useBackup,
   useBackups,
+  useBackupsByModel,
   useCreateBackup,
   useDeleteBackup,
   useRestoreBackup,
@@ -44,12 +45,16 @@ interface BackupsSectionProps {
   deviceIp: string;
   deviceMac: string | null;
   deviceName: string | null;
+  deviceType: string | null;
+  firmwareVersion: string | null;
 }
 
 export function BackupsSection({
   deviceIp,
   deviceMac,
   deviceName,
+  deviceType,
+  firmwareVersion,
 }: BackupsSectionProps) {
   const [offset, setOffset] = useState(0);
   const {
@@ -65,6 +70,7 @@ export function BackupsSection({
   const [restoreTarget, setRestoreTarget] = useState<BackupSummary | null>(
     null,
   );
+  const [cloneOpen, setCloneOpen] = useState(false);
 
   const items = backups?.items ?? [];
   const total = backups?.total ?? 0;
@@ -90,13 +96,19 @@ export function BackupsSection({
             Snapshot this device's configuration and restore it later.
           </CardDescription>
         </div>
-        <Button
-          onClick={() => createBackup.mutate({ deviceIp, name: undefined })}
-          disabled={createBackup.isPending}
-        >
-          <Save className="h-4 w-4 mr-2" />
-          {createBackup.isPending ? "Backing up..." : "Create backup"}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setCloneOpen(true)}>
+            <Copy className="h-4 w-4 mr-2" />
+            Restore from another device
+          </Button>
+          <Button
+            onClick={() => createBackup.mutate({ deviceIp, name: undefined })}
+            disabled={createBackup.isPending}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {createBackup.isPending ? "Backing up..." : "Create backup"}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {!deviceMac ? (
@@ -160,6 +172,18 @@ export function BackupsSection({
           onClose={() => setRestoreTarget(null)}
         />
       )}
+
+      {cloneOpen && (
+        <RestoreFromDeviceDialog
+          deviceIp={deviceIp}
+          deviceMac={deviceMac}
+          deviceName={deviceName}
+          deviceType={deviceType}
+          firmwareVersion={firmwareVersion}
+          formatDate={formatDate}
+          onClose={() => setCloneOpen(false)}
+        />
+      )}
     </Card>
   );
 }
@@ -198,15 +222,143 @@ function BackupRow({
   );
 }
 
+function RestoreFromDeviceDialog({
+  deviceIp,
+  deviceMac,
+  deviceName,
+  deviceType,
+  firmwareVersion,
+  formatDate,
+  onClose,
+}: {
+  deviceIp: string;
+  deviceMac: string | null;
+  deviceName: string | null;
+  deviceType: string | null;
+  firmwareVersion: string | null;
+  formatDate: (ts: number | null) => string;
+  onClose: () => void;
+}) {
+  const [offset, setOffset] = useState(0);
+  const { data, isLoading, error } = useBackupsByModel(deviceType, deviceMac, {
+    limit: PAGE_SIZE,
+    offset,
+  });
+  const [picked, setPicked] = useState<BackupSummary | null>(null);
+
+  const others = data?.items ?? [];
+  const total = data?.total ?? 0;
+
+  if (picked) {
+    return (
+      <RestoreDialog
+        backup={picked}
+        deviceIp={deviceIp}
+        deviceName={deviceName}
+        clone={{ targetFirmware: firmwareVersion }}
+        onClose={onClose}
+      />
+    );
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Restore from another device</DialogTitle>
+          <DialogDescription>
+            Pick a backup of another device of the same model to apply to{" "}
+            {deviceName || deviceIp}.
+          </DialogDescription>
+        </DialogHeader>
+
+        {!deviceType ? (
+          <p className="text-sm text-muted-foreground">
+            This device did not report its model, so backups of the same model
+            cannot be listed.
+          </p>
+        ) : isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading backups...</p>
+        ) : error ? (
+          <p className="text-sm text-destructive">
+            Failed to load backups: {handleApiError(error)}
+          </p>
+        ) : others.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No backups from other devices of this model.
+          </p>
+        ) : (
+          <>
+            <div className="max-h-96 overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Device</TableHead>
+                    <TableHead>MAC</TableHead>
+                    <TableHead>Firmware</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {others.map((backup) => (
+                    <TableRow key={backup.id}>
+                      <TableCell>
+                        {backup.device_name || backup.device_ip || "-"}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {backup.device_mac}
+                      </TableCell>
+                      <TableCell>{backup.firmware_version ?? "-"}</TableCell>
+                      <TableCell>{formatDate(backup.created_at)}</TableCell>
+                      <TableCell>{backup.source}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPicked(backup)}
+                        >
+                          Select
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {total > PAGE_SIZE && (
+              <OffsetPager
+                offset={offset}
+                itemCount={others.length}
+                total={total}
+                onOffsetChange={setOffset}
+              />
+            )}
+          </>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function RestoreDialog({
   backup,
   deviceIp,
   deviceName,
+  clone,
   onClose,
 }: {
   backup: BackupSummary;
   deviceIp: string;
   deviceName: string | null;
+  clone?: { targetFirmware: string | null };
   onClose: () => void;
 }) {
   const restore = useRestoreBackup();
@@ -232,6 +384,13 @@ function RestoreDialog({
 
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [reboot, setReboot] = useState(false);
+  const [keepIdentity, setKeepIdentity] = useState(true);
+
+  const firmwareDiffers =
+    !!clone &&
+    !!backup.firmware_version &&
+    !!clone.targetFirmware &&
+    backup.firmware_version !== clone.targetFirmware;
 
   // Default selection: everything except network components.
   const effectiveSelected = useMemo(() => {
@@ -254,6 +413,9 @@ function RestoreDialog({
           device_ip: deviceIp,
           component_keys: Array.from(effectiveSelected),
           reboot,
+          ...(clone
+            ? { allow_mac_mismatch: true, keep_target_identity: keepIdentity }
+            : {}),
         },
       },
       { onSuccess: onClose },
@@ -266,11 +428,26 @@ function RestoreDialog({
         <DialogHeader>
           <DialogTitle>Restore backup #{backup.id}</DialogTitle>
           <DialogDescription>
+            {clone && (
+              <>
+                This backup comes from another device,{" "}
+                {backup.device_name || backup.device_mac}.{" "}
+              </>
+            )}
             Select which components to restore onto {deviceName || deviceIp}.
             Network components are unchecked by default to avoid losing
             connectivity.
           </DialogDescription>
         </DialogHeader>
+
+        {firmwareDiffers && (
+          <p className="text-sm text-amber-600">
+            The backup was taken on firmware {backup.firmware_version} and this
+            device runs {clone?.targetFirmware}. Either firmware may reject
+            settings the other does not know; the result shows this per
+            component.
+          </p>
+        )}
 
         {isLoading || vocabularyLoading ? (
           <p className="text-sm text-muted-foreground">Loading components...</p>
@@ -313,6 +490,19 @@ function RestoreDialog({
               ))}
             </div>
           </>
+        )}
+
+        {clone && (
+          <div className="flex items-center gap-2 pt-2">
+            <Checkbox
+              id="restore-keep-identity"
+              checked={keepIdentity}
+              onCheckedChange={(v) => setKeepIdentity(v === true)}
+            />
+            <Label htmlFor="restore-keep-identity" className="font-normal">
+              Keep this device's name and MQTT ids
+            </Label>
+          </div>
         )}
 
         <div className="flex items-center gap-2 pt-2">

@@ -102,6 +102,19 @@ async def list_backups(ctx: click.Context, mac: str | None) -> None:
     is_flag=True,
     help="Restore even if the target MAC differs from the backup.",
 )
+@click.option(
+    "--allow-model-mismatch",
+    is_flag=True,
+    help="Restore even if the target model or profile differs from the backup.",
+)
+@click.option(
+    "--keep-identity",
+    is_flag=True,
+    help=(
+        "Keep the target's own name and MQTT ids; use when cloning onto "
+        "another device."
+    ),
+)
 @click.option("--reboot", is_flag=True, help="Reboot the device after restore.")
 @click.option("--force", is_flag=True, help="Skip the confirmation prompt.")
 @click.pass_context
@@ -113,6 +126,8 @@ async def restore_backup(
     components: tuple[str, ...],
     restore_all: bool,
     allow_mac_mismatch: bool,
+    allow_model_mismatch: bool,
+    keep_identity: bool,
     reboot: bool,
     force: bool,
 ) -> None:
@@ -128,9 +143,15 @@ async def restore_backup(
         component_keys = list(DeviceSnapshot.from_dict(backup.snapshot).components)
 
     if not force:
+        other_device = (
+            ", onto a different device than the backup was taken from"
+            if allow_mac_mismatch
+            else ""
+        )
         console.print(
             f"⚠️  About to restore backup [bold]#{backup_id}[/bold] onto "
-            f"[cyan]{target}[/cyan]. This overwrites device configuration."
+            f"[cyan]{target}[/cyan]{other_device}. "
+            "This overwrites device configuration."
         )
         click.confirm("Continue?", abort=True)
 
@@ -139,6 +160,8 @@ async def restore_backup(
         target,
         component_keys=component_keys,
         allow_mac_mismatch=allow_mac_mismatch,
+        allow_model_mismatch=allow_model_mismatch,
+        keep_target_identity=keep_identity,
         reboot=reboot,
     )
 

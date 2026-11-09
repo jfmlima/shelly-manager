@@ -328,16 +328,30 @@ class TestBackupDeviceConfig:
         )
         mock_repository.count_summaries = AsyncMock(return_value=7)
 
-        page = await use_case.list_backups_page("AA:BB:CC:DD:EE:FF", limit=1, offset=2)
+        page = await use_case.list_backups_page(
+            "AA:BB:CC:DD:EE:FF",
+            limit=1,
+            offset=2,
+            device_type="SNDM-0013US",
+            exclude_mac="112233445566",
+        )
 
         assert [s.id for s in page.items] == [3]
         assert page.total == 7
         assert page.limit == 1
         assert page.offset == 2
         mock_repository.list_summaries.assert_awaited_once_with(
-            "AA:BB:CC:DD:EE:FF", 1, 2
+            "AA:BB:CC:DD:EE:FF",
+            1,
+            2,
+            device_type="SNDM-0013US",
+            exclude_mac="112233445566",
         )
-        mock_repository.count_summaries.assert_awaited_once_with("AA:BB:CC:DD:EE:FF")
+        mock_repository.count_summaries.assert_awaited_once_with(
+            "AA:BB:CC:DD:EE:FF",
+            device_type="SNDM-0013US",
+            exclude_mac="112233445566",
+        )
 
     async def test_it_raises_when_backup_missing_on_get(
         self, use_case, mock_repository

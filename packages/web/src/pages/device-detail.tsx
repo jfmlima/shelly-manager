@@ -130,6 +130,8 @@ export function DeviceDetail() {
         deviceIp={ip}
         deviceMac={deviceStatus?.summary.mac_address ?? null}
         deviceName={deviceStatus?.summary.device_name ?? null}
+        deviceType={deviceStatus?.summary.device_type ?? null}
+        firmwareVersion={deviceStatus?.summary.firmware_version ?? null}
       />
     </div>
   );

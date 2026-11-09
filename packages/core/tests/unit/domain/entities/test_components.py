@@ -904,6 +904,7 @@ class TestSystemComponent:
         assert component.mac_address == "E86BEAE5F208"
         assert component.device_name == "Flur SZ Rollo links"
         assert component.firmware_version == "20240726-114505/1.4.0-gb2aeadb"
+        assert component.profile == "cover"
         assert component.timezone is None
 
     def test_it_parses_sys_status_with_nulls_in_every_guarded_field(self):
@@ -933,6 +934,7 @@ class TestSystemComponent:
         assert component.fs_total == 0
         assert component.fs_free == 0
         assert component.available_updates == {}
+        assert component.profile is None
 
 
 class TestComponentFactoryFallback:

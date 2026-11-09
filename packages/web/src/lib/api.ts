@@ -416,12 +416,16 @@ export const provisioningApi = {
 export const backupApi = {
   listBackups: async (params?: {
     deviceMac?: string;
+    deviceType?: string;
+    excludeMac?: string;
     limit?: number;
     offset?: number;
   }): Promise<PaginatedBackups> => {
     const response = await apiClient.get("/backups", {
       params: {
         ...(params?.deviceMac ? { device_mac: params.deviceMac } : {}),
+        ...(params?.deviceType ? { device_type: params.deviceType } : {}),
+        ...(params?.excludeMac ? { exclude_mac: params.excludeMac } : {}),
         ...(params?.limit !== undefined ? { limit: params.limit } : {}),
         ...(params?.offset !== undefined ? { offset: params.offset } : {}),
       },
