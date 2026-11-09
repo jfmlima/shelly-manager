@@ -68,6 +68,10 @@ The core package provides per-device configuration backup and restore:
   `SetConfig`. Gen1 devices restore through their legacy HTTP settings endpoints instead
   (`Legacy.SetConfig`), replaying the raw `/settings` captured in the snapshot; see
   [Gen1 restore](#gen1-restore). A backup and a target of different generations are refused.
+  A different model or profile, or a target that does not report one the backup has, raises
+  `DeviceMismatchError` unless `allow_model_mismatch` is set, and the device profile is never sent. With `keep_target_identity`, the target keeps its
+  own device name and MQTT ids (`without_device_identity` in `config_snapshot.py`), for a
+  restore onto another device of the same model.
 
 Backups are persisted through the `BackupRepository` abstraction
 (`repositories/backup_repository.py`), implemented by `SQLAlchemyBackupRepository`, with the

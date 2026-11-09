@@ -142,11 +142,22 @@ class BackupDeviceConfig:
         device_mac: str | None = None,
         limit: int = 50,
         offset: int = 0,
+        *,
+        device_type: str | None = None,
+        exclude_mac: str | None = None,
     ) -> BackupPage:
         """Return one page of backup summaries plus the total matching count."""
         async with self._repository_factory() as repository:
-            items = await repository.list_summaries(device_mac, limit, offset)
-            total = await repository.count_summaries(device_mac)
+            items = await repository.list_summaries(
+                device_mac,
+                limit,
+                offset,
+                device_type=device_type,
+                exclude_mac=exclude_mac,
+            )
+            total = await repository.count_summaries(
+                device_mac, device_type=device_type, exclude_mac=exclude_mac
+            )
         return BackupPage(items=items, total=total, limit=limit, offset=offset)
 
     async def get_backup(self, backup_id: int) -> DeviceBackup:

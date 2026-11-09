@@ -69,6 +69,68 @@ class TestBackupRestoreCommand:
         )
         assert result.exit_code == 0
 
+    def _ok(self):
+        return RestoreResult(
+            success=True,
+            device_ip="192.168.1.100",
+            backup_id=1,
+            total=1,
+            succeeded=1,
+            components=[
+                ComponentRestoreResult(key="switch:0", action="SetConfig", success=True)
+            ],
+        )
+
+    def test_restore_passes_the_clone_flags(self, runner):
+        obj = self._obj(self._ok())
+
+        result = runner.invoke(
+            backup_commands,
+            [
+                "restore",
+                "1",
+                "-t",
+                "192.168.1.100",
+                "--allow-mac-mismatch",
+                "--allow-model-mismatch",
+                "--keep-identity",
+                "--force",
+            ],
+            obj=obj,
+        )
+
+        assert result.exit_code == 0
+        kwargs = obj.container.get_restore_device_config_interactor().restore.call_args
+        assert kwargs.kwargs["allow_mac_mismatch"] is True
+        assert kwargs.kwargs["allow_model_mismatch"] is True
+        assert kwargs.kwargs["keep_target_identity"] is True
+
+    def test_restore_leaves_the_clone_flags_off_by_default(self, runner):
+        obj = self._obj(self._ok())
+
+        runner.invoke(
+            backup_commands,
+            ["restore", "1", "-t", "192.168.1.100", "--force"],
+            obj=obj,
+        )
+
+        kwargs = obj.container.get_restore_device_config_interactor().restore.call_args
+        assert kwargs.kwargs["allow_model_mismatch"] is False
+        assert kwargs.kwargs["keep_target_identity"] is False
+
+    def test_restore_confirmation_names_a_different_target_device(self, runner):
+        obj = self._obj(self._ok())
+
+        runner.invoke(
+            backup_commands,
+            ["restore", "1", "-t", "192.168.1.100", "--allow-mac-mismatch"],
+            obj=obj,
+            input="y\n",
+        )
+
+        printed = " ".join(str(c.args[0]) for c in obj.console.print.call_args_list)
+        assert "onto a different device than the backup was taken from" in printed
+
 
 class TestTypedExitCodes:
     @pytest.fixture

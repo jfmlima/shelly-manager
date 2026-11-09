@@ -21,9 +21,10 @@ async def session_factory():
     await engine.dispose()
 
 
-def _backup(mac="AABBCCDDEEFF", name="b1", source="manual"):
+def _backup(mac="AABBCCDDEEFF", name="b1", source="manual", device_type=None):
     return DeviceBackup(
         device_mac=mac,
+        device_type=device_type,
         snapshot={"components": {"switch:0": {"type": "switch", "config": {"x": 1}}}},
         device_ip="192.168.1.100",
         device_name="Test",
@@ -101,6 +102,66 @@ class TestSQLAlchemyBackupRepository:
 
             assert await repo.count_summaries() == 3
             assert await repo.count_summaries("AA:BB:CC:DD:EE:FF") == 2
+
+    async def test_it_filters_summaries_and_count_by_device_type(self, session_factory):
+        async with session_factory() as session:
+            repo = SQLAlchemyBackupRepository(session, EncryptionService())
+            await repo.create(_backup(mac="AABBCCDDEEFF", device_type="SNDM-0013US"))
+            await repo.create(_backup(mac="112233445566", device_type="SNDM-0013US"))
+            await repo.create(_backup(mac="665544332211", device_type="SNSW-1"))
+            await repo.create(_backup(mac="AABBCCDDEEFF"))
+
+            summaries = await repo.list_summaries(device_type="SNDM-0013US")
+
+            assert {s.device_mac for s in summaries} == {
+                "AABBCCDDEEFF",
+                "112233445566",
+            }
+            assert await repo.count_summaries(device_type="SNDM-0013US") == 2
+
+    async def test_it_combines_the_device_type_and_mac_filters(self, session_factory):
+        async with session_factory() as session:
+            repo = SQLAlchemyBackupRepository(session, EncryptionService())
+            await repo.create(_backup(mac="AABBCCDDEEFF", device_type="SNDM-0013US"))
+            await repo.create(_backup(mac="112233445566", device_type="SNDM-0013US"))
+            await repo.create(_backup(mac="AABBCCDDEEFF", device_type="SNSW-1"))
+
+            summaries = await repo.list_summaries(
+                "AABBCCDDEEFF", device_type="SNDM-0013US"
+            )
+
+            assert [(s.device_mac, s.device_type) for s in summaries] == [
+                ("AABBCCDDEEFF", "SNDM-0013US")
+            ]
+            assert (
+                await repo.count_summaries("AABBCCDDEEFF", device_type="SNDM-0013US")
+                == 1
+            )
+
+    async def test_it_excludes_one_device_from_summaries_and_count(
+        self, session_factory
+    ):
+        async with session_factory() as session:
+            repo = SQLAlchemyBackupRepository(session, EncryptionService())
+            await repo.create(_backup(mac="112233445566", device_type="SNDM-0013US"))
+            for _ in range(3):
+                await repo.create(
+                    _backup(mac="AABBCCDDEEFF", device_type="SNDM-0013US")
+                )
+
+            summaries = await repo.list_summaries(
+                limit=2,
+                device_type="SNDM-0013US",
+                exclude_mac="aa:bb:cc:dd:ee:ff",
+            )
+
+            assert [s.device_mac for s in summaries] == ["112233445566"]
+            assert (
+                await repo.count_summaries(
+                    device_type="SNDM-0013US", exclude_mac="aa:bb:cc:dd:ee:ff"
+                )
+                == 1
+            )
 
     async def test_it_deletes_a_backup(self, session_factory):
         async with session_factory() as session:

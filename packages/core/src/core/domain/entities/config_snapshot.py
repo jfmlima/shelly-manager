@@ -9,9 +9,11 @@ Stored snapshots outlive the code that wrote them, so ``from_dict`` is lenient:
 missing or malformed entries degrade to "nothing captured" rather than raising.
 """
 
-from dataclasses import dataclass, field
+from copy import deepcopy
+from dataclasses import dataclass, field, replace
 from typing import Any
 
+from ..services.gen1_settings_translation import without_identity
 from ..value_objects.component_namespace import known_component_types
 from .device_status import DeviceStatus
 
@@ -38,6 +40,13 @@ CONFIGURABLE_COMPONENT_TYPES: frozenset[str] = EXPORTABLE_COMPONENT_TYPES - {
 }
 
 NETWORK_TYPES: frozenset[str] = frozenset({"wifi", "eth", "mqtt", "ws", "cloud"})
+
+# Gen2+ config paths that name one physical device, by component type. Both MQTT
+# ids default to the device id; two devices sharing them fight over the broker.
+GEN2_IDENTITY_PATHS: dict[str, tuple[tuple[str, ...], ...]] = {
+    "sys": (("device", "name"),),
+    "mqtt": (("client_id",), ("topic_prefix",)),
+}
 
 
 @dataclass(frozen=True)
@@ -192,3 +201,41 @@ class DeviceSnapshot:
         if entry is None or not entry.success:
             return None
         return entry.config if isinstance(entry.config, dict) else None
+
+
+def without_device_identity(snapshot: DeviceSnapshot) -> DeviceSnapshot:
+    """A copy of ``snapshot`` without the keys that name the captured device.
+
+    Used when the backup is restored onto another device, which keeps its own
+    name and MQTT ids. Every other key, and ``snapshot`` itself, is unchanged.
+    """
+    return replace(
+        snapshot,
+        components={
+            key: _without_identity(entry) for key, entry in snapshot.components.items()
+        },
+    )
+
+
+def _without_identity(entry: ComponentSnapshot) -> ComponentSnapshot:
+    if not isinstance(entry.config, dict):
+        return entry
+    if entry.key == LEGACY_SETTINGS_KEY:
+        return replace(entry, config=without_identity(entry.config))
+    paths = GEN2_IDENTITY_PATHS.get(entry.component_type or "")
+    if paths is None:
+        return entry
+    config = deepcopy(entry.config)
+    for path in paths:
+        _pop_path(config, path)
+    return replace(entry, config=config)
+
+
+def _pop_path(config: dict[str, Any], path: tuple[str, ...]) -> None:
+    *parents, leaf = path
+    section: Any = config
+    for part in parents:
+        section = section.get(part)
+        if not isinstance(section, dict):
+            return
+    section.pop(leaf, None)

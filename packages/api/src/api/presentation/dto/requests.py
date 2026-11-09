@@ -305,6 +305,17 @@ class RestoreBackupRequest(BaseModel):
     allow_mac_mismatch: bool = Field(
         default=False, description="Restore even if the target MAC differs"
     )
+    allow_model_mismatch: bool = Field(
+        default=False,
+        description="Restore even if the target model or profile differs",
+    )
+    keep_target_identity: bool = Field(
+        default=False,
+        description=(
+            "Keep the target's own device name and MQTT ids. Use when restoring "
+            "onto another device."
+        ),
+    )
     reboot: bool = Field(
         default=False, description="Reboot the device after a successful restore"
     )

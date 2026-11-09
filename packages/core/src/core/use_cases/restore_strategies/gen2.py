@@ -17,7 +17,8 @@ from core.use_cases.restore_strategies import PrepareOutcome
 # Each entry is a (parent, child) path popped from the config dict. Top-level
 # "id" and "cfg_rev" are always stripped. Table-driven so it is easy to extend.
 READ_ONLY_BY_TYPE: dict[str, list[tuple[str, str]]] = {
-    "sys": [("device", "mac")],
+    # Profile changes go through Shelly.SetProfile, which wipes schedules and webhooks.
+    "sys": [("device", "mac"), ("device", "profile")],
     "wifi": [("ap", "is_open")],
 }
 

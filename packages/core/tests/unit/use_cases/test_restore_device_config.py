@@ -15,9 +15,12 @@ from core.use_cases.restore_device_config import (
 IP = "192.168.1.100"
 
 
-def _snapshot():
+def _snapshot(device_type=None, profile=None):
+    device = {"mac": "AABBCCDDEEFF", "name": "X"}
+    if profile is not None:
+        device["profile"] = profile
     return {
-        "device_info": {"mac_address": "AABBCCDDEEFF"},
+        "device_info": {"mac_address": "AABBCCDDEEFF", "device_type": device_type},
         "components": {
             "switch:0": {
                 "type": "switch",
@@ -27,7 +30,16 @@ def _snapshot():
             "sys": {
                 "type": "sys",
                 "success": True,
-                "config": {"device": {"mac": "AABBCCDDEEFF", "name": "X"}},
+                "config": {"device": device},
+            },
+            "mqtt": {
+                "type": "mqtt",
+                "success": True,
+                "config": {
+                    "enable": True,
+                    "client_id": "master",
+                    "topic_prefix": "master",
+                },
             },
             "wifi": {
                 "type": "wifi",
@@ -38,10 +50,10 @@ def _snapshot():
     }
 
 
-def _backup(generation="gen2"):
+def _backup(generation="gen2", device_type=None, profile=None):
     return DeviceBackup(
         device_mac="AABBCCDDEEFF",
-        snapshot=_snapshot(),
+        snapshot=_snapshot(device_type=device_type, profile=profile),
         generation=generation,
         id=1,
     )
@@ -189,12 +201,17 @@ def _status(
     keys=("switch:0", "sys", "wifi"),
     app_name="Plus1PM",
     gen=2,
+    device_type=None,
+    profile=None,
 ):
+    system = SimpleNamespace(profile=profile) if "sys" in keys else None
     return SimpleNamespace(
         mac_address=mac,
         app_name=app_name,
         gen=gen,
+        device_type=device_type,
         components=[SimpleNamespace(key=k) for k in keys],
+        get_system_info=lambda: system,
     )
 
 
@@ -455,7 +472,7 @@ class TestRestoreDeviceConfig:
 
         with pytest.raises(DeviceMismatchError) as exc:
             await use_case.restore(1, IP)
-        assert exc.value.expected_mac == "FFFFFFFFFFFF"
+        assert "backup is for FFFFFFFFFFFF" in str(exc.value)
 
     async def test_it_replaces_schedules_before_creating(
         self, use_case, mock_device_gateway, mock_repository
@@ -550,6 +567,174 @@ class TestRestoreDeviceConfig:
         assert reasons["bogus:9"] == "not present in backup"
         assert "generation does not match" in reasons["sys"]
         mock_device_gateway.execute_component_action.assert_not_called()
+
+    def _set_configs(self, mock_device_gateway):
+        return {
+            call.args[1]: call.args[3]["config"]
+            for call in mock_device_gateway.execute_component_action.call_args_list
+            if call.args[2] == "SetConfig"
+        }
+
+    async def test_it_keeps_the_target_name_and_mqtt_ids_when_asked(
+        self, use_case, mock_device_gateway
+    ):
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(keys=("switch:0", "sys", "mqtt"))
+        )
+
+        await use_case.restore(
+            1, IP, component_keys=["sys", "mqtt"], keep_target_identity=True
+        )
+
+        sent = self._set_configs(mock_device_gateway)
+        assert "name" not in sent["sys"]["device"]
+        assert sent["mqtt"] == {"enable": True}
+
+    async def test_it_sends_the_backup_name_by_default(
+        self, use_case, mock_device_gateway
+    ):
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(keys=("switch:0", "sys", "mqtt"))
+        )
+
+        await use_case.restore(1, IP, component_keys=["sys", "mqtt"])
+
+        sent = self._set_configs(mock_device_gateway)
+        assert sent["sys"]["device"]["name"] == "X"
+        assert sent["mqtt"]["client_id"] == "master"
+
+    async def test_it_never_sends_the_device_profile(
+        self, use_case, mock_device_gateway, mock_repository
+    ):
+        mock_repository.get = AsyncMock(return_value=_backup(profile="cover"))
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(profile="cover")
+        )
+
+        await use_case.restore(1, IP, component_keys=["sys"])
+
+        assert "profile" not in self._set_configs(mock_device_gateway)["sys"]["device"]
+
+    async def test_it_raises_on_model_mismatch(
+        self, use_case, mock_device_gateway, mock_repository
+    ):
+        mock_repository.get = AsyncMock(return_value=_backup(device_type="SNDM-0013US"))
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(device_type="SNSW-001P16EU")
+        )
+
+        with pytest.raises(DeviceMismatchError) as error:
+            await use_case.restore(1, IP)
+
+        assert "SNDM-0013US" in str(error.value)
+        assert "SNSW-001P16EU" in str(error.value)
+        mock_device_gateway.execute_component_action.assert_not_called()
+
+    async def test_it_allows_model_mismatch_when_overridden(
+        self, use_case, mock_device_gateway, mock_repository
+    ):
+        mock_repository.get = AsyncMock(return_value=_backup(device_type="SNDM-0013US"))
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(device_type="SNSW-001P16EU")
+        )
+
+        result = await use_case.restore(1, IP, allow_model_mismatch=True)
+
+        assert result.success is True
+
+    async def test_it_raises_on_profile_mismatch(
+        self, use_case, mock_device_gateway, mock_repository
+    ):
+        mock_repository.get = AsyncMock(return_value=_backup(profile="cover"))
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(profile="switch")
+        )
+
+        with pytest.raises(DeviceMismatchError) as error:
+            await use_case.restore(1, IP)
+
+        assert "cover" in str(error.value)
+        assert "switch" in str(error.value)
+        mock_device_gateway.execute_component_action.assert_not_called()
+
+    async def test_it_allows_profile_mismatch_when_overridden(
+        self, use_case, mock_device_gateway, mock_repository
+    ):
+        mock_repository.get = AsyncMock(return_value=_backup(profile="cover"))
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(profile="switch")
+        )
+
+        result = await use_case.restore(1, IP, allow_model_mismatch=True)
+
+        assert result.success is True
+
+    async def test_it_raises_when_the_target_profile_is_unknown(
+        self, use_case, mock_device_gateway, mock_repository
+    ):
+        # GetComponents failed: sys is rebuilt from GetStatus without config.
+        mock_repository.get = AsyncMock(return_value=_backup(profile="cover"))
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(profile=None)
+        )
+
+        with pytest.raises(DeviceMismatchError) as error:
+            await use_case.restore(1, IP)
+
+        assert "cover" in str(error.value)
+        mock_device_gateway.execute_component_action.assert_not_called()
+
+    async def test_it_allows_an_unknown_target_profile_when_overridden(
+        self, use_case, mock_device_gateway, mock_repository
+    ):
+        mock_repository.get = AsyncMock(return_value=_backup(profile="cover"))
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(profile=None)
+        )
+
+        result = await use_case.restore(1, IP, allow_model_mismatch=True)
+
+        assert result.success is True
+
+    async def test_it_does_not_raise_when_the_backup_model_is_unknown(
+        self, use_case, mock_device_gateway
+    ):
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(device_type="SNSW-001P16EU")
+        )
+
+        result = await use_case.restore(1, IP)
+
+        assert result.success is True
+
+    async def test_it_raises_when_the_target_model_is_unknown(
+        self, use_case, mock_device_gateway, mock_repository
+    ):
+        # GetDeviceInfo failed: the status has no model, MAC or generation.
+        mock_repository.get = AsyncMock(return_value=_backup(device_type="SNDM-0013US"))
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(mac=None, gen=None, device_type=None)
+        )
+
+        with pytest.raises(DeviceMismatchError) as error:
+            await use_case.restore(1, IP, allow_mac_mismatch=True)
+
+        assert "SNDM-0013US" in str(error.value)
+        mock_device_gateway.execute_component_action.assert_not_called()
+
+    async def test_it_allows_an_unknown_target_model_when_overridden(
+        self, use_case, mock_device_gateway, mock_repository
+    ):
+        mock_repository.get = AsyncMock(return_value=_backup(device_type="SNDM-0013US"))
+        mock_device_gateway.get_device_status = AsyncMock(
+            return_value=_status(mac=None, gen=None, device_type=None)
+        )
+
+        result = await use_case.restore(
+            1, IP, allow_mac_mismatch=True, allow_model_mismatch=True
+        )
+
+        assert result.success is True
 
 
 class TestRestoreGen1DeviceConfig:
@@ -922,3 +1107,16 @@ class TestRestoreGen1DeviceConfig:
         assert result.success is False
         assert result.message == "device did not come back after the mode change"
         assert (result.total, result.failed) == (1, 1)
+
+    async def test_it_keeps_the_target_name_and_mqtt_id_when_asked(
+        self, use_case, mock_device_gateway
+    ):
+        await use_case.restore(
+            1, IP, component_keys=["sys", "mqtt"], keep_target_identity=True
+        )
+
+        sent = self._sent(mock_device_gateway)
+        assert "name" not in sent["sys"]
+        assert "mqtt_id" not in sent["mqtt"]
+        assert sent["sys"]["timezone"] == "Europe/Lisbon"
+        assert sent["mqtt"]["mqtt_server"] == "10.0.0.1:1883"

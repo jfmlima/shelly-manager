@@ -38,7 +38,15 @@ class TestBackupsController:
             def __init__(self):
                 pass
 
-            async def list_backups_page(self, device_mac=None, limit=50, offset=0):
+            async def list_backups_page(
+                self,
+                device_mac=None,
+                limit=50,
+                offset=0,
+                *,
+                device_type=None,
+                exclude_mac=None,
+            ):
                 return BackupPage(
                     items=[DeviceBackupSummary(device_mac="AABBCCDDEEFF", id=1)],
                     total=1,
@@ -65,7 +73,15 @@ class TestBackupsController:
             def __init__(self):
                 pass
 
-            async def list_backups_page(self, device_mac=None, limit=50, offset=0):
+            async def list_backups_page(
+                self,
+                device_mac=None,
+                limit=50,
+                offset=0,
+                *,
+                device_type=None,
+                exclude_mac=None,
+            ):
                 captured["limit"] = limit
                 captured["offset"] = offset
                 return BackupPage(items=[], total=0, limit=limit, offset=offset)
@@ -135,12 +151,80 @@ class TestBackupsController:
             response = client.get("/99")
             assert response.status_code == 404
 
-    def test_restore_returns_result(self):
+    def test_list_backups_passes_the_model_and_exclude_filters(self):
+        captured = {}
+
+        class MockBackup(BackupDeviceConfig):
+            def __init__(self):
+                pass
+
+            async def list_backups_page(
+                self,
+                device_mac=None,
+                limit=50,
+                offset=0,
+                *,
+                device_type=None,
+                exclude_mac=None,
+            ):
+                captured["device_type"] = device_type
+                captured["exclude_mac"] = exclude_mac
+                return BackupPage(items=[], total=0, limit=limit, offset=offset)
+
+        with create_test_client(
+            route_handlers=[BackupsController],
+            exception_handlers=EXCEPTION_HANDLERS,
+            dependencies=_backup_provider(MockBackup()),
+        ) as client:
+            response = client.get(
+                "/",
+                params={"device_type": "SNDM-0013US", "exclude_mac": "AABBCCDDEEFF"},
+            )
+            assert response.status_code == 200
+            assert captured["device_type"] == "SNDM-0013US"
+            assert captured["exclude_mac"] == "AABBCCDDEEFF"
+
+    def test_restore_passes_the_clone_flags(self):
+        captured = {}
+
         class MockRestore(RestoreDeviceConfig):
             def __init__(self):
                 pass
 
             async def restore(self, backup_id, device_ip, **kwargs):
+                captured.update(kwargs)
+                return RestoreResult(
+                    success=True, device_ip=device_ip, backup_id=backup_id, total=0
+                )
+
+        with create_test_client(
+            route_handlers=[BackupsController],
+            exception_handlers=EXCEPTION_HANDLERS,
+            dependencies=_restore_provider(MockRestore()),
+        ) as client:
+            response = client.post(
+                "/1/restore",
+                json={
+                    "device_ip": "192.168.1.100",
+                    "allow_mac_mismatch": True,
+                    "allow_model_mismatch": True,
+                    "keep_target_identity": True,
+                },
+            )
+            assert response.status_code == 201
+            assert captured["allow_mac_mismatch"] is True
+            assert captured["allow_model_mismatch"] is True
+            assert captured["keep_target_identity"] is True
+
+    def test_restore_returns_result(self):
+        captured = {}
+
+        class MockRestore(RestoreDeviceConfig):
+            def __init__(self):
+                pass
+
+            async def restore(self, backup_id, device_ip, **kwargs):
+                captured.update(kwargs)
                 return RestoreResult(
                     success=True,
                     device_ip=device_ip,
@@ -164,6 +248,8 @@ class TestBackupsController:
             data = response.json()
             assert data["success"] is True
             assert data["components"][0]["key"] == "switch:0"
+            assert captured["allow_model_mismatch"] is False
+            assert captured["keep_target_identity"] is False
 
     def test_restore_mac_mismatch_returns_409(self):
         class MockRestore(RestoreDeviceConfig):
@@ -171,7 +257,7 @@ class TestBackupsController:
                 pass
 
             async def restore(self, backup_id, device_ip, **kwargs):
-                raise DeviceMismatchError("AABBCCDDEEFF", "FFFFFFFFFFFF")
+                raise DeviceMismatchError("Device MAC mismatch")
 
         with create_test_client(
             route_handlers=[BackupsController],

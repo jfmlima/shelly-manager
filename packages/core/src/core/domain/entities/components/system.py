@@ -9,6 +9,7 @@ class SystemComponent(Component):
     device_name: str | None = Field(None, description="Device name")
     mac_address: str | None = Field(None, description="MAC address")
     firmware_version: str | None = Field(None, description="Firmware version")
+    profile: str | None = Field(None, description="Device profile")
     uptime: int = Field(default=0, description="Uptime in seconds")
     restart_required: bool = Field(default=False, description="Restart required")
     ram_total: int = Field(default=0, description="Total RAM in bytes")
@@ -35,6 +36,7 @@ class SystemComponent(Component):
             device_name=device_config.get("name"),
             mac_address=status.get("mac"),
             firmware_version=device_config.get("fw_id"),
+            profile=device_config.get("profile"),
             uptime=status.get("uptime", 0) or 0,
             restart_required=status.get("restart_required", False) or False,
             ram_total=status.get("ram_size", 0) or 0,

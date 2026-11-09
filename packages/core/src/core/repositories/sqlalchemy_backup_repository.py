@@ -61,6 +61,8 @@ class SQLAlchemyBackupRepository(BackupRepository):
         device_mac: str | None = None,
         limit: int | None = None,
         offset: int = 0,
+        device_type: str | None = None,
+        exclude_mac: str | None = None,
     ) -> list[DeviceBackupSummary]:
         # Tie-break on id so rows sharing a created_at second keep a stable
         # order across pages; without it pagination could repeat or drop rows.
@@ -69,16 +71,29 @@ class SQLAlchemyBackupRepository(BackupRepository):
         )
         if device_mac is not None:
             stmt = stmt.where(BackupModel.device_mac == normalize_mac(device_mac))
+        if device_type is not None:
+            stmt = stmt.where(BackupModel.device_type == device_type)
+        if exclude_mac is not None:
+            stmt = stmt.where(BackupModel.device_mac != normalize_mac(exclude_mac))
         if limit is not None:
             stmt = stmt.limit(limit).offset(offset)
         result = await self.session.execute(stmt)
         records = result.scalars().all()
         return [self._to_summary(record) for record in records]
 
-    async def count_summaries(self, device_mac: str | None = None) -> int:
+    async def count_summaries(
+        self,
+        device_mac: str | None = None,
+        device_type: str | None = None,
+        exclude_mac: str | None = None,
+    ) -> int:
         stmt = select(func.count()).select_from(BackupModel)
         if device_mac is not None:
             stmt = stmt.where(BackupModel.device_mac == normalize_mac(device_mac))
+        if device_type is not None:
+            stmt = stmt.where(BackupModel.device_type == device_type)
+        if exclude_mac is not None:
+            stmt = stmt.where(BackupModel.device_mac != normalize_mac(exclude_mac))
         result = await self.session.execute(stmt)
         return int(result.scalar_one())
 
