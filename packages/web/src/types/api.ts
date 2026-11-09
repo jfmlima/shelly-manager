@@ -638,6 +638,8 @@ export interface RestoreBackupRequest {
   device_ip: string;
   component_keys?: string[] | null;
   allow_mac_mismatch?: boolean;
+  allow_model_mismatch?: boolean;
+  keep_target_identity?: boolean;
   reboot?: boolean;
 }
 
