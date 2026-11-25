@@ -144,6 +144,40 @@ class TestExecute:
             last_seen_ip="192.168.33.1",
         )
 
+    async def test_it_reports_a_device_password_it_could_not_store(
+        self, use_case, mock_credentials_repo
+    ):
+        mock_credentials_repo.set.side_effect = Exception(
+            "attempt to write a readonly database"
+        )
+
+        result = await use_case.execute(
+            ProvisionDeviceRequest(device_ip="192.168.33.1")
+        )
+
+        failed = {step.name: step.message for step in result.steps_failed}
+        assert "set_auth" in failed
+        assert "not stored" in failed["set_auth"]
+        assert "readonly database" in failed["set_auth"]
+        assert "set_auth" not in [step.name for step in result.steps_completed]
+
+    async def test_it_uses_the_new_password_after_failing_to_store_it(
+        self, use_case, mock_rpc_client, mock_credentials_repo
+    ):
+        mock_credentials_repo.set.side_effect = Exception("disk full")
+
+        result = await use_case.execute(
+            ProvisionDeviceRequest(device_ip="192.168.33.1")
+        )
+
+        wifi_call = next(
+            call
+            for call in mock_rpc_client.make_rpc_request.await_args_list
+            if call.kwargs["method"] == "WiFi.SetConfig"
+        )
+        assert wifi_call.kwargs["auth"] == ("admin", "authpass")
+        assert result.success is True
+
     async def test_it_fails_when_device_not_detected(self, use_case, mock_detector):
         from core.domain.entities.exceptions import DeviceNotFoundError
 

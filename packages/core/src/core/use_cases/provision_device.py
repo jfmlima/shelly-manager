@@ -161,9 +161,9 @@ class ProvisionDeviceUseCase:
                 request.timeout,
                 auth_credentials,
             )
+            auth_credentials = new_auth
             if step.success:
                 steps_completed.append(step)
-                auth_credentials = new_auth
             else:
                 steps_failed.append(step)
                 logger.warning("Auth config failed (non-critical): %s", step.message)
@@ -397,10 +397,29 @@ class ProvisionDeviceUseCase:
 
             new_auth = ("admin", profile.auth_password)
 
-            # Store credentials in the database
-            await self._store_credentials(
-                device_info.mac, "admin", profile.auth_password, ip
-            )
+            try:
+                await self._store_credentials(
+                    device_info.mac, "admin", profile.auth_password, ip
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to store credentials for %s: %s", device_info.mac, e
+                )
+                # The device already requires the new password, so the steps
+                # after this one must still send it.
+                reason = str(e).splitlines()[0] if str(e) else type(e).__name__
+                return (
+                    ProvisionStep(
+                        name="set_auth",
+                        success=False,
+                        message=(
+                            "Authentication configured, but the credentials were "
+                            f"not stored: {reason}. Save them for {device_info.mac} "
+                            "to manage this device."
+                        ),
+                    ),
+                    new_auth,
+                )
 
             return (
                 ProvisionStep(
@@ -420,17 +439,14 @@ class ProvisionDeviceUseCase:
         self, mac: str, username: str, password: str, ip: str
     ) -> None:
         """Store device credentials in the credentials repository."""
-        try:
-            async with self._credentials_repo_factory() as repo:
-                await repo.set(
-                    mac=mac,
-                    username=username,
-                    password=password,
-                    last_seen_ip=ip,
-                )
-            logger.info("Stored credentials for device MAC: %s", mac)
-        except Exception as e:
-            logger.error("Failed to store credentials for %s: %s", mac, e)
+        async with self._credentials_repo_factory() as repo:
+            await repo.set(
+                mac=mac,
+                username=username,
+                password=password,
+                last_seen_ip=ip,
+            )
+        logger.info("Stored credentials for device MAC: %s", mac)
 
     async def _configure_mqtt(
         self,
