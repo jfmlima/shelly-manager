@@ -29,9 +29,7 @@ async def set_credential(
     container = ctx.obj.container
 
     mac = validate_mac(mac, allow_wildcard=True)
-    await container.initialize_database()
-    async with container.create_credentials_repository() as repo:
-        await repo.set(mac, username, password)
+    await container.get_credentials_use_case().set_credential(mac, username, password)
     console.print(f"✅ Credentials set for [bold]{mac.upper()}[/bold]")
 
 
@@ -49,9 +47,7 @@ async def set_global_credential(
     console = ctx.obj.console
     container = ctx.obj.container
 
-    await container.initialize_database()
-    async with container.create_credentials_repository() as repo:
-        await repo.set("*", username, password)
+    await container.get_credentials_use_case().set_credential("*", username, password)
     console.print("✅ Global fallback credentials set")
 
 
@@ -63,11 +59,7 @@ async def list_credentials(ctx: click.Context) -> None:
     console = ctx.obj.console
     container = ctx.obj.container
 
-    await container.initialize_database()
-    async with container.create_credentials_repository() as repo:
-        creds = [
-            credential for credential in await repo.list_all() if credential is not None
-        ]
+    creds = await container.get_credentials_use_case().list_credentials()
     if not creds:
         console.print(Messages.warning("No credentials stored."))
         return
@@ -95,7 +87,5 @@ async def delete_credential(ctx: click.Context, mac: str) -> None:
     console = ctx.obj.console
     container = ctx.obj.container
 
-    await container.initialize_database()
-    async with container.create_credentials_repository() as repo:
-        await repo.delete(mac)
+    await container.get_credentials_use_case().delete_credential(mac)
     console.print(f"✅ Credentials deleted for [bold]{mac.upper()}[/bold]")

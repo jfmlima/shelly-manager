@@ -1,8 +1,10 @@
 """Tests for the shared BaseContainer wiring."""
 
-from unittest.mock import AsyncMock
+import asyncio
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from core.dependencies import container_base
 from core.dependencies.container_base import BaseContainer
 from core.gateways.device.shelly_device_gateway import ShellyDeviceGateway
 from core.gateways.network import AsyncShellyRPCClient
@@ -22,13 +24,37 @@ from core.repositories.sqlalchemy_provisioning_profile_repository import (
     SQLAlchemyProvisioningProfileRepository,
 )
 from core.services.authentication_service import AuthenticationService
+from core.use_cases.manage_credentials import ManageCredentialsUseCase
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 PERSISTENT_SLOTS = {
     "_rpc_client",
     "_auth_service",
     "_encryption_service",
     "_auth_state_cache",
+    "_schema_ready",
+    "_schema_lock",
 }
+
+
+@pytest.fixture
+async def fresh_database(monkeypatch):
+    """Point the container at an empty in-memory database with no tables."""
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
+    monkeypatch.setattr(container_base, "engine", engine)
+    monkeypatch.setattr(
+        container_base,
+        "async_session_factory",
+        async_sessionmaker(engine, expire_on_commit=False),
+    )
+    yield engine
+    await engine.dispose()
 
 
 @pytest.fixture
@@ -124,6 +150,7 @@ class TestProviderWiring:
         assert getattr(container, getter)() is first
 
 
+@pytest.mark.usefixtures("fresh_database")
 class TestRepositoryFactories:
     @pytest.mark.parametrize(
         "factory,expected_type",
@@ -146,6 +173,69 @@ class TestRepositoryFactories:
     ):
         async with getattr(container, factory)() as repo:
             assert isinstance(repo, expected_type)
+
+
+class TestSchema:
+    async def test_it_creates_the_schema_before_a_repository_is_first_used(
+        self, container, fresh_database
+    ):
+        async with container.create_backup_schedule_repository() as repo:
+            assert await repo.list_all() == []
+
+    async def test_it_creates_the_backup_created_at_index(
+        self, container, fresh_database
+    ):
+        await container.initialize_database()
+
+        async with fresh_database.connect() as conn:
+            names = (
+                await conn.execute(
+                    text("SELECT name FROM sqlite_master WHERE type = 'index'")
+                )
+            ).scalars()
+            assert "ix_device_backups_created_at" in set(names)
+
+    async def test_it_creates_the_schema_once_for_concurrent_first_uses(
+        self, container, monkeypatch
+    ):
+        async def slow_create(engine):
+            await asyncio.sleep(0.01)
+
+        create = AsyncMock(side_effect=slow_create)
+        monkeypatch.setattr(container_base, "create_schema", create)
+
+        await asyncio.gather(
+            container.initialize_database(), container.initialize_database()
+        )
+        await container.initialize_database()
+
+        assert create.await_count == 1
+
+
+class TestCredentialsUseCase:
+    def test_it_builds_and_caches_the_credentials_use_case(self, container):
+        use_case = container.get_credentials_use_case()
+
+        assert isinstance(use_case, ManageCredentialsUseCase)
+        assert container.get_credentials_use_case() is use_case
+
+    @pytest.mark.usefixtures("fresh_database")
+    async def test_it_clears_both_credential_caches_when_a_credential_changes(
+        self, container
+    ):
+        gateway = MagicMock()
+        container._device_gateway = gateway
+
+        await container.get_credentials_use_case().set_credential(
+            "AA:BB:CC:DD:EE:FF", "admin", "secret"
+        )
+
+        container._rpc_client.invalidate_credential_cache.assert_called_once_with(
+            "AABBCCDDEEFF"
+        )
+        gateway.invalidate_legacy_credential_cache.assert_called_once_with(
+            "AABBCCDDEEFF"
+        )
 
 
 class TestClose:

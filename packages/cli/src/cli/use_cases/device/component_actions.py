@@ -146,8 +146,6 @@ class ComponentActionsUseCase:
                 "No targets specified. Provide device IPs, ranges, or CIDR."
             )
 
-        await self._container.initialize_database()
-
         discovery_request = DeviceDiscoveryRequest(
             targets=request.targets,
             timeout=request.timeout,

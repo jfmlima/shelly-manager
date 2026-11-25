@@ -94,7 +94,6 @@ class TestBulkCommands:
         self, runner, cli_context, sample_device
     ):
         _answering_devices(cli_context, [sample_device])
-        cli_context.container.initialize_database = AsyncMock()
         local = cli_context.container.get_update_device_from_local_interactor()
         local.execute = AsyncMock(
             return_value=ActionResult(

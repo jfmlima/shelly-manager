@@ -668,7 +668,6 @@ class TestActionsCommands:
 
         mock_scan_interactor = cli_context.container.get_scan_interactor.return_value
         mock_scan_interactor.execute.return_value = [sample_device]
-        cli_context.container.initialize_database = AsyncMock()
 
         mock_local_interactor = AsyncMock()
         mock_local_interactor.execute.return_value = ActionResult(
@@ -702,7 +701,6 @@ class TestActionsCommands:
 
         mock_scan_interactor = cli_context.container.get_scan_interactor.return_value
         mock_scan_interactor.execute.return_value = [sample_device]
-        cli_context.container.initialize_database = AsyncMock()
 
         mock_local_interactor = AsyncMock()
         mock_local_interactor.execute.return_value = ActionResult(

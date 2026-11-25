@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -16,7 +17,7 @@ from core.gateways.network import (
     MDNSGateway,
     ZeroconfMDNSClient,
 )
-from core.repositories.db import async_session_factory
+from core.repositories.db import async_session_factory, create_schema, engine
 from core.repositories.sqlalchemy_backup_repository import (
     SQLAlchemyBackupRepository,
 )
@@ -45,6 +46,7 @@ from core.use_cases.execute_component_action import ExecuteComponentActionUseCas
 from core.use_cases.get_component_actions import GetComponentActionsUseCase
 from core.use_cases.get_local_firmware_releases import GetLocalFirmwareReleases
 from core.use_cases.manage_backup_schedules import ManageBackupSchedulesUseCase
+from core.use_cases.manage_credentials import ManageCredentialsUseCase
 from core.use_cases.manage_firmware import ManageFirmware
 from core.use_cases.manage_provisioning_profiles import (
     ManageProvisioningProfilesUseCase,
@@ -85,6 +87,7 @@ class BaseContainer:
         self._update_device_from_local_interactor: UpdateDeviceFromLocal | None = None
         self._local_firmware_releases_interactor: GetLocalFirmwareReleases | None = None
         self._manage_firmware_interactor: ManageFirmware | None = None
+        self._credentials_use_case: ManageCredentialsUseCase | None = None
         # Every slot above is a device-scoped cache cleared by
         # _reset_device_caches(); slots below survive close().
         self._device_cache_slots: tuple[str, ...] = tuple(vars(self))
@@ -92,6 +95,15 @@ class BaseContainer:
         self._auth_service: AuthenticationService | None = None
         self._encryption_service: EncryptionService | None = None
         self._auth_state_cache: AuthStateCache | None = None
+        self._schema_ready = False
+        self._schema_lock = asyncio.Lock()
+
+    async def initialize_database(self) -> None:
+        """Create the schema once per container, before any repository is used."""
+        async with self._schema_lock:
+            if not self._schema_ready:
+                await create_schema(engine)
+                self._schema_ready = True
 
     def get_rpc_client(self) -> AsyncShellyRPCClient:
         if self._rpc_client is None:
@@ -252,6 +264,19 @@ class BaseContainer:
             )
         return self._manage_firmware_interactor
 
+    def get_credentials_use_case(self) -> ManageCredentialsUseCase:
+        if self._credentials_use_case is None:
+
+            def on_credential_changed(mac: str) -> None:
+                self.get_rpc_client().invalidate_credential_cache(mac)
+                self.get_device_gateway().invalidate_legacy_credential_cache(mac)
+
+            self._credentials_use_case = ManageCredentialsUseCase(
+                repository_factory=self.create_credentials_repository,
+                on_credential_changed=on_credential_changed,
+            )
+        return self._credentials_use_case
+
     def get_ap_device_detector(self) -> APDeviceDetector:
         if self._ap_device_detector is None:
             self._ap_device_detector = APDeviceDetector()
@@ -320,55 +345,45 @@ class BaseContainer:
     async def create_credentials_repository(
         self,
     ) -> AsyncGenerator[SQLAlchemyCredentialsRepository, None]:
+        await self.initialize_database()
         async with async_session_factory() as session:
-            try:
-                yield SQLAlchemyCredentialsRepository(
-                    session, self.get_encryption_service()
-                )
-            finally:
-                await session.close()
+            yield SQLAlchemyCredentialsRepository(
+                session, self.get_encryption_service()
+            )
 
     @asynccontextmanager
     async def create_provisioning_profile_repository(
         self,
     ) -> AsyncGenerator[SQLAlchemyProvisioningProfileRepository, None]:
+        await self.initialize_database()
         async with async_session_factory() as session:
-            try:
-                yield SQLAlchemyProvisioningProfileRepository(
-                    session, self.get_encryption_service()
-                )
-            finally:
-                await session.close()
+            yield SQLAlchemyProvisioningProfileRepository(
+                session, self.get_encryption_service()
+            )
 
     @asynccontextmanager
     async def create_backup_repository(
         self,
     ) -> AsyncGenerator[SQLAlchemyBackupRepository, None]:
+        await self.initialize_database()
         async with async_session_factory() as session:
-            try:
-                yield SQLAlchemyBackupRepository(session, self.get_encryption_service())
-            finally:
-                await session.close()
+            yield SQLAlchemyBackupRepository(session, self.get_encryption_service())
 
     @asynccontextmanager
     async def create_firmware_repository(
         self,
     ) -> AsyncGenerator[SQLAlchemyFirmwareRepository, None]:
+        await self.initialize_database()
         async with async_session_factory() as session:
-            try:
-                yield SQLAlchemyFirmwareRepository(session)
-            finally:
-                await session.close()
+            yield SQLAlchemyFirmwareRepository(session)
 
     @asynccontextmanager
     async def create_backup_schedule_repository(
         self,
     ) -> AsyncGenerator[SQLAlchemyBackupScheduleRepository, None]:
+        await self.initialize_database()
         async with async_session_factory() as session:
-            try:
-                yield SQLAlchemyBackupScheduleRepository(session)
-            finally:
-                await session.close()
+            yield SQLAlchemyBackupScheduleRepository(session)
 
     async def close(self) -> None:
         if self._rpc_client is not None:

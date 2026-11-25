@@ -4,14 +4,12 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from core.repositories.db import engine
-from core.repositories.models import Base
 from core.settings import settings as core_settings
 from litestar import Litestar, Router
 from litestar.config.cors import CORSConfig
 from litestar.logging import LoggingConfig
 from litestar.openapi import OpenAPIConfig
 from litestar.openapi.config import Contact, License, Server, Tag
-from sqlalchemy import text
 
 from .controllers.auth import auth_router
 from .controllers.backup_schedules import backup_schedules_router
@@ -119,17 +117,7 @@ def create_app() -> Litestar:
         _container.get_encryption_service()
 
         try:
-            async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-                # create_all adds new indexes only to tables it creates fresh,
-                # not to a device_backups table that predates this index. Add
-                # it explicitly so existing deployments get the speedup.
-                await conn.execute(
-                    text(
-                        "CREATE INDEX IF NOT EXISTS ix_device_backups_created_at "
-                        "ON device_backups (created_at)"
-                    )
-                )
+            await _container.initialize_database()
         except BaseException:
             await engine.dispose()
             raise
