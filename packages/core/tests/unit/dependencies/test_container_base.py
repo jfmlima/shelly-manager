@@ -87,6 +87,16 @@ class TestProviderWiring:
         assert interactor._retry_attempts == 4
         assert interactor._retry_delay == 0.2
 
+    def test_it_gives_device_requests_the_network_timeout(self, container, monkeypatch):
+        monkeypatch.setattr(
+            "core.dependencies.container_base.core_settings.network.timeout", 7.5
+        )
+
+        gateway = container.get_device_gateway()
+
+        assert gateway.timeout == 7.5
+        assert container._legacy_http_client.timeout == 7.5
+
     async def test_it_builds_the_rpc_client_with_auth_wiring(self):
         container = BaseContainer()
 
