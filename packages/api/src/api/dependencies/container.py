@@ -3,31 +3,11 @@ Dependency injection container for API layer.
 """
 
 from core.dependencies.container_base import BaseContainer
-from core.use_cases.manage_credentials import ManageCredentialsUseCase
 from litestar.di import Provide
 
 
 class APIContainer(BaseContainer):
-    def __init__(self) -> None:
-        super().__init__()
-        self._credentials_use_case: ManageCredentialsUseCase | None = None
-
-    def get_credentials_use_case(self) -> ManageCredentialsUseCase:
-        if self._credentials_use_case is None:
-
-            def on_credential_changed(mac: str) -> None:
-                self.get_rpc_client().invalidate_credential_cache(mac)
-                self.get_device_gateway().invalidate_legacy_credential_cache(mac)
-
-            self._credentials_use_case = ManageCredentialsUseCase(
-                repository_factory=self.create_credentials_repository,
-                on_credential_changed=on_credential_changed,
-            )
-        return self._credentials_use_case
-
-    async def close(self) -> None:
-        await super().close()
-        self._credentials_use_case = None
+    """Container for the API process."""
 
 
 def get_dependencies(container: APIContainer) -> dict:
