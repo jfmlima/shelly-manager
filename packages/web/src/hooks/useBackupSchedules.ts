@@ -82,6 +82,7 @@ export function useRunBackupSchedule() {
         toast.success(`Run complete: ${summary}`);
       }
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.backups.all() });
     },
     onError: (error) => toast.error(handleApiError(error)),
   });
