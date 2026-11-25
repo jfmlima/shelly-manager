@@ -155,13 +155,16 @@ class BulkOperationsUseCase:
         operation: str,
         label: str,
     ) -> list[ActionResult]:
-        """Run one action on the shelly component of every device.
+        """Run one action on the shelly component of every device, each at most once.
 
         ``operation`` and ``label`` only shape the error a failure raises.
         """
         try:
-            return await self._device_gateway.execute_bulk_action(
-                device_ips, "shelly", action, parameters
+            return await _gather_settled(
+                self._device_gateway.execute_component_action(
+                    device_ip, "shelly", action, parameters
+                )
+                for device_ip in _unique(device_ips)
             )
         except Exception as e:
             if isinstance(e, ConfigurationError):
@@ -195,7 +198,7 @@ class BulkOperationsUseCase:
 
         return {
             "export_metadata": {
-                "timestamp": datetime.now(UTC).isoformat() + "Z",
+                "timestamp": datetime.now(UTC).isoformat(),
                 "total_devices": len(targets),
                 "component_types": component_types,
             },

@@ -32,8 +32,6 @@ from .rpc_read import RpcRead
 
 logger = logging.getLogger(__name__)
 
-SHELLY_SYSTEM_ACTIONS = {"Update", "Reboot", "FactoryReset"}
-
 
 class ShellyDeviceGateway(DeviceGateway):
 
@@ -316,60 +314,6 @@ class ShellyDeviceGateway(DeviceGateway):
                 message=f"Action failed: {err}",
                 error=error_message,
             )
-
-    async def execute_bulk_action(
-        self,
-        device_ips: list[str],
-        component_key: str,
-        action: str,
-        parameters: dict[str, Any] | None = None,
-    ) -> list[ActionResult]:
-        """Execute component actions on multiple devices in parallel.
-
-        Only supports specific bulk operations:
-        - shelly.Update: Firmware updates
-        - shelly.Reboot: Device reboot
-        - shelly.FactoryReset: Factory reset
-
-        Args:
-            device_ips: List of device IP addresses
-            component_key: Component key (must be 'shelly' for bulk operations)
-            action: Action name (Update, Reboot, FactoryReset)
-
-        Returns:
-            List of ActionResult objects
-
-        Raises:
-            ValueError: If component_key/action combination is not supported for bulk operations
-        """
-        action_name = ActionName.of(action)
-
-        namespace = action_name.namespace
-        allowed = {a.lower() for a in SHELLY_SYSTEM_ACTIONS}
-
-        if (
-            component_key.lower() != "shelly"
-            or (namespace is not None and namespace.lower() != "shelly")
-            or action_name.method.lower() not in allowed
-        ):
-            raise ValueError(
-                f"Bulk operation '{component_key}.{action}' is not supported. "
-                f"Supported actions on the shelly component: "
-                f"{', '.join(sorted(SHELLY_SYSTEM_ACTIONS))}"
-            )
-
-        tasks = [
-            self.execute_component_action(ip, component_key, action, parameters)
-            for ip in device_ips
-        ]
-
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        settled: list[ActionResult] = []
-        for result in results:
-            if isinstance(result, BaseException):
-                raise result
-            settled.append(result)
-        return settled
 
     async def _read_status_over_rpc(self, ip: str) -> DeviceStatus | None:
         """Ask the device for its status every way at once.

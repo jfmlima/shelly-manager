@@ -44,14 +44,3 @@ class DeviceGateway(ABC):
     async def get_component_keys(self, ip: str, component_type: str) -> list[str]:
         """Get component keys matching a type (e.g. 'cover' -> ['cover:0'])."""
         pass
-
-    @abstractmethod
-    async def execute_bulk_action(
-        self,
-        device_ips: list[str],
-        component_key: str,
-        action: str,
-        parameters: dict[str, Any] | None = None,
-    ) -> list[ActionResult]:
-        """Execute component actions on multiple devices in parallel."""
-        pass

@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -11,6 +12,7 @@ from core.domain.entities.components import (
 from core.domain.entities.device_status import DeviceStatus
 from core.domain.entities.exceptions import (
     BulkOperationError,
+    ConfigurationError,
     FirmwareConfigurationError,
 )
 from core.domain.value_objects.action_result import ActionResult
@@ -31,68 +33,40 @@ class TestBulkOperationsUseCase:
             update_device_from_local=mock_update_from_local,
         )
 
-    async def test_it_updates_multiple_devices_successfully(
+    async def test_it_updates_every_device_on_the_shelly_component(
         self, use_case, mock_device_gateway
     ):
-        device_ips = ["192.168.1.100", "192.168.1.101"]
-        expected_results = [
-            ActionResult(
-                success=True,
-                action_type="update",
-                device_ip="192.168.1.100",
-                message="Update successful",
-            ),
-            ActionResult(
-                success=True,
-                action_type="update",
-                device_ip="192.168.1.101",
-                message="Update successful",
-            ),
+        mock_device_gateway.execute_component_action = AsyncMock(side_effect=_succeed)
+
+        results = await use_case.execute_bulk_update(
+            ["192.168.1.100", "192.168.1.101"], "stable"
+        )
+
+        assert [r.device_ip for r in results] == ["192.168.1.100", "192.168.1.101"]
+        assert all(r.success for r in results)
+        assert mock_device_gateway.execute_component_action.call_args_list == [
+            (("192.168.1.100", "shelly", "Update", {}),),
+            (("192.168.1.101", "shelly", "Update", {}),),
         ]
-        mock_device_gateway.execute_bulk_action = AsyncMock(
-            return_value=expected_results
-        )
-
-        results = await use_case.execute_bulk_update(device_ips, "stable")
-
-        assert len(results) == 2
-        assert all(result.success for result in results)
-        mock_device_gateway.execute_bulk_action.assert_called_once_with(
-            device_ips, "shelly", "Update", {}
-        )
 
     async def test_it_updates_with_beta_channel(self, use_case, mock_device_gateway):
-        device_ips = ["192.168.1.100"]
-        expected_results = [
-            ActionResult(
-                success=True,
-                action_type="update",
-                device_ip="192.168.1.100",
-                message="Beta update successful",
-            )
-        ]
-        mock_device_gateway.execute_bulk_action = AsyncMock(
-            return_value=expected_results
-        )
+        mock_device_gateway.execute_component_action = AsyncMock(side_effect=_succeed)
 
-        results = await use_case.execute_bulk_update(device_ips, "beta")
+        await use_case.execute_bulk_update(["192.168.1.100"], "beta")
 
-        assert len(results) == 1
-        assert results[0].success is True
-        mock_device_gateway.execute_bulk_action.assert_called_once_with(
-            device_ips, "shelly", "Update", {"stage": "beta"}
+        mock_device_gateway.execute_component_action.assert_awaited_once_with(
+            "192.168.1.100", "shelly", "Update", {"stage": "beta"}
         )
 
     async def test_it_raises_bulk_operation_error_on_update_failure(
         self, use_case, mock_device_gateway
     ):
-        device_ips = ["192.168.1.100"]
-        mock_device_gateway.execute_bulk_action = AsyncMock(
+        mock_device_gateway.execute_component_action = AsyncMock(
             side_effect=Exception("Gateway error")
         )
 
         with pytest.raises(BulkOperationError, match="Bulk update failed"):
-            await use_case.execute_bulk_update(device_ips)
+            await use_case.execute_bulk_update(["192.168.1.100"])
 
     async def test_it_updates_each_device_from_the_local_store(
         self, use_case, mock_update_from_local
@@ -186,125 +160,126 @@ class TestBulkOperationsUseCase:
 
         mock_update_from_local.execute.assert_not_awaited()
 
-    async def test_it_reboots_multiple_devices_successfully(
+    async def test_it_reboots_every_device_on_the_shelly_component(
         self, use_case, mock_device_gateway
     ):
-        device_ips = ["192.168.1.100", "192.168.1.101"]
-        expected_results = [
-            ActionResult(
-                success=True,
-                action_type="reboot",
-                device_ip="192.168.1.100",
-                message="Reboot successful",
-            ),
-            ActionResult(
-                success=True,
-                action_type="reboot",
-                device_ip="192.168.1.101",
-                message="Reboot successful",
-            ),
+        mock_device_gateway.execute_component_action = AsyncMock(side_effect=_succeed)
+
+        results = await use_case.execute_bulk_reboot(["192.168.1.100", "192.168.1.101"])
+
+        assert [r.device_ip for r in results] == ["192.168.1.100", "192.168.1.101"]
+        assert mock_device_gateway.execute_component_action.call_args_list == [
+            (("192.168.1.100", "shelly", "Reboot", {}),),
+            (("192.168.1.101", "shelly", "Reboot", {}),),
         ]
-        mock_device_gateway.execute_bulk_action = AsyncMock(
-            return_value=expected_results
-        )
-
-        results = await use_case.execute_bulk_reboot(device_ips)
-
-        assert len(results) == 2
-        assert all(result.success for result in results)
-        mock_device_gateway.execute_bulk_action.assert_called_once_with(
-            device_ips, "shelly", "Reboot", {}
-        )
 
     async def test_it_raises_bulk_operation_error_on_reboot_failure(
         self, use_case, mock_device_gateway
     ):
-        device_ips = ["192.168.1.100"]
-        mock_device_gateway.execute_bulk_action = AsyncMock(
+        mock_device_gateway.execute_component_action = AsyncMock(
             side_effect=Exception("Gateway error")
         )
 
         with pytest.raises(BulkOperationError, match="Bulk reboot failed"):
-            await use_case.execute_bulk_reboot(device_ips)
+            await use_case.execute_bulk_reboot(["192.168.1.100"])
 
-    async def test_it_factory_resets_multiple_devices(
+    async def test_it_lets_a_configuration_error_through_unwrapped(
         self, use_case, mock_device_gateway
     ):
-        device_ips = ["192.168.1.100", "192.168.1.101"]
-        expected_results = [
-            ActionResult(
-                success=True,
-                action_type="shelly.FactoryReset",
-                device_ip="192.168.1.100",
-                message="Factory reset completed",
-            ),
-            ActionResult(
-                success=True,
-                action_type="shelly.FactoryReset",
-                device_ip="192.168.1.101",
-                message="Factory reset completed",
-            ),
-        ]
-        mock_device_gateway.execute_bulk_action = AsyncMock(
-            return_value=expected_results
+        mock_device_gateway.execute_component_action = AsyncMock(
+            side_effect=ConfigurationError("No credentials key")
         )
 
-        results = await use_case.execute_bulk_factory_reset(device_ips)
+        with pytest.raises(ConfigurationError):
+            await use_case.execute_bulk_reboot(["192.168.1.100"])
 
-        assert len(results) == 2
-        assert all(result.success for result in results)
-        mock_device_gateway.execute_bulk_action.assert_called_once_with(
-            device_ips, "shelly", "FactoryReset", {}
+    async def test_it_factory_resets_every_device(self, use_case, mock_device_gateway):
+        mock_device_gateway.execute_component_action = AsyncMock(side_effect=_succeed)
+
+        await use_case.execute_bulk_factory_reset(["192.168.1.100"])
+
+        mock_device_gateway.execute_component_action.assert_awaited_once_with(
+            "192.168.1.100", "shelly", "FactoryReset", {}
         )
 
-    async def test_it_handles_mixed_results_in_bulk_operations(
+    @pytest.mark.parametrize(
+        "operation",
+        ["execute_bulk_update", "execute_bulk_reboot", "execute_bulk_factory_reset"],
+    )
+    async def test_it_sends_a_repeated_device_one_action(
+        self, use_case, mock_device_gateway, operation
+    ):
+        # Overlapping targets expand to the same IP twice; two concurrent
+        # reboots on one device is what the dedupe exists to prevent.
+        mock_device_gateway.execute_component_action = AsyncMock(side_effect=_succeed)
+
+        results = await getattr(use_case, operation)(
+            ["192.168.1.100", "192.168.1.101", "192.168.1.100"]
+        )
+
+        assert [r.device_ip for r in results] == ["192.168.1.100", "192.168.1.101"]
+        assert mock_device_gateway.execute_component_action.await_count == 2
+
+    async def test_it_keeps_failed_devices_in_the_results(
         self, use_case, mock_device_gateway
     ):
-        device_ips = ["192.168.1.100", "192.168.1.101", "192.168.1.102"]
-        expected_results = [
-            ActionResult(
-                success=True,
-                action_type="reboot",
-                device_ip="192.168.1.100",
-                message="Reboot successful",
-            ),
-            ActionResult(
-                success=False,
-                action_type="reboot",
-                device_ip="192.168.1.101",
-                message="Reboot failed",
-                error="Device offline",
-            ),
-            ActionResult(
-                success=True,
-                action_type="reboot",
-                device_ip="192.168.1.102",
-                message="Reboot successful",
-            ),
-        ]
-        mock_device_gateway.execute_bulk_action = AsyncMock(
-            return_value=expected_results
+        async def act(device_ip, component_key, action, parameters):
+            if device_ip == "192.168.1.101":
+                return ActionResult(
+                    success=False,
+                    action_type="shelly.Reboot",
+                    device_ip=device_ip,
+                    message="Reboot failed",
+                    error="Device offline",
+                )
+            return await _succeed(device_ip, component_key, action, parameters)
+
+        mock_device_gateway.execute_component_action = AsyncMock(side_effect=act)
+
+        results = await use_case.execute_bulk_reboot(
+            ["192.168.1.100", "192.168.1.101", "192.168.1.102"]
         )
 
-        results = await use_case.execute_bulk_reboot(device_ips)
-
-        assert len(results) == 3
-        assert results[0].success is True
-        assert results[1].success is False
-        assert results[2].success is True
+        assert [r.success for r in results] == [True, False, True]
         assert results[1].error == "Device offline"
+
+    async def test_it_lets_every_action_finish_before_a_failure_surfaces(
+        self, use_case, mock_device_gateway
+    ):
+        finished = []
+
+        async def act(device_ip, component_key, action, parameters):
+            if device_ip == "192.168.1.100":
+                raise RuntimeError("boom")
+            await asyncio.sleep(0.05)
+            finished.append(device_ip)
+            return await _succeed(device_ip, component_key, action, parameters)
+
+        mock_device_gateway.execute_component_action = AsyncMock(side_effect=act)
+
+        with pytest.raises(BulkOperationError, match="boom"):
+            await use_case.execute_bulk_reboot(["192.168.1.100", "192.168.1.101"])
+
+        assert finished == ["192.168.1.101"]
 
     async def test_it_handles_empty_device_list_for_bulk_operations(
         self, use_case, mock_device_gateway
     ):
-        empty_ips = []
-        mock_device_gateway.execute_bulk_action = AsyncMock(return_value=[])
+        mock_device_gateway.execute_component_action = AsyncMock()
 
-        update_result = await use_case.execute_bulk_update(empty_ips)
-        reboot_result = await use_case.execute_bulk_reboot(empty_ips)
+        assert await use_case.execute_bulk_update([]) == []
+        assert await use_case.execute_bulk_reboot([]) == []
+        mock_device_gateway.execute_component_action.assert_not_awaited()
 
-        assert update_result == []
-        assert reboot_result == []
+    async def test_it_stamps_the_export_with_a_valid_iso_timestamp(
+        self, use_case, mock_device_gateway
+    ):
+        mock_device_gateway.get_device_status = AsyncMock(return_value=None)
+
+        result = await use_case.export_bulk_config(["192.168.1.100"], [])
+
+        stamp = datetime.fromisoformat(result["export_metadata"]["timestamp"])
+        assert stamp.utcoffset() == timedelta(0)
 
     @pytest.fixture
     def mock_device_status_with_components(self):
@@ -1141,3 +1116,12 @@ class TestBulkOperationsUseCase:
             )
 
         assert finished == ["192.168.1.101"]
+
+
+async def _succeed(device_ip, component_key, action, parameters):
+    return ActionResult(
+        success=True,
+        action_type=f"{component_key}.{action}",
+        device_ip=device_ip,
+        message=f"{action} executed successfully on {component_key}",
+    )

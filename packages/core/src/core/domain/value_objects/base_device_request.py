@@ -4,7 +4,7 @@ Base request models for device operations.
 
 from pydantic import BaseModel, Field, field_validator
 
-from ...utils.validation import validate_ip_address, validate_ip_address_list
+from ...utils.validation import validate_ip_address
 
 
 class BaseDeviceRequest(BaseModel):
@@ -16,16 +16,3 @@ class BaseDeviceRequest(BaseModel):
     @classmethod
     def validate_device_ip(cls, v: str) -> str:
         return validate_ip_address(v)
-
-
-class BaseBulkDeviceRequest(BaseModel):
-    """Base request model for bulk device operations."""
-
-    device_ips: list[str] = Field(
-        ..., min_length=1, description="List of device IP addresses"
-    )
-
-    @field_validator("device_ips")
-    @classmethod
-    def validate_device_ips(cls, v: list[str]) -> list[str]:
-        return validate_ip_address_list(v)
