@@ -210,3 +210,35 @@ def test_it_retries_a_scanned_address_once_by_default(monkeypatch):
 
     assert network.retry_attempts == 1
     assert network.retry_delay == 0.5
+
+
+def test_it_ignores_keys_in_the_env_file_that_are_not_settings(tmp_path, monkeypatch):
+    (tmp_path / ".env").write_text("PORT=9000\nCOMPOSE_PROJECT_NAME=shelly\n")
+    monkeypatch.chdir(tmp_path)
+
+    settings = AppSettings(config_file="does-not-exist.json")
+
+    assert settings.data_dir == "./data"
+
+
+def test_it_reads_every_section_from_the_env_file(tmp_path, monkeypatch):
+    values = {
+        "NETWORK_TIMEOUT": "5",
+        "LOG_LEVEL": "DEBUG",
+        "SHELLY_BACKUP_SCHEDULER_ENABLED": "false",
+        "SHELLY_FIRMWARE_ADVERTISED_BASE_URL": "http://192.168.40.252:8000",
+        "SHELLY_DATA_DIR": "/srv/shelly",
+    }
+    for key in values:
+        monkeypatch.delenv(key, raising=False)
+    lines = "".join(f"{key}={value}\n" for key, value in values.items())
+    (tmp_path / ".env").write_text(lines)
+    monkeypatch.chdir(tmp_path)
+
+    settings = AppSettings(config_file="does-not-exist.json")
+
+    assert settings.network.timeout == 5.0
+    assert settings.logging.level == "DEBUG"
+    assert settings.backup.scheduler_enabled is False
+    assert settings.firmware.advertised_base_url == "http://192.168.40.252:8000"
+    assert settings.data_dir == "/srv/shelly"
