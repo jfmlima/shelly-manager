@@ -119,6 +119,7 @@ class BaseContainer:
     def get_device_gateway(self) -> ShellyDeviceGateway:
         if self._device_gateway is None:
             legacy_http_client = LegacyHttpClient(
+                timeout=core_settings.network.timeout,
                 connect_timeout=core_settings.network.connect_timeout,
             )
             self._legacy_http_client = legacy_http_client
@@ -134,6 +135,7 @@ class BaseContainer:
                 rpc_client=self.get_rpc_client(),
                 legacy_gateway=legacy_gateway,
                 auth_state_cache=self.get_auth_state_cache(),
+                timeout=core_settings.network.timeout,
             )
         return self._device_gateway
 
