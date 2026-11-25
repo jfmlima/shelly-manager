@@ -260,6 +260,11 @@ class ShellyDeviceGateway(DeviceGateway):
                     ip, component_key, action, parameters
                 )
 
+            if await self._is_gen1_reboot(ip, component_key, action_name):
+                return await self._legacy.execute_action(
+                    ip, "sys", "Legacy.Reboot", parameters
+                )
+
             rpc_method = await self._resolve_method(ip, component_key, action_name)
 
             if rpc_method is None:
@@ -418,3 +423,20 @@ class ShellyDeviceGateway(DeviceGateway):
             return rpc_method
 
         return action_name.resolve(component_key, await self._get_available_methods(ip))
+
+    async def _is_gen1_reboot(
+        self, ip: str, component_key: str, action_name: ActionName
+    ) -> bool:
+        """Whether a generic device reboot is aimed at a Gen1 device.
+
+        The reboot buttons and the bulk reboot send ``Reboot`` on ``shelly``
+        for every device, and Gen1 has no RPC to send it over.
+        """
+        if action_name.method != "Reboot" or action_name.namespace not in (
+            None,
+            "Shelly",
+        ):
+            return False
+        if component_key not in ("shelly", "sys"):
+            return False
+        return await self._legacy.generation(ip) is Generation.GEN1

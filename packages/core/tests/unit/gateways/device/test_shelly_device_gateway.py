@@ -349,6 +349,64 @@ class TestShellyDeviceGateway:
         assert "value 99 not found" in result.error
         assert "-105" in result.error
 
+    @pytest.mark.parametrize("component_key", ["shelly", "sys"])
+    @pytest.mark.parametrize("action", ["Reboot", "Shelly.Reboot"])
+    async def test_it_reboots_a_gen1_device_over_the_legacy_api(
+        self, gateway, mock_rpc_client, mock_legacy_gateway, component_key, action
+    ):
+        mock_legacy_gateway.identify_generation.return_value = Generation.GEN1
+        mock_legacy_gateway.execute_action.return_value = ActionResult(
+            device_ip="192.168.1.50",
+            action_type="sys.Legacy.Reboot",
+            success=True,
+            message="Device reboot requested",
+        )
+        mock_rpc_client.make_rpc_request = AsyncMock()
+
+        result = await gateway.execute_component_action(
+            "192.168.1.50", component_key, action
+        )
+
+        assert result.success is True
+        mock_legacy_gateway.execute_action.assert_awaited_once_with(
+            "192.168.1.50", "sys", "Legacy.Reboot", {}
+        )
+        mock_rpc_client.make_rpc_request.assert_not_awaited()
+
+    @pytest.mark.parametrize("generation", [Generation.GEN2, None])
+    async def test_it_reboots_over_rpc_unless_the_device_is_gen1(
+        self, gateway, mock_rpc_client, mock_legacy_gateway, generation
+    ):
+        mock_legacy_gateway.identify_generation.return_value = generation
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                ({"result": {"methods": ["Shelly.Reboot"]}}, 0.1),
+                ({"result": None}, 0.1),
+            ]
+        )
+
+        result = await gateway.execute_component_action(
+            "192.168.1.100", "shelly", "Reboot"
+        )
+
+        assert result.success is True
+        assert mock_rpc_client.make_rpc_request.await_args.args[1] == "Shelly.Reboot"
+        mock_legacy_gateway.execute_action.assert_not_awaited()
+
+    async def test_it_does_not_identify_the_generation_for_other_actions(
+        self, gateway, mock_rpc_client, mock_legacy_gateway
+    ):
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[
+                ({"result": {"methods": ["Switch.Toggle"]}}, 0.1),
+                ({"result": {"was_on": False}}, 0.1),
+            ]
+        )
+
+        await gateway.execute_component_action("192.168.1.100", "switch:0", "Toggle")
+
+        mock_legacy_gateway.identify_generation.assert_not_awaited()
+
     async def test_it_handles_update_check_failure_gracefully(
         self, gateway, mock_rpc_client
     ):
