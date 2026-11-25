@@ -171,7 +171,7 @@ export function ComponentActions({
       return;
     }
 
-    if (isDestructiveAction(action)) {
+    if (isDestructiveAction(action) || renderParameterForm(action) !== null) {
       setShowConfirmation(true);
     } else {
       executeActionWithParameters(action, {});
@@ -253,13 +253,13 @@ export function ComponentActions({
         return (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="output">Switch State</Label>
+              <Label htmlFor="on">Switch State</Label>
               <Select
-                value={actionParameters.output?.toString() || ""}
+                value={actionParameters.on?.toString() || ""}
                 onValueChange={(value) =>
                   setActionParameters({
                     ...actionParameters,
-                    output: value === "true",
+                    on: value === "true",
                   })
                 }
               >
