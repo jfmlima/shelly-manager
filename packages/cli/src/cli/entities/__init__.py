@@ -45,11 +45,6 @@ __all__ = [
     "RestoreResult",  # noqa: F405
     # Bulk operation entities
     "BulkOperationRequest",  # noqa: F405
-    "BulkRebootRequest",  # noqa: F405
-    "BulkConfigRequest",  # noqa: F405
-    "BulkCommandRequest",  # noqa: F405
-    "BulkOperationResult",  # noqa: F405
-    "BulkRebootResult",  # noqa: F405
-    "BulkConfigResult",  # noqa: F405
-    "BulkCommandResult",  # noqa: F405
+    "BulkConfigExportRequest",  # noqa: F405
+    "BulkConfigApplyRequest",  # noqa: F405
 ]
