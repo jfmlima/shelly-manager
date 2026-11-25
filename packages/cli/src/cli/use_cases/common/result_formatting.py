@@ -9,7 +9,7 @@ from core.domain.enums.enums import Status
 from rich.console import Console
 from rich.table import Table
 
-from cli.presentation.styles import format_device_status
+from cli.presentation.styles import Messages, format_device_status
 
 
 class ResultFormatter:
@@ -40,7 +40,7 @@ class ResultFormatter:
 
         if devices and isinstance(devices[0], DiscoveredDevice):
             self._format_discovered_devices_table(devices, title, include_beta)
-        elif devices and isinstance(devices[0], DeviceStatus):
+        elif any(isinstance(device, DeviceStatus) for device in devices):
             self._format_device_status_table(devices, include_beta)
         else:
             self._format_legacy_device_table(devices, title)
@@ -81,12 +81,20 @@ class ResultFormatter:
         self._console.print(table)
 
     def _format_device_status_table(
-        self, devices: list[DeviceStatus], include_beta: bool = False
+        self, devices: list[Any], include_beta: bool = False
     ) -> None:
-        """Format table for DeviceStatus entities."""
+        """Format DeviceStatus entities, and the devices whose status read failed."""
 
         for device_status in devices:
-            self.format_detailed_device_status(device_status, include_beta)
+            if isinstance(device_status, DeviceStatus):
+                self.format_detailed_device_status(device_status, include_beta)
+            else:
+                self._console.print(
+                    Messages.device_error(
+                        device_status.get("ip", "Unknown"),
+                        device_status.get("error", "Unknown error"),
+                    )
+                )
 
     def _format_legacy_device_table(self, devices: list[Any], title: str) -> None:
         """Legacy format for backward compatibility."""
