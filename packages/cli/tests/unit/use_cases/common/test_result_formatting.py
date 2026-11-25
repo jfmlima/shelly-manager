@@ -146,3 +146,46 @@ class TestFormatDetailedDeviceStatusBetaFiltering:
 
         output = self._printed_text(mock_console)
         assert "1.2.0-beta1" in output
+
+
+class TestFormatDeviceStatusWithFailedDevices:
+
+    @pytest.fixture
+    def mock_console(self):
+        return MagicMock()
+
+    @pytest.fixture
+    def formatter(self, mock_console):
+        return ResultFormatter(mock_console)
+
+    def _device_status(self):
+        sys_component = SystemComponent(
+            key="sys",
+            component_type="sys",
+            device_name="Answering Device",
+            firmware_version="1.0.0",
+        )
+        return DeviceStatus(device_ip="192.168.1.100", components=[sys_component])
+
+    def _failure(self):
+        return {"ip": "192.168.1.101", "status": "error", "error": "HTTP 401"}
+
+    def _printed_text(self, mock_console) -> str:
+        return "\n".join(
+            str(call.args[0]) for call in mock_console.print.call_args_list if call.args
+        )
+
+    @pytest.mark.parametrize("failure_first", [False, True])
+    def test_it_shows_answering_and_failed_devices_together(
+        self, formatter, mock_console, failure_first
+    ):
+        results = [self._device_status(), self._failure()]
+        if failure_first:
+            results.reverse()
+
+        formatter.format_device_table(results)
+
+        printed = self._printed_text(mock_console)
+        assert "Answering Device" in printed
+        assert "192.168.1.101" in printed
+        assert "HTTP 401" in printed
