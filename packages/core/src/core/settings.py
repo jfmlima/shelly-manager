@@ -22,16 +22,23 @@ INVALID_SECRET_KEY_MESSAGE = (
     "openssl rand -base64 32 | tr '+/' '-_'."
 )
 
+# Every section reads the same env file with its own prefix. The file also holds
+# the other sections' keys and docker compose's, so keys a section does not
+# have are ignored.
+ENV_FILE_CONFIG = SettingsConfigDict(
+    env_file=".env", env_file_encoding="utf-8", extra="ignore"
+)
+
 
 class DatabaseSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="DB_")
+    model_config = SettingsConfigDict(env_prefix="DB_", **ENV_FILE_CONFIG)
 
     url: str = Field(default="sqlite:///shelly_manager.db", description="Database URL")
     echo: bool = Field(default=False, description="Enable SQL echo")
 
 
 class LoggingSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="LOG_")
+    model_config = SettingsConfigDict(env_prefix="LOG_", **ENV_FILE_CONFIG)
 
     level: str = Field(default="INFO", description="Logging level")
     format: str = Field(default="json", description="Log format (json or console)")
@@ -55,7 +62,7 @@ class LoggingSettings(BaseSettings):
 
 
 class NetworkSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="NETWORK_")
+    model_config = SettingsConfigDict(env_prefix="NETWORK_", **ENV_FILE_CONFIG)
 
     timeout: float = Field(
         default=3.0, ge=0.1, le=30.0, description="Default (read) timeout in seconds"
@@ -85,7 +92,7 @@ class NetworkSettings(BaseSettings):
 
 
 class BackupSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="SHELLY_BACKUP_")
+    model_config = SettingsConfigDict(env_prefix="SHELLY_BACKUP_", **ENV_FILE_CONFIG)
 
     scheduler_enabled: bool = Field(
         default=True, description="Run the in-process scheduled-backup poller"
@@ -98,7 +105,7 @@ class BackupSettings(BaseSettings):
 
 
 class FirmwareSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="SHELLY_FIRMWARE_")
+    model_config = SettingsConfigDict(env_prefix="SHELLY_FIRMWARE_", **ENV_FILE_CONFIG)
 
     dir: str = Field(
         default="./data/firmware",
@@ -167,7 +174,7 @@ class FirmwareSettings(BaseSettings):
 
 
 class APISettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="API_")
+    model_config = SettingsConfigDict(env_prefix="API_", **ENV_FILE_CONFIG)
 
     host: str = Field(default="0.0.0.0", description="API host")
     port: int = Field(
@@ -179,9 +186,7 @@ class APISettings(BaseSettings):
 
 
 class AppSettings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="SHELLY_", env_file=".env", env_file_encoding="utf-8"
-    )
+    model_config = SettingsConfigDict(env_prefix="SHELLY_", **ENV_FILE_CONFIG)
 
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
