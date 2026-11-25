@@ -92,15 +92,15 @@ def expand_targets(targets: list[str]) -> list[str]:
         targets: List of target strings (IPs, ranges, CIDR)
 
     Returns:
-        List of individual IP addresses
+        Each IP address once, in the order it first appears
 
     Raises:
         ValueError: If any target format is invalid
     """
-    result: list[str] = []
+    result: dict[str, None] = {}
     for target in targets:
-        result.extend(parse_target(target))
-    return result
+        result.update(dict.fromkeys(parse_target(target)))
+    return list(result)
 
 
 def validate_target(target: str) -> None:
