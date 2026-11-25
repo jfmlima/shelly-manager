@@ -47,7 +47,7 @@ export function SwitchComponent({ component, deviceIp }: SwitchComponentProps) {
           <div className="flex items-center justify-between">
             <span>Current</span>
             <span className="font-medium">
-              {(component.status.current * 1000)?.toFixed(0) || "0"}mA
+              {((component.status.current ?? 0) * 1000).toFixed(0)}mA
             </span>
           </div>
         </div>

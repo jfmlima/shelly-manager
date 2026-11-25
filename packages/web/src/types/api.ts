@@ -31,7 +31,7 @@ export interface SwitchComponent extends Component {
     output: boolean;
     apower: number;
     voltage: number;
-    current: number;
+    current?: number;
     freq: number;
     temperature?: {
       tC: number;
