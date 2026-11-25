@@ -740,52 +740,6 @@ class TestShellyDeviceGateway:
         assert result.action_type == "sys.Reboot"
         assert "RPC call failed" in result.error
 
-    async def test_it_executes_bulk_actions_successfully(
-        self, gateway, mock_rpc_client
-    ):
-        device_ips = ["192.168.1.100", "192.168.1.101", "192.168.1.102"]
-
-        available_methods = ["Shelly.Reboot", "Shelly.Update", "Shelly.FactoryReset"]
-        mock_rpc_client.make_rpc_request = AsyncMock(
-            side_effect=[
-                ({"methods": available_methods}, 0.1),
-                ({"methods": available_methods}, 0.1),
-                ({"methods": available_methods}, 0.1),
-                ({}, 0.1),
-                ({}, 0.1),
-                ({}, 0.1),
-            ]
-        )
-
-        results = await gateway.execute_bulk_action(device_ips, "shelly", "Reboot")
-
-        assert len(results) == 3
-        assert all(result.success for result in results)
-        assert all(result.action_type == "shelly.Reboot" for result in results)
-        assert mock_rpc_client.make_rpc_request.call_count == 6
-
-    async def test_it_rejects_bulk_action_with_unsupported_action(
-        self, gateway, mock_rpc_client
-    ):
-        mock_rpc_client.make_rpc_request = AsyncMock()
-
-        with pytest.raises(ValueError, match="not supported"):
-            await gateway.execute_bulk_action(
-                ["192.168.1.100"], "shelly", "AnythingAtAll"
-            )
-
-        mock_rpc_client.make_rpc_request.assert_not_called()
-
-    async def test_it_rejects_bulk_action_with_unsupported_component(
-        self, gateway, mock_rpc_client
-    ):
-        mock_rpc_client.make_rpc_request = AsyncMock()
-
-        with pytest.raises(ValueError, match="not supported"):
-            await gateway.execute_bulk_action(["192.168.1.100"], "switch:0", "Update")
-
-        mock_rpc_client.make_rpc_request.assert_not_called()
-
     async def test_it_handles_device_with_partial_info(self, gateway, mock_rpc_client):
         device_info = {"id": "minimal-device"}
         mock_rpc_client.make_rpc_request = AsyncMock(return_value=(device_info, 0.1))
@@ -1171,36 +1125,6 @@ class TestActionNameResolution:
             "192.168.1.100", "Switch.Toggle", params={"id": 0}, timeout=10.0
         )
 
-    @pytest.mark.parametrize("action", ["Reboot", "Shelly.Reboot"])
-    async def test_it_accepts_bulk_actions_bare_or_qualified(
-        self, gateway, mock_rpc_client, action
-    ):
-        mock_rpc_client.make_rpc_request = AsyncMock(
-            side_effect=[
-                ({"methods": self.DEVICE_METHODS}, 0.1),
-                ({}, 0.1),
-            ]
-        )
-
-        results = await gateway.execute_bulk_action(["192.168.1.100"], "shelly", action)
-
-        assert [r.success for r in results] == [True]
-
-    @pytest.mark.parametrize(
-        "component_key,action",
-        [
-            ("shelly", "Switch.Toggle"),
-            ("shelly", "Nonsense"),
-            ("switch:0", "Reboot"),
-            ("switch:0", "Shelly.Reboot"),
-        ],
-    )
-    async def test_it_still_refuses_bulk_actions_outside_the_allowlist(
-        self, gateway, component_key, action
-    ):
-        with pytest.raises(ValueError):
-            await gateway.execute_bulk_action(["192.168.1.100"], component_key, action)
-
     @pytest.mark.parametrize("action", ["Toggle", "Switch.Toggle"])
     async def test_it_reports_the_same_action_type_bare_or_qualified(
         self, gateway, listing_device, action
@@ -1366,58 +1290,6 @@ class TestUnreadableMethodLists:
         mock_rpc_client.make_rpc_request.assert_any_call(
             "192.168.1.100", "Switch.Toggle", params={"id": 0}, timeout=10.0
         )
-
-
-class TestBulkAllowlistCasing:
-
-    @pytest.fixture
-    def mock_rpc_client(self):
-        return MagicMock()
-
-    @pytest.fixture
-    def gateway(self, mock_rpc_client):
-        return ShellyDeviceGateway(rpc_client=mock_rpc_client)
-
-    @pytest.mark.parametrize(
-        "component_key,action",
-        [
-            ("shelly", "Reboot"),
-            ("shelly", "Shelly.Reboot"),
-            ("shelly", "shelly.Reboot"),
-            ("SHELLY", "Shelly.reboot"),
-            ("shelly", "SHELLY.REBOOT"),
-        ],
-    )
-    async def test_it_accepts_the_allowlisted_action_however_it_is_spelled(
-        self, gateway, mock_rpc_client, component_key, action
-    ):
-        mock_rpc_client.make_rpc_request = AsyncMock(
-            side_effect=[({"methods": ["Shelly.Reboot"]}, 0.1), ({}, 0.1)]
-        )
-
-        results = await gateway.execute_bulk_action(
-            ["192.168.1.100"], component_key, action
-        )
-
-        assert [r.success for r in results] == [True]
-        mock_rpc_client.make_rpc_request.assert_any_call(
-            "192.168.1.100", "Shelly.Reboot", params=None, timeout=10.0
-        )
-
-    @pytest.mark.parametrize(
-        "component_key,action",
-        [
-            ("shelly", "Switch.Toggle"),
-            ("shelly", "Nonsense"),
-            ("switch:0", "Reboot"),
-            ("switch:0", "Shelly.Reboot"),
-        ],
-    )
-    async def test_it_still_refuses_anything_outside_the_allowlist(
-        self, gateway, component_key, action
-    ):
-        with pytest.raises(ValueError):
-            await gateway.execute_bulk_action(["192.168.1.100"], component_key, action)
 
 
 class TestLegacyRouting:

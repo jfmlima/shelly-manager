@@ -10,15 +10,10 @@ from core.domain.entities.config_snapshot import (
     CONFIGURABLE_COMPONENT_TYPES,
     EXPORTABLE_COMPONENT_TYPES,
 )
-from core.domain.enums.enums import UpdateChannel
 
 from cli.commands.common import async_command, device_targeting_options
-from cli.entities.bulk import (
-    BulkConfigApplyRequest,
-    BulkConfigExportRequest,
-    BulkOperationRequest,
-    BulkRebootRequest,
-)
+from cli.commands.device_commands import reboot_devices, update_firmware
+from cli.entities.bulk import BulkConfigApplyRequest, BulkConfigExportRequest
 from cli.use_cases.device.bulk_operations import BulkOperationsUseCase
 
 
@@ -27,99 +22,14 @@ def bulk() -> None:
     """
     🔄 Bulk operations on multiple devices.
 
-    Perform actions on multiple Shelly devices simultaneously.
+    Perform actions on multiple Shelly devices.
     Supports IP addresses, ranges, and CIDR notation.
     """
     pass
 
 
-@bulk.command()
-@click.argument("targets", nargs=-1)
-@device_targeting_options
-@click.option("--force", is_flag=True, help="Skip confirmation prompts")
-@click.option(
-    "--workers",
-    type=int,
-    default=10,
-    help="Number of concurrent operations (default: 10)",
-)
-@click.pass_context
-@async_command
-async def reboot(
-    ctx: click.Context,
-    targets: tuple[str, ...],
-    targets_opt: tuple[str, ...],
-    force: bool,
-    workers: int,
-) -> None:
-    """
-    🔄 Reboot multiple devices.
-
-    Examples:
-      shelly-manager bulk reboot 192.168.1.0/24
-      shelly-manager bulk reboot -t 192.168.1.100 -t 192.168.1.101
-    """
-    console = ctx.obj.console
-    container = ctx.obj.container
-
-    bulk_use_case = BulkOperationsUseCase(container, console)
-
-    request = BulkRebootRequest(
-        targets=list(targets) + list(targets_opt),
-        force=force,
-        workers=workers,
-    )
-
-    result = await bulk_use_case.execute_bulk_reboot(request)
-    bulk_use_case.display_bulk_results(result)
-
-
-@bulk.command()
-@click.argument("targets", nargs=-1)
-@device_targeting_options
-@click.option(
-    "--channel",
-    type=click.Choice([channel.value for channel in UpdateChannel]),
-    default=UpdateChannel.STABLE.value,
-    help="Update channel (default: stable)",
-)
-@click.option("--force", is_flag=True, help="Skip confirmation prompts")
-@click.option(
-    "--workers",
-    type=int,
-    default=10,
-    help="Number of concurrent operations (default: 10)",
-)
-@click.pass_context
-@async_command
-async def update(
-    ctx: click.Context,
-    targets: tuple[str, ...],
-    targets_opt: tuple[str, ...],
-    channel: str,
-    force: bool,
-    workers: int,
-) -> None:
-    """
-    📦 Update firmware on multiple devices.
-
-    Examples:
-      shelly-manager bulk update 192.168.1.0/24 --channel stable
-      shelly-manager bulk update -t 192.168.1.100 -t 192.168.1.101 --channel beta
-    """
-    console = ctx.obj.console
-    container = ctx.obj.container
-
-    bulk_use_case = BulkOperationsUseCase(container, console)
-
-    request = BulkOperationRequest(
-        targets=list(targets) + list(targets_opt),
-        force=force,
-        workers=workers,
-    )
-
-    result = await bulk_use_case.execute_bulk_update(request, channel)
-    bulk_use_case.display_bulk_results(result)
+bulk.add_command(reboot_devices, "reboot")
+bulk.add_command(update_firmware, "update")
 
 
 @bulk.group()

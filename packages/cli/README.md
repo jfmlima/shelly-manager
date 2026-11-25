@@ -198,13 +198,18 @@ shelly-manager bulk update --target 192.168.1.100-110
 # Bulk operations on specific IPs
 shelly-manager bulk reboot --target 192.168.1.100 --target 192.168.1.101
 shelly-manager bulk update --target 192.168.1.100 --target 192.168.1.101 --channel beta
+shelly-manager bulk update --target 192.168.1.0/24 --source local
 ```
+
+`bulk reboot` and `bulk update` are the same commands as `device reboot` and `device update`.
 
 **Bulk Options:**
 
 - `--target`: IP target (IP, range, or CIDR). Can be used multiple times.
 - `--force`: Skip confirmation prompts
-- `--workers`: Concurrent operations (default: 10)
+- `--timeout`: Discovery timeout per device in seconds (default: 3)
+- `--workers`: Concurrent discovery workers (default: 50)
+- `--source` (update only): `internet` (default) or `local`
 
 ### Configuration Backup & Restore
 
