@@ -38,6 +38,12 @@ def test_it_expands_targets():
     assert result == ["192.168.1.1", "192.168.1.10", "192.168.1.11", "192.168.1.12"]
 
 
+def test_it_expands_overlapping_targets_to_each_ip_once():
+    targets = ["192.168.1.2", "192.168.1.0/30", "192.168.1.2"]
+    result = expand_targets(targets)
+    assert result == ["192.168.1.2", "192.168.1.1"]
+
+
 def test_it_validates_target_valid():
     validate_target("192.168.1.1")
     validate_target("192.168.1.1-50")

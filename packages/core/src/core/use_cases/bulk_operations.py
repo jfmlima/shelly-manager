@@ -22,10 +22,9 @@ T = TypeVar("T")
 def _unique(device_ips: list[str]) -> list[str]:
     """The given IPs in order, without repeats.
 
-    Overlapping targets ("-t 10.0.0.5 -t 10.0.0.0/24") expand to the same device
-    more than once. Handling devices concurrently would then put two overlapping
-    requests on one device, which is the thing the per-device sequencing exists
-    to avoid.
+    A request can name the same device more than once. Handling devices
+    concurrently would then put two overlapping requests on one device, which is
+    the thing the per-device sequencing exists to avoid.
     """
     return list(dict.fromkeys(device_ips))
 
