@@ -21,7 +21,6 @@ class TestScanDevicesUseCase:
     def valid_scan_request(self):
         return ScanRequest(
             targets=["192.168.1.1-5"],
-            use_predefined=False,
             use_mdns=False,
             timeout=3.0,
             max_workers=10,
@@ -29,9 +28,7 @@ class TestScanDevicesUseCase:
 
     @pytest.fixture
     def predefined_scan_request(self):
-        return ScanRequest(
-            use_predefined=True, use_mdns=False, timeout=3.0, max_workers=10
-        )
+        return ScanRequest(use_mdns=False, timeout=3.0, max_workers=10)
 
     async def test_it_scans_ip_range_successfully(
         self, use_case, valid_scan_request, mock_device_gateway
@@ -261,7 +258,6 @@ class TestScanDevicesUseCase:
     ):
         request = ScanRequest(
             targets=["192.168.1.1-100"],
-            use_predefined=False,
             use_mdns=False,
             timeout=3.0,
             max_workers=5,
@@ -303,9 +299,7 @@ class TestScanDevicesUseCase:
 
     @pytest.fixture
     def mdns_scan_request(self):
-        return ScanRequest(
-            use_mdns=True, use_predefined=False, timeout=5.0, max_workers=10
-        )
+        return ScanRequest(use_mdns=True, timeout=5.0, max_workers=10)
 
     async def test_it_scans_with_mdns_discovery_success(
         self,
@@ -375,7 +369,6 @@ class TestScanSettlesUpdateStatus:
     def single_ip_request(self):
         return ScanRequest(
             targets=["192.168.1.1"],
-            use_predefined=False,
             use_mdns=False,
             timeout=3.0,
             max_workers=10,
@@ -515,7 +508,6 @@ class TestScanSettlesUpdateStatus:
     async def test_it_asks_the_index_once_per_app(self, mock_device_gateway):
         request = ScanRequest(
             targets=["192.168.1.1", "192.168.1.2"],
-            use_predefined=False,
             use_mdns=False,
             timeout=3.0,
             max_workers=10,

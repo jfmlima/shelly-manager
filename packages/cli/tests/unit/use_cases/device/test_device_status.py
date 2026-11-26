@@ -91,8 +91,7 @@ class TestDeviceStatusUseCase:
 
         result = await status_use_case.execute(basic_status_request)
 
-        assert result is not None
-        assert mock_container.get_status_interactor.return_value.execute.call_count == 2
+        assert result == [sample_status_result, sample_status_result]
 
     @pytest.mark.asyncio
     async def test_it_executes_status_from_config(
@@ -112,9 +111,8 @@ class TestDeviceStatusUseCase:
 
         result = await status_use_case.execute(config_status_request)
 
-        assert result is not None
+        assert result == [sample_status_result, sample_status_result]
         mock_container.get_scan_interactor.return_value.execute.assert_called_once()
-        assert mock_container.get_status_interactor.return_value.execute.call_count == 2
 
     @pytest.mark.asyncio
     async def test_it_validates_no_devices(self, status_use_case):
@@ -136,5 +134,7 @@ class TestDeviceStatusUseCase:
 
         result = await status_use_case.execute(basic_status_request)
 
-        assert result is not None
-        mock_container.get_status_interactor.return_value.execute.assert_called()
+        assert result == [
+            {"ip": device.ip, "status": "error", "error": "Connection timeout"}
+            for device in sample_devices
+        ]

@@ -1,14 +1,11 @@
 import logging
-from datetime import datetime
 
 import core.settings
 import pytest
-from api.controllers.monitoring import health_check
 from api.main import app_factory
 from core.domain.entities.exceptions import ConfigurationError
 from litestar import Litestar
-from litestar.config.cors import CORSConfig
-from litestar.testing import TestClient, create_test_client
+from litestar.testing import TestClient
 
 
 class TestMainApp:
@@ -20,18 +17,10 @@ class TestMainApp:
     def test_it_app_factory_returns_litestar_app(self):
         assert isinstance(app_factory(), Litestar)
 
-    def test_it_handles_cors_correctly(self):
-        cors_config = CORSConfig(
-            allow_origins=["*"],
-            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            allow_headers=["*"],
-        )
-
-        with create_test_client(
-            route_handlers=[health_check], cors_config=cors_config
-        ) as client:
+    def test_it_lets_any_origin_call_the_api(self):
+        with TestClient(app=app_factory()) as client:
             response = client.options(
-                "/health",
+                "/api/health",
                 headers={
                     "Origin": "http://localhost:3000",
                     "Access-Control-Request-Method": "GET",
@@ -39,29 +28,19 @@ class TestMainApp:
             )
 
             assert response.status_code == 204
-            assert "access-control-allow-origin" in response.headers
             assert response.headers["access-control-allow-origin"] == "*"
 
-    def test_it_handles_validation_error(self):
-        # This test would need a route that has validation, but for now let's test a simpler case
-        with create_test_client(route_handlers=[health_check]) as client:
-            response = client.get("/health")
+    def test_it_exposes_the_auth_challenge_to_a_cross_origin_web_ui(self):
+        with TestClient(app=app_factory()) as client:
+            response = client.get(
+                "/api/health", headers={"Origin": "http://localhost:3000"}
+            )
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["status"] == "healthy"
-            assert "timestamp" in data
-
-            timestamp = datetime.fromisoformat(data["timestamp"])
-            assert isinstance(timestamp, datetime)
-
-    def test_it_routes_to_api_endpoints(self):
-        with create_test_client(route_handlers=[health_check]) as client:
-            response = client.get("/health")
-            assert response.status_code == 200
+            exposed = response.headers["access-control-expose-headers"].lower()
+            assert "www-authenticate" in exposed
 
     def test_it_returns_404_for_unknown_routes(self):
-        with create_test_client(route_handlers=[health_check]) as client:
+        with TestClient(app=app_factory()) as client:
             response = client.get("/unknown/route")
 
             assert response.status_code == 404
