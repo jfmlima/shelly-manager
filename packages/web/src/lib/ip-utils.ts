@@ -103,27 +103,6 @@ export function cidrToRange(cidr: string): {
 }
 
 /**
- * Calculate number of IPs between start and end (inclusive).
- *
- * @param startIP - Start IPv4 address
- * @param endIP - End IPv4 address
- * @returns Number of IPs in range, or null if invalid
- */
-export function calculateIPCount(
-  startIP: string,
-  endIP: string,
-): number | null {
-  if (!isValidIPv4(startIP) || !isValidIPv4(endIP)) return null;
-
-  const startInt = ipToInt(startIP);
-  const endInt = ipToInt(endIP);
-
-  if (startInt > endInt) return null; // Invalid range
-
-  return endInt - startInt + 1;
-}
-
-/**
  * Validate that start IP is less than or equal to end IP.
  *
  * @param startIP - Start IPv4 address
@@ -147,44 +126,6 @@ export function getCommonCIDR(baseIP: string, size: "24" | "16" | "8"): string {
   const cidr = `${baseIP}/${size}`;
   const range = cidrToRange(cidr);
   return range ? `${range.start}/${size}` : cidr;
-}
-
-/**
- * Validate a target string (IP, Range, or CIDR).
- *
- * @param target - String to validate
- * @returns true if valid target, false otherwise
- */
-export function isValidTarget(target: string): boolean {
-  const trimmed = target.trim();
-  if (!trimmed) return false;
-
-  // Single IP
-  if (isValidIPv4(trimmed)) return true;
-
-  // CIDR
-  if (trimmed.includes("/") && isValidCIDR(trimmed)) return true;
-
-  // Range (start-end)
-  if (trimmed.includes("-")) {
-    const parts = trimmed.split("-");
-    if (parts.length !== 2) return false;
-    const [start, end] = parts;
-
-    // Handle full range: 192.168.1.1-192.168.1.50
-    if (isValidIPv4(start) && isValidIPv4(end)) {
-      return isValidIPRange(start, end);
-    }
-
-    // Handle short range: 192.168.1.1-50
-    if (isValidIPv4(start) && !end.includes(".")) {
-      const startParts = start.split(".");
-      const fullEnd = [...startParts.slice(0, 3), end].join(".");
-      return isValidIPv4(fullEnd) && isValidIPRange(start, fullEnd);
-    }
-  }
-
-  return false;
 }
 
 /**

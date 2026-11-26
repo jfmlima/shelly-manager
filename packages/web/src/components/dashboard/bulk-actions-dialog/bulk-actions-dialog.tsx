@@ -25,7 +25,6 @@ export function BulkActionsDialog({
   open,
   onOpenChange,
   selectedDevices,
-  onComplete,
 }: BulkActionsDialogProps) {
   const { t } = useTranslation();
 
@@ -44,7 +43,6 @@ export function BulkActionsDialog({
   const [selectedComponentType, setSelectedComponentType] =
     useState<string>("");
   const [configurationJson, setConfigurationJson] = useState<string>("");
-  const [configError, setConfigError] = useState<string>("");
 
   const {
     progress,
@@ -63,7 +61,6 @@ export function BulkActionsDialog({
     bulkApplyConfigMutation,
   } = useBulkActions({
     selectedDevices,
-    onComplete,
     setProgress,
   });
 
@@ -76,7 +73,6 @@ export function BulkActionsDialog({
     setSelectedComponentTypes([]);
     setSelectedComponentType("");
     setConfigurationJson("");
-    setConfigError("");
   };
 
   const handleClose = () => {
@@ -88,9 +84,6 @@ export function BulkActionsDialog({
 
   const handleConfigurationJsonChange = (json: string) => {
     setConfigurationJson(json);
-    if (configError) {
-      setConfigError("");
-    }
   };
 
   // Local updates run sequentially on the server and may wait on a firmware
@@ -196,7 +189,6 @@ export function BulkActionsDialog({
               onSelectedComponentTypeChange={setSelectedComponentType}
               configurationJson={configurationJson}
               onConfigurationJsonChange={handleConfigurationJsonChange}
-              configError={configError}
               onExecute={executeAction}
               onCancel={() => setSelectedAction(null)}
             />

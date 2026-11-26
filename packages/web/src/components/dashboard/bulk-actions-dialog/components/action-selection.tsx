@@ -1,6 +1,5 @@
 import { useTranslation } from "react-i18next";
 import { Power, Download, Upload, AlertCircle } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardDescription,
@@ -53,36 +52,22 @@ export function ActionSelection({ onActionSelect }: ActionSelectionProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {actionCards.map((action) => {
-        const isComingSoon = action.isComingSoon;
         const isDangerous = action.id === "factory_reset";
 
         return (
           <Card
             key={action.id}
             className={`${BULK_ACTION_STYLES.actionCard} ${
-              isComingSoon
-                ? BULK_ACTION_STYLES.disabledCard
-                : isDangerous
-                  ? BULK_ACTION_STYLES.dangerCard
-                  : ""
+              isDangerous ? BULK_ACTION_STYLES.dangerCard : ""
             }`}
-            onClick={() => !isComingSoon && onActionSelect(action.id)}
+            onClick={() => onActionSelect(action.id)}
           >
             <CardHeader>
               <CardTitle className="flex items-center space-x-3">
                 {action.icon}
                 <span>{t(action.titleKey)}</span>
               </CardTitle>
-              {isComingSoon && (
-                <Badge variant="secondary" className="text-xs w-fit mb-2 mt-2">
-                  {t("common.comingSoon")}
-                </Badge>
-              )}
-              <CardDescription>
-                {isComingSoon
-                  ? t("bulkActions.comingSoonDescription")
-                  : t(action.descriptionKey)}
-              </CardDescription>
+              <CardDescription>{t(action.descriptionKey)}</CardDescription>
             </CardHeader>
           </Card>
         );

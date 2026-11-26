@@ -21,7 +21,6 @@ export interface BulkActionsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDevices: Device[];
-  onComplete?: () => void;
 }
 
 export interface ActionSelectionProps {
@@ -42,7 +41,6 @@ export interface ActionConfigurationProps {
   onSelectedComponentTypeChange: (type: string) => void;
   configurationJson: string;
   onConfigurationJsonChange: (json: string) => void;
-  configError: string;
   onExecute: () => void;
   onCancel: () => void;
 }
@@ -62,8 +60,6 @@ export interface DevicePreviewProps {
 export const BULK_ACTION_STYLES = {
   actionCard: "transition-shadow cursor-pointer hover:shadow-md",
   dangerCard: "border-destructive/20 hover:border-destructive/40",
-  disabledCard: "opacity-60 cursor-not-allowed",
-  progressGrid: "grid grid-cols-3 gap-4 text-center",
   componentGrid: "grid grid-cols-2 md:grid-cols-3 gap-2",
   warningBox: "p-4 bg-destructive/5 border border-destructive/20 rounded-lg",
   infoBox: "p-4 bg-blue-50 border border-blue-200 rounded-lg",
@@ -75,7 +71,6 @@ export interface ActionCardData {
   titleKey: string;
   descriptionKey: string;
   icon: React.ReactNode;
-  isComingSoon?: boolean;
 }
 
 // Base props for all action configuration components
@@ -107,5 +102,4 @@ export interface ApplyConfigActionProps extends BaseActionConfigProps {
   onSelectedComponentTypeChange: (type: string) => void;
   configurationJson: string;
   onConfigurationJsonChange: (json: string) => void;
-  configError: string;
 }
