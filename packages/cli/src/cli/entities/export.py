@@ -23,5 +23,4 @@ class ExportRequest(BaseModel):
     include_config: bool = Field(
         default=True, description="Include device configuration"
     )
-    scan: bool = Field(default=False, description="Scan network for devices")
     pretty: bool = Field(default=False, description="Pretty print output")

@@ -29,7 +29,7 @@ class DeviceExportUseCase:
     Use case for exporting device information to various formats.
 
     Handles the CLI orchestration for device export including:
-    - Device discovery (scan or specific IPs)
+    - Device lookup at the given targets
     - Configuration retrieval (optional)
     - File format conversion and output
     - File overwrite confirmation
