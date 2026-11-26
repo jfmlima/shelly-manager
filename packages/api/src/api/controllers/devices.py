@@ -44,7 +44,6 @@ def _require(dep_name: str, dep: T | None) -> T:
 @get("/scan", tags=["Devices"], summary="Scan Network for Devices")
 async def scan_devices(
     targets: list[str] | None = None,
-    use_predefined: bool = True,
     use_mdns: bool = False,
     max_workers: int = 50,
     timeout: float = 3.0,
@@ -59,7 +58,6 @@ async def scan_devices(
 
     Args:
         targets: List of IP targets (IPs, ranges, or CIDR)
-        use_predefined: Whether to use predefined IP ranges from config
         use_mdns: Whether to use mDNS to discover devices
         max_workers: Maximum concurrent workers for scanning
         timeout: Seconds to wait for each device to answer a request, or the

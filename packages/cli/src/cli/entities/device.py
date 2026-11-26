@@ -4,8 +4,6 @@ Device-related entities for CLI operations.
 
 from pydantic import BaseModel, Field
 
-from .common import OperationResult
-
 
 class DeviceScanRequest(BaseModel):
     """Request for scanning devices."""
@@ -35,13 +33,3 @@ class DeviceStatusRequest(BaseModel):
     verbose: bool = Field(
         default=False, description="Whether to show verbose error messages"
     )
-
-
-class DeviceStatusResult(OperationResult):
-    """Result of a device status check."""
-
-    firmware_version: str | None = Field(default=None)
-    device_type: str | None = Field(default=None)
-    device_name: str | None = Field(default=None)
-    update_available: bool = Field(default=False)
-    new_firmware_version: str | None = Field(default=None)

@@ -47,7 +47,7 @@ class ResultFormatter:
 
     def _effective_status(self, device: DiscoveredDevice, include_beta: bool) -> str:
         """The status to display, downgrading a beta-only update to "no
-        update needed" when beta visibility is off — mirrors the same
+        update needed" when beta visibility is off, the same
         allowed-channels rule the web UI applies."""
         if not include_beta and device.is_beta_only_update():
             return Status.NO_UPDATE_NEEDED.value
@@ -136,14 +136,12 @@ class ResultFormatter:
         from rich.columns import Columns
         from rich.panel import Panel
 
-        # Device header
         system_info = device_status.get_system_info()
         device_name = system_info.device_name if system_info else "Unknown Device"
 
         header = f"[bold cyan]{device_name}[/bold cyan] ([yellow]{device_status.device_ip}[/yellow])"
         self._console.print(f"\n{header}")
 
-        # System information panel
         if system_info:
             system_content = []
             system_content.append(
@@ -154,7 +152,6 @@ class ResultFormatter:
                 f"[green]Restart Required:[/green] {'Yes' if system_info.restart_required else 'No'}"
             )
 
-            # Show available firmware updates with version information
             if system_info.available_updates:
                 device_summary = device_status.get_device_summary()
                 raw_available_updates = device_summary.get("available_updates", {})
@@ -176,14 +173,13 @@ class ResultFormatter:
                         system_content.append(f"  [cyan]• {name}:[/cyan] {version}")
                 elif not raw_available_updates:
                     # The raw component data has entries but none carried a
-                    # usable version, so get_device_summary filtered
-                    # everything out — unrelated to beta visibility.
+                    # usable version, so get_device_summary filtered them all
+                    # out. Beta visibility plays no part here.
                     system_content.append(
                         f"[yellow]Updates Available:[/yellow] {len(system_info.available_updates)}"
                     )
-                # else: only a beta release exists and beta visibility is
-                # off — show nothing, exactly like a device with no
-                # updates at all. No partial hint.
+                # Otherwise only a beta release exists and beta visibility is
+                # off, so nothing shows, as for a device with no updates.
 
             system_panel = Panel(
                 "\n".join(system_content),
@@ -197,10 +193,8 @@ class ResultFormatter:
                 border_style="red",
             )
 
-        # Component panels
         panels = [system_panel]
 
-        # Switches
         switches = device_status.get_switches()
         if switches:
             switch_content = []
@@ -215,7 +209,6 @@ class ResultFormatter:
                 )
             )
 
-        # Inputs
         inputs = device_status.get_inputs()
         if inputs:
             input_content = []
@@ -230,7 +223,6 @@ class ResultFormatter:
                 )
             )
 
-        # Covers
         covers = device_status.get_covers()
         if covers:
             cover_content = []
@@ -249,7 +241,6 @@ class ResultFormatter:
                 )
             )
 
-        # Display panels in columns
         if len(panels) > 1:
             self._console.print(Columns(panels, equal=True))
         else:
