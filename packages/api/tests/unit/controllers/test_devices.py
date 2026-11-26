@@ -140,17 +140,12 @@ class TestDevicesController:
         ]
 
     def test_scan_without_targets_returns_400(self):
-        from core.domain.entities.exceptions import ValidationError
-
         class MockScanDevicesUseCase(ScanDevicesUseCase):
             def __init__(self):
                 pass
 
             async def execute(self, scan_request):
-                raise ValidationError(
-                    "targets",
-                    "At least one target is required when not using mDNS",
-                )
+                raise AssertionError("a scan without targets must not run")
 
         with create_test_client(
             route_handlers=[scan_devices],
