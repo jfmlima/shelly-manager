@@ -370,6 +370,40 @@ class TestLegacyDeviceGateway:
             "192.168.1.100", "reboot", {}, auth=None
         )
 
+    @pytest.mark.parametrize(
+        ("parameters", "query"),
+        [
+            ({}, {"update": "true"}),
+            ({"stage": "beta"}, {"beta": "true"}),
+            ({"url": "http://manager/fw.zip"}, {"url": "http://manager/fw.zip"}),
+        ],
+    )
+    async def test_it_updates_a_gen1_device(
+        self, gateway, mock_http_client, parameters, query
+    ):
+        mock_http_client.get_with_params.return_value = {"status": "updating"}
+
+        result = await gateway.execute_action(
+            "192.168.1.100", "sys", "Legacy.Update", parameters
+        )
+
+        assert result.success is True
+        mock_http_client.get_with_params.assert_called_once_with(
+            "192.168.1.100", "ota", query, auth=None
+        )
+
+    async def test_it_factory_resets_a_gen1_device(self, gateway, mock_http_client):
+        mock_http_client.get_with_params.return_value = {}
+
+        result = await gateway.execute_action(
+            "192.168.1.100", "sys", "Legacy.FactoryReset", {}
+        )
+
+        assert result.success is True
+        mock_http_client.get_with_params.assert_called_once_with(
+            "192.168.1.100", "settings", {"reset": "true"}, auth=None
+        )
+
     @pytest.mark.parametrize("component_key", ["schedule", "switch", "input"])
     async def test_it_refuses_set_config_without_a_settings_endpoint(
         self, gateway, mock_http_client, component_key

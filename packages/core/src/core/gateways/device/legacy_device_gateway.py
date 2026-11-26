@@ -395,6 +395,20 @@ class LegacyDeviceGateway:
                 "message": "Device reboot requested",
             }
 
+        if action == "Legacy.Update" and component_type == "sys":
+            return {
+                "endpoint": "ota",
+                "params": _ota_params(parameters),
+                "message": "Firmware update requested",
+            }
+
+        if action == "Legacy.FactoryReset" and component_type == "sys":
+            return {
+                "endpoint": "settings",
+                "params": {"reset": "true"},
+                "message": "Factory reset requested",
+            }
+
         if component_type == "switch" and component_id is not None:
             endpoint = f"relay/{component_id}"
             relay_actions: dict[str, dict[str, Any]] = {
@@ -593,3 +607,16 @@ class LegacyDeviceGateway:
             return beta_version, UpdateChannel.BETA
 
         return None
+
+
+def _ota_params(parameters: dict[str, Any]) -> dict[str, Any]:
+    """Gen1 ``/ota`` query for the ``Shelly.Update`` parameters.
+
+    ``update`` installs the latest stable release and ``beta`` the latest
+    beta, so the ``stage`` that RPC devices read picks between them.
+    """
+    if parameters.get("url"):
+        return {"url": parameters["url"]}
+    if parameters.get("stage") == "beta":
+        return {"beta": "true"}
+    return {"update": "true"}
