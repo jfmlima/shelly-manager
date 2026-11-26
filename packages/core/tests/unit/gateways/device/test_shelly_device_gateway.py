@@ -350,47 +350,64 @@ class TestShellyDeviceGateway:
         assert "-105" in result.error
 
     @pytest.mark.parametrize("component_key", ["shelly", "sys"])
-    @pytest.mark.parametrize("action", ["Reboot", "Shelly.Reboot"])
-    async def test_it_reboots_a_gen1_device_over_the_legacy_api(
-        self, gateway, mock_rpc_client, mock_legacy_gateway, component_key, action
+    @pytest.mark.parametrize(
+        ("action", "legacy_action"),
+        [
+            ("Reboot", "Legacy.Reboot"),
+            ("Shelly.Reboot", "Legacy.Reboot"),
+            ("Update", "Legacy.Update"),
+            ("Shelly.Update", "Legacy.Update"),
+            ("FactoryReset", "Legacy.FactoryReset"),
+            ("Shelly.FactoryReset", "Legacy.FactoryReset"),
+        ],
+    )
+    async def test_it_sends_a_gen1_device_action_over_the_legacy_api(
+        self,
+        gateway,
+        mock_rpc_client,
+        mock_legacy_gateway,
+        component_key,
+        action,
+        legacy_action,
     ):
         mock_legacy_gateway.identify_generation.return_value = Generation.GEN1
         mock_legacy_gateway.execute_action.return_value = ActionResult(
             device_ip="192.168.1.50",
-            action_type="sys.Legacy.Reboot",
+            action_type=f"sys.{legacy_action}",
             success=True,
-            message="Device reboot requested",
+            message="requested",
         )
         mock_rpc_client.make_rpc_request = AsyncMock()
 
         result = await gateway.execute_component_action(
-            "192.168.1.50", component_key, action
+            "192.168.1.50", component_key, action, {"stage": "beta"}
         )
 
         assert result.success is True
         mock_legacy_gateway.execute_action.assert_awaited_once_with(
-            "192.168.1.50", "sys", "Legacy.Reboot", {}
+            "192.168.1.50", "sys", legacy_action, {"stage": "beta"}
         )
         mock_rpc_client.make_rpc_request.assert_not_awaited()
 
     @pytest.mark.parametrize("generation", [Generation.GEN2, None])
-    async def test_it_reboots_over_rpc_unless_the_device_is_gen1(
-        self, gateway, mock_rpc_client, mock_legacy_gateway, generation
+    @pytest.mark.parametrize("action", ["Reboot", "Update", "FactoryReset"])
+    async def test_it_sends_a_device_action_over_rpc_unless_the_device_is_gen1(
+        self, gateway, mock_rpc_client, mock_legacy_gateway, generation, action
     ):
         mock_legacy_gateway.identify_generation.return_value = generation
         mock_rpc_client.make_rpc_request = AsyncMock(
             side_effect=[
-                ({"result": {"methods": ["Shelly.Reboot"]}}, 0.1),
+                ({"result": {"methods": [f"Shelly.{action}"]}}, 0.1),
                 ({"result": None}, 0.1),
             ]
         )
 
         result = await gateway.execute_component_action(
-            "192.168.1.100", "shelly", "Reboot"
+            "192.168.1.100", "shelly", action
         )
 
         assert result.success is True
-        assert mock_rpc_client.make_rpc_request.await_args.args[1] == "Shelly.Reboot"
+        assert mock_rpc_client.make_rpc_request.await_args.args[1] == f"Shelly.{action}"
         mock_legacy_gateway.execute_action.assert_not_awaited()
 
     async def test_it_does_not_identify_the_generation_for_other_actions(

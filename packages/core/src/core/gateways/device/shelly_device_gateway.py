@@ -32,6 +32,12 @@ from .rpc_read import RpcRead
 
 logger = logging.getLogger(__name__)
 
+GEN1_DEVICE_ACTIONS = {
+    "Reboot": "Legacy.Reboot",
+    "Update": "Legacy.Update",
+    "FactoryReset": "Legacy.FactoryReset",
+}
+
 
 class ShellyDeviceGateway(DeviceGateway):
 
@@ -260,9 +266,12 @@ class ShellyDeviceGateway(DeviceGateway):
                     ip, component_key, action, parameters
                 )
 
-            if await self._is_gen1_reboot(ip, component_key, action_name):
+            legacy_action = await self._gen1_device_action(
+                ip, component_key, action_name
+            )
+            if legacy_action is not None:
                 return await self._legacy.execute_action(
-                    ip, "sys", "Legacy.Reboot", parameters
+                    ip, "sys", legacy_action, parameters
                 )
 
             rpc_method = await self._resolve_method(ip, component_key, action_name)
@@ -424,19 +433,20 @@ class ShellyDeviceGateway(DeviceGateway):
 
         return action_name.resolve(component_key, await self._get_available_methods(ip))
 
-    async def _is_gen1_reboot(
+    async def _gen1_device_action(
         self, ip: str, component_key: str, action_name: ActionName
-    ) -> bool:
-        """Whether a generic device reboot is aimed at a Gen1 device.
+    ) -> str | None:
+        """The legacy action for a generic device action aimed at a Gen1 device.
 
-        The reboot buttons and the bulk reboot send ``Reboot`` on ``shelly``
-        for every device, and Gen1 has no RPC to send it over.
+        The reboot, update and factory reset paths send ``Reboot``, ``Update``
+        or ``FactoryReset`` on ``shelly`` for every device, and Gen1 has no RPC
+        to send them over.
         """
-        if action_name.method != "Reboot" or action_name.namespace not in (
-            None,
-            "Shelly",
-        ):
-            return False
+        legacy_action = GEN1_DEVICE_ACTIONS.get(action_name.method)
+        if legacy_action is None or action_name.namespace not in (None, "Shelly"):
+            return None
         if component_key not in ("shelly", "sys"):
-            return False
-        return await self._legacy.generation(ip) is Generation.GEN1
+            return None
+        if await self._legacy.generation(ip) is not Generation.GEN1:
+            return None
+        return legacy_action
