@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any
 
 from ..domain.entities.discovered_device import DiscoveredDevice
 from ..domain.entities.exceptions import (
@@ -34,14 +33,12 @@ class ScanDevicesUseCase:
         self,
         device_gateway: DeviceGateway,
         mdns_client: MDNSGateway | None = None,
-        auth_state_cache: Any | None = None,
         firmware_gateway: FirmwareGateway | None = None,
         retry_attempts: int = 0,
         retry_delay: float = 0.0,
     ):
         self._device_gateway = device_gateway
         self._mdns_client = mdns_client
-        self._auth_state_cache = auth_state_cache
         self._firmware_gateway = firmware_gateway
         self._retry_attempts = retry_attempts
         self._retry_delay = retry_delay

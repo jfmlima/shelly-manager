@@ -156,14 +156,6 @@ class DeviceStatus(BaseModel):
                 return comp
         return None
 
-    def get_components_by_type(self, component_type: str) -> list[ComponentType]:
-        return [
-            comp for comp in self.components if comp.component_type == component_type
-        ]
-
-    def has_component_type(self, component_type: str) -> bool:
-        return any(comp.component_type == component_type for comp in self.components)
-
     def get_device_summary(self) -> dict[str, Any]:
         sys_info = self.get_system_info()
         cloud_info = self.get_cloud_info()

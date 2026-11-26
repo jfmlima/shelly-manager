@@ -195,7 +195,6 @@ class BaseContainer:
             self._scan_interactor = ScanDevicesUseCase(
                 device_gateway=self.get_device_gateway(),
                 mdns_client=self.get_mdns_client(),
-                auth_state_cache=self.get_auth_state_cache(),
                 firmware_gateway=self.get_firmware_gateway(),
                 retry_attempts=core_settings.network.retry_attempts,
                 retry_delay=core_settings.network.retry_delay,

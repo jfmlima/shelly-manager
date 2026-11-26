@@ -10,7 +10,7 @@ from typing import Any
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from core.domain.entities.exceptions import ConfigurationError, ValidationError
+from core.domain.entities.exceptions import ConfigurationError
 
 MISSING_SECRET_KEY_MESSAGE = (
     "SHELLY_SECRET_KEY is not set. Generate one with: "
@@ -30,19 +30,10 @@ ENV_FILE_CONFIG = SettingsConfigDict(
 )
 
 
-class DatabaseSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="DB_", **ENV_FILE_CONFIG)
-
-    url: str = Field(default="sqlite:///shelly_manager.db", description="Database URL")
-    echo: bool = Field(default=False, description="Enable SQL echo")
-
-
 class LoggingSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="LOG_", **ENV_FILE_CONFIG)
 
     level: str = Field(default="INFO", description="Logging level")
-    format: str = Field(default="json", description="Log format (json or console)")
-    file_path: str | None = Field(default=None, description="Log file path")
 
     @field_validator("level")
     @classmethod
@@ -51,14 +42,6 @@ class LoggingSettings(BaseSettings):
         if v.upper() not in valid_levels:
             raise ValueError(f"Invalid logging level. Must be one of: {valid_levels}")
         return v.upper()
-
-    @field_validator("format")
-    @classmethod
-    def validate_format(cls, v: str) -> str:
-        valid_formats = ["json", "console"]
-        if v not in valid_formats:
-            raise ValueError(f"Invalid log format. Must be one of: {valid_formats}")
-        return v
 
 
 class NetworkSettings(BaseSettings):
@@ -72,9 +55,6 @@ class NetworkSettings(BaseSettings):
         ge=0.1,
         le=30.0,
         description="TCP connect timeout in seconds; fast-fails unreachable hosts",
-    )
-    max_workers: int = Field(
-        default=50, ge=1, le=200, description="Maximum concurrent workers"
     )
     retry_attempts: int = Field(
         default=1,
@@ -173,25 +153,11 @@ class FirmwareSettings(BaseSettings):
         return [] if "*" in hosts else hosts
 
 
-class APISettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="API_", **ENV_FILE_CONFIG)
-
-    host: str = Field(default="0.0.0.0", description="API host")
-    port: int = Field(
-        default=int(os.getenv("PORT", "8000")), ge=1, le=65535, description="API port"
-    )
-    debug: bool = Field(default=False, description="Enable debug mode")
-    cors_origins: list[str] = Field(default=["*"], description="CORS allowed origins")
-    rate_limit: int = Field(default=100, ge=1, description="Rate limit per minute")
-
-
 class AppSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SHELLY_", **ENV_FILE_CONFIG)
 
-    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     network: NetworkSettings = Field(default_factory=NetworkSettings)
-    api: APISettings = Field(default_factory=APISettings)
     backup: BackupSettings = Field(default_factory=BackupSettings)
     firmware: FirmwareSettings = Field(default_factory=FirmwareSettings)
 
@@ -199,7 +165,6 @@ class AppSettings(BaseSettings):
         default="config.json", description="Configuration file path"
     )
     data_dir: str = Field(default="./data", description="Data directory")
-    cache_ttl: int = Field(default=300, ge=0, description="Cache TTL in seconds")
 
     secret_key: str | None = Field(
         default=None,
@@ -221,13 +186,10 @@ class AppSettings(BaseSettings):
         self._load_config_file()
 
     def _load_config_file(self) -> None:
-        """Load and merge external config file safely with validation.
+        """Merge the config file over the environment.
 
-        The previous implementation assigned values directly via setattr which could
-        bypass pydantic validation for nested models. This version reconstructs
-        sub-settings objects when corresponding sections are provided and only
-        applies known fields. Unknown top-level keys are ignored (could be logged
-        in future for transparency).
+        Each section present in the file is rebuilt as its settings class, so
+        its values are validated. Unknown keys are ignored.
         """
         config_path = Path(self.config_file)
         if not config_path.is_file():
@@ -237,102 +199,22 @@ class AppSettings(BaseSettings):
             with open(config_path) as f:
                 raw = json.load(f)
 
-            if isinstance(raw.get("database"), dict):
-                self.database = DatabaseSettings(**raw["database"])
             if isinstance(raw.get("logging"), dict):
                 self.logging = LoggingSettings(**raw["logging"])
             if isinstance(raw.get("network"), dict):
                 self.network = NetworkSettings(**raw["network"])
-            if isinstance(raw.get("api"), dict):
-                self.api = APISettings(**raw["api"])
             if isinstance(raw.get("backup"), dict):
                 self.backup = BackupSettings(**raw["backup"])
             if isinstance(raw.get("firmware"), dict):
                 self.firmware = FirmwareSettings(**raw["firmware"])
 
-            for field_name in ["config_file", "data_dir", "cache_ttl"]:
+            for field_name in ["config_file", "data_dir"]:
                 if field_name in raw:
                     setattr(self, field_name, raw[field_name])
 
         except Exception as e:
             raise ConfigurationError(
                 "load_config_file", f"Failed to load config file: {e}"
-            ) from e
-
-    def save_config(self) -> None:
-        try:
-            config_data = {
-                "database": self.database.model_dump(),
-                "logging": self.logging.model_dump(),
-                "network": self.network.model_dump(),
-                "api": self.api.model_dump(),
-                "backup": self.backup.model_dump(),
-                "firmware": self.firmware.model_dump(),
-                "config_file": self.config_file,
-                "data_dir": self.data_dir,
-                "cache_ttl": self.cache_ttl,
-            }
-
-            config_path = Path(self.config_file)
-            config_path.parent.mkdir(parents=True, exist_ok=True)
-
-            with open(config_path, "w") as f:
-                json.dump(config_data, f, indent=2)
-
-        except Exception as e:
-            raise ConfigurationError(
-                "save_config", f"Failed to save config: {e}"
-            ) from e
-
-    def validate_settings(self) -> None:
-        try:
-            data_path = Path(self.data_dir)
-            data_path.mkdir(parents=True, exist_ok=True)
-
-            firmware_path = Path(self.firmware.dir)
-            firmware_path.mkdir(parents=True, exist_ok=True)
-
-            if self.network.timeout <= 0:
-                raise ValidationError(
-                    "timeout", self.network.timeout, "Timeout must be positive"
-                )
-
-            if self.network.max_workers <= 0:
-                raise ValidationError(
-                    "max_workers",
-                    self.network.max_workers,
-                    "Max workers must be positive",
-                )
-
-            if self.api.port < 1 or self.api.port > 65535:
-                raise ValidationError(
-                    "port", self.api.port, "Port must be between 1 and 65535"
-                )
-
-            if self.secret_key is None:
-                raise ValidationError(
-                    "secret_key",
-                    None,
-                    MISSING_SECRET_KEY_MESSAGE,
-                )
-
-            # Validate secret key format (Fernet)
-            try:
-                from cryptography.fernet import Fernet
-
-                Fernet(self.secret_key.encode())
-            except Exception as e:
-                raise ValidationError(
-                    "secret_key",
-                    "***",
-                    f"Invalid SHELLY_SECRET_KEY. Must be a valid Fernet key. Error: {e}",
-                ) from e
-
-        except Exception as e:
-            if isinstance(e, (ValidationError | ConfigurationError)):
-                raise
-            raise ConfigurationError(
-                "validate", f"Configuration validation failed: {e}"
             ) from e
 
     def database_path(self) -> str:

@@ -283,7 +283,7 @@ class ShellyDeviceGateway(DeviceGateway):
                 )
 
             params: dict[str, Any] = {}
-            if ":" in component_key and component_key != "sys":
+            if ":" in component_key:
                 try:
                     params["id"] = int(component_key.split(":")[1])
                 except (IndexError, ValueError):
