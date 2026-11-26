@@ -156,6 +156,35 @@ class TestShellyDeviceGateway:
             "192.168.1.100", "Shelly.GetStatus", timeout=10.0
         )
 
+    async def test_it_shows_no_component_for_a_status_read_that_answers_an_error(
+        self, gateway, mock_rpc_client
+    ):
+        components_data = {
+            "components": [{"key": "switch:0", "status": {"output": True}}],
+            "total": 1,
+        }
+        error_frame = {
+            "id": 1,
+            "src": "test-device",
+            "error": {"code": -103, "message": "Resource unavailable"},
+        }
+        replies = {
+            "Shelly.GetDeviceInfo": {"name": "Test Device", "model": "SNSW-001X16EU"},
+            "Shelly.GetComponents": components_data,
+            "Shelly.GetStatus": error_frame,
+            "Shelly.ListMethods": {"methods": ["Switch.Toggle"]},
+        }
+
+        async def reply(ip, method, **kwargs):
+            return replies[method], 0.05
+
+        mock_rpc_client.make_rpc_request = AsyncMock(side_effect=reply)
+
+        result = await gateway.get_device_status("192.168.1.100")
+
+        assert result is not None
+        assert [c.key for c in result.components] == ["switch:0"]
+
     async def test_it_gets_device_status_without_updates(
         self, gateway, mock_rpc_client
     ):
@@ -439,6 +468,25 @@ class TestShellyDeviceGateway:
         assert result is not None
 
         assert result.status == Status.DETECTED
+
+    async def test_it_keeps_detected_when_the_update_check_answers_an_error(
+        self, gateway, mock_rpc_client
+    ):
+        device_info = {"id": "test-device", "model": "SNSW-001X16EU", "fw_id": "1.0.0"}
+        error_frame = {
+            "id": 1,
+            "src": "test-device",
+            "error": {"code": -114, "message": "Unable to check for updates"},
+        }
+        mock_rpc_client.make_rpc_request = AsyncMock(
+            side_effect=[(device_info, 0.1), (error_frame, 0.05)]
+        )
+
+        result = await gateway.discover_device("192.168.1.100")
+
+        assert result is not None
+        assert result.status == Status.DETECTED
+        assert result.available_firmware_version is None
 
     async def test_it_detects_auth_required_from_auth_en(
         self, mock_rpc_client, mock_legacy_gateway
