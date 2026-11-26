@@ -14,16 +14,7 @@ class BulkOperationRequest(BaseModel):
     )
     timeout: float = Field(default=3.0, gt=0)
     workers: int = Field(default=10, gt=0, le=50)
-    max_concurrent: int = Field(
-        default=10, gt=0, le=50, description="Maximum concurrent operations"
-    )
     force: bool = Field(default=False, description="Skip confirmation prompts")
-    continue_on_error: bool = Field(
-        default=True, description="Continue with remaining devices if one fails"
-    )
-    show_progress: bool = Field(
-        default=True, description="Show progress bar during operation"
-    )
 
 
 class BulkConfigExportRequest(BulkOperationRequest):

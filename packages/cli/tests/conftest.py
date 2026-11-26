@@ -20,8 +20,6 @@ from core.domain.entities.device_status import DeviceStatus  # noqa: E402
 from core.domain.entities.discovered_device import DiscoveredDevice  # noqa: E402
 from core.domain.enums.enums import Status  # noqa: E402
 from core.domain.value_objects.action_result import ActionResult  # noqa: E402
-from core.domain.value_objects.scan_request import ScanRequest  # noqa: E402
-from core.gateways.device import DeviceGateway  # noqa: E402
 from core.use_cases.check_device_status import CheckDeviceStatusUseCase  # noqa: E402
 from core.use_cases.scan_devices import ScanDevicesUseCase  # noqa: E402
 
@@ -29,12 +27,6 @@ from core.use_cases.scan_devices import ScanDevicesUseCase  # noqa: E402
 @pytest.fixture
 def runner():
     return CliRunner()
-
-
-@pytest.fixture
-def mock_device_gateway():
-    gateway = MagicMock(spec=DeviceGateway)
-    return gateway
 
 
 @pytest.fixture
@@ -134,19 +126,3 @@ def sample_action_result():
         device_ip="192.168.1.100",
         message="Device rebooted successfully",
     )
-
-
-@pytest.fixture
-def sample_scan_request():
-    return ScanRequest(
-        targets=["192.168.1.100", "192.168.1.101"], timeout=3.0, max_workers=10
-    )
-
-
-@pytest.fixture
-def sample_device_config():
-    return {
-        "wifi": {"sta": {"ssid": "TestWiFi", "enable": True}},
-        "mqtt": {"enable": False},
-        "name": "Test Device",
-    }

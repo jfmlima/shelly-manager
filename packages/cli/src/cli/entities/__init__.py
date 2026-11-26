@@ -9,10 +9,8 @@ type safety and validation.
 from .bulk import *  # noqa: F403
 from .common import *  # noqa: F403
 from .component_actions import *  # noqa: F403
-from .config import *  # noqa: F403
 from .device import *  # noqa: F403
 from .export import *  # noqa: F403
-from .update import *  # noqa: F403
 
 __all__ = [
     # Common entities
@@ -21,28 +19,13 @@ __all__ = [
     # Device entities
     "DeviceScanRequest",  # noqa: F405
     "DeviceStatusRequest",  # noqa: F405
-    "DeviceStatusResult",  # noqa: F405
     # Component action entities
     "ComponentActionRequest",  # noqa: F405
     "ComponentActionResult",  # noqa: F405
     "ComponentActionsListRequest",  # noqa: F405
     "ComponentActionsListResult",  # noqa: F405
-    # Config entities
-    "ConfigShowRequest",  # noqa: F405
-    "ConfigSetRequest",  # noqa: F405
-    "ConfigValidateRequest",  # noqa: F405
-    "ConfigInitRequest",  # noqa: F405
-    "ConfigShowResult",  # noqa: F405
-    "ConfigSetResult",  # noqa: F405
-    "ConfigValidateResult",  # noqa: F405
-    "ConfigInitResult",  # noqa: F405
     # Export entities
     "ExportRequest",  # noqa: F405
-    "BackupRequest",  # noqa: F405
-    "RestoreRequest",  # noqa: F405
-    "ExportResult",  # noqa: F405
-    "BackupResult",  # noqa: F405
-    "RestoreResult",  # noqa: F405
     # Bulk operation entities
     "BulkOperationRequest",  # noqa: F405
     "BulkConfigExportRequest",  # noqa: F405
