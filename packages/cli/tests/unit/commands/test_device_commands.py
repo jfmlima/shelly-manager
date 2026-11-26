@@ -3,6 +3,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from cli.commands.device_commands import device_commands, scan
 from click.testing import CliRunner
+from core.domain.entities.discovered_device import DiscoveredDevice
+from core.domain.enums.enums import Status
+from rich.table import Table
 
 
 class TestDeviceCommands:
@@ -545,7 +548,7 @@ class TestDeviceRebootCommand:
             obj=cli_context_with_component_reboot,
         )
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         mock_execute_component_action_interactor.execute.assert_called_once()
 
     def test_device_reboot_mixed_results(
@@ -583,8 +586,109 @@ class TestDeviceRebootCommand:
             obj=cli_context_with_component_reboot,
         )
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         assert mock_execute_component_action_interactor.execute.call_count == 2
+
+    def test_device_reboot_fails_for_a_named_address_that_does_not_answer(
+        self,
+        cli_context_with_component_reboot,
+        mock_execute_component_action_interactor,
+    ):
+        mock_scan_interactor = (
+            cli_context_with_component_reboot.container.get_scan_interactor.return_value
+        )
+        mock_scan_interactor.execute.return_value = [
+            _failed_device("192.168.1.100", Status.UNREACHABLE, "timed out")
+        ]
+
+        runner = CliRunner()
+        result = runner.invoke(
+            device_commands,
+            ["reboot", "-t", "192.168.1.100", "--force"],
+            obj=cli_context_with_component_reboot,
+        )
+
+        assert result.exit_code == 1
+        mock_execute_component_action_interactor.execute.assert_not_called()
+        assert mock_scan_interactor.execute.call_args.args[0].include_failed
+        table = _printed_table(cli_context_with_component_reboot.console)
+        assert table.columns[0]._cells == ["192.168.1.100"]
+        assert table.columns[2]._cells == ["Did not answer: timed out"]
+
+    def test_device_reboot_skips_silent_addresses_of_a_range(
+        self,
+        cli_context_with_component_reboot,
+        mock_execute_component_action_interactor,
+        sample_action_result,
+        sample_device,
+    ):
+        mock_execute_component_action_interactor.execute.return_value = (
+            sample_action_result
+        )
+        mock_scan_interactor = (
+            cli_context_with_component_reboot.container.get_scan_interactor.return_value
+        )
+        mock_scan_interactor.execute.return_value = [
+            sample_device,
+            _failed_device("192.168.1.101", Status.UNREACHABLE, "timed out"),
+        ]
+
+        runner = CliRunner()
+        result = runner.invoke(
+            device_commands,
+            ["reboot", "-t", "192.168.1.100-101", "--force"],
+            obj=cli_context_with_component_reboot,
+        )
+
+        assert result.exit_code == 0
+        table = _printed_table(cli_context_with_component_reboot.console)
+        assert table.columns[0]._cells == ["192.168.1.100"]
+
+    def test_device_reboot_reports_a_range_address_that_answered_with_an_error(
+        self,
+        cli_context_with_component_reboot,
+        mock_execute_component_action_interactor,
+        sample_action_result,
+        sample_device,
+    ):
+        mock_execute_component_action_interactor.execute.return_value = (
+            sample_action_result
+        )
+        mock_scan_interactor = (
+            cli_context_with_component_reboot.container.get_scan_interactor.return_value
+        )
+        mock_scan_interactor.execute.return_value = [
+            sample_device,
+            _failed_device("192.168.1.101", Status.ERROR, "HTTP 500"),
+        ]
+
+        runner = CliRunner()
+        result = runner.invoke(
+            device_commands,
+            ["reboot", "-t", "192.168.1.100-101", "--force"],
+            obj=cli_context_with_component_reboot,
+        )
+
+        assert result.exit_code == 1
+        mock_execute_component_action_interactor.execute.assert_called_once()
+        table = _printed_table(cli_context_with_component_reboot.console)
+        assert table.columns[0]._cells == ["192.168.1.100", "192.168.1.101"]
+        assert table.columns[2]._cells[1] == "Failed: HTTP 500"
+
+    def test_device_reboot_fails_when_no_device_answers_in_a_range(
+        self,
+        cli_context_with_component_reboot,
+        mock_execute_component_action_interactor,
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            device_commands,
+            ["reboot", "-t", "192.168.1.0/30", "--force"],
+            obj=cli_context_with_component_reboot,
+        )
+
+        assert result.exit_code == 1
+        mock_execute_component_action_interactor.execute.assert_not_called()
 
 
 class TestStandaloneScandCommand:
@@ -765,3 +869,17 @@ class TestActionsCommands:
         result = runner.invoke(device_commands, ["actions", "execute"], obj=cli_context)
 
         assert result.exit_code != 0
+
+
+def _failed_device(ip, status, error):
+    return DiscoveredDevice(ip=ip, status=status, error_message=error)
+
+
+def _printed_table(console):
+    tables = [
+        call.args[0]
+        for call in console.print.call_args_list
+        if call.args and isinstance(call.args[0], Table)
+    ]
+    assert len(tables) == 1
+    return tables[0]
