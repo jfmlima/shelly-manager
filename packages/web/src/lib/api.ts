@@ -96,11 +96,6 @@ export const apiClient = axios.create({
   },
 });
 
-export const updateApiBaseUrl = () => {
-  const newBaseUrl = getApiBaseUrl();
-  apiClient.defaults.baseURL = `${newBaseUrl}/api`;
-};
-
 export const validateApiUrl = (
   url: string,
 ): { valid: boolean; error?: string } => {
@@ -333,11 +328,6 @@ export const credentialsApi = {
 export const provisioningApi = {
   listProfiles: async (): Promise<ProvisioningProfile[]> => {
     const response = await apiClient.get("/provisioning/profiles");
-    return response.data;
-  },
-
-  getProfile: async (id: number): Promise<ProvisioningProfile> => {
-    const response = await apiClient.get(`/provisioning/profiles/${id}`);
     return response.data;
   },
 

@@ -21,7 +21,6 @@ export function ActionConfiguration({
   onSelectedComponentTypeChange,
   configurationJson,
   onConfigurationJsonChange,
-  configError,
   onExecute,
   onCancel,
 }: ActionConfigurationProps) {
@@ -68,7 +67,6 @@ export function ActionConfiguration({
           onSelectedComponentTypeChange={onSelectedComponentTypeChange}
           configurationJson={configurationJson}
           onConfigurationJsonChange={onConfigurationJsonChange}
-          configError={configError}
           onExecute={onExecute}
           onCancel={onCancel}
         />

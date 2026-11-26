@@ -7,7 +7,6 @@ import type { BulkProgress } from "../types";
 
 interface UseBulkActionsProps {
   selectedDevices: Device[];
-  onComplete?: () => void;
   setProgress: (
     value:
       | BulkProgress
@@ -18,7 +17,6 @@ interface UseBulkActionsProps {
 
 export function useBulkActions({
   selectedDevices,
-  onComplete,
   setProgress,
 }: UseBulkActionsProps) {
   const { t } = useTranslation();
@@ -74,8 +72,6 @@ export function useBulkActions({
           t("bulkActions.messages.updatePartial", { successful, failed }),
         );
       }
-
-      onComplete?.();
     },
     onError: (error) => {
       toast.error(handleApiError(error));
@@ -109,8 +105,6 @@ export function useBulkActions({
           t("bulkActions.messages.rebootPartial", { successful, failed }),
         );
       }
-
-      onComplete?.();
     },
     onError: (error) => {
       toast.error(handleApiError(error));
@@ -144,8 +138,6 @@ export function useBulkActions({
           t("bulkActions.messages.factoryResetPartial", { successful, failed }),
         );
       }
-
-      onComplete?.();
     },
     onError: (error) => {
       toast.error(handleApiError(error));
@@ -183,8 +175,6 @@ export function useBulkActions({
         results: [],
         isRunning: false,
       });
-
-      onComplete?.();
     },
     onError: (error) => {
       toast.error(handleApiError(error));
@@ -229,8 +219,6 @@ export function useBulkActions({
           t("bulkActions.messages.applyPartial", { successful, failed }),
         );
       }
-
-      onComplete?.();
     },
     onError: (error) => {
       toast.error(handleApiError(error));

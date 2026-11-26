@@ -194,7 +194,6 @@
       "noConfigurationProvided": "Please provide a configuration to apply",
       "actionNotImplemented": "Action not implemented yet"
     },
-    "comingSoonDescription": "This feature is currently under development and will be available in a future release.",
     "remaining": "Remaining",
     "elapsed": "Elapsed",
     "processing": "Processing...",

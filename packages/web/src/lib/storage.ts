@@ -122,11 +122,6 @@ class StorageManager {
     const cache = this.loadScanResults();
     return cache ? new Date(cache.timestamp) : null;
   }
-
-  getCachedDeviceCount(): number {
-    const cache = this.loadScanResults();
-    return cache ? cache.deviceCount : 0;
-  }
 }
 
 export const storageManager = new StorageManager();
@@ -142,5 +137,3 @@ export const isDataStale = (thresholdMs?: number) =>
   storageManager.isDataStale(thresholdMs);
 
 export const getLastScanTimestamp = () => storageManager.getLastScanTimestamp();
-
-export const getCachedDeviceCount = () => storageManager.getCachedDeviceCount();

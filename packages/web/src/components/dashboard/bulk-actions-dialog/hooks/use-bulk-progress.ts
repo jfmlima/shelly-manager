@@ -144,11 +144,6 @@ export function useBulkProgress() {
     setShowDetails(false);
   };
 
-  const stopProgress = () => {
-    stopProgressTimer();
-    setProgress((prev) => (prev ? { ...prev, isRunning: false } : null));
-  };
-
   return {
     progress,
     setProgress,
@@ -156,6 +151,5 @@ export function useBulkProgress() {
     setShowDetails,
     initializeProgress,
     resetProgress,
-    stopProgress,
   };
 }

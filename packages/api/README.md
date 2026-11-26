@@ -600,13 +600,13 @@ Example controller:
 
 ```python
 from litestar import Controller, get
-from api.presentation.dto.responses import DeviceResponse
+from api.presentation.dto.responses import CredentialResponse
 
-class DeviceController(Controller):
-    path = "/devices"
+class CredentialController(Controller):
+    path = "/credentials"
 
-    @get("/{device_ip:str}/status")
-    async def get_device_status(self, device_ip: str) -> DeviceResponse:
+    @get("/{mac:str}")
+    async def get_credential(self, mac: str) -> CredentialResponse:
         # Implementation here
         pass
 ```

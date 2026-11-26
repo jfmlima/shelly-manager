@@ -337,11 +337,6 @@ export interface DeviceStatus {
   available_methods: string[];
 }
 
-export interface DeviceStatusError {
-  ip: string;
-  error: string;
-}
-
 export type UpdateSource = "internet" | "local";
 
 /** What the manager itself can serve for a local update, per channel. */
@@ -358,13 +353,6 @@ export interface ActionResult {
   action_type?: string;
   channel?: string;
   source?: UpdateSource;
-}
-
-export interface BulkActionResult {
-  total: number;
-  successful: number;
-  failed: number;
-  results: ActionResult[];
 }
 
 export interface BulkUpdateRequest {
@@ -402,13 +390,6 @@ export interface ComponentActionResult {
   message?: string;
   error?: string;
   data?: string | Record<string, unknown>;
-}
-
-export interface BulkOperationRequest {
-  device_ips: string[];
-  operation: "update" | "reboot" | "factory_reset";
-  channel?: string;
-  [key: string]: unknown;
 }
 
 // --- Provisioning types ---
@@ -502,25 +483,6 @@ export interface VerifyResult {
 }
 
 // Type guards for components
-export type ComponentType =
-  | SwitchComponent
-  | InputComponent
-  | CoverComponent
-  | SystemComponent
-  | CloudComponent
-  | ZigbeeComponent
-  | BleComponent
-  | EthernetComponent
-  | BluetoothHomeComponent
-  | KnxComponent
-  | MqttComponent
-  | WifiComponent
-  | WebSocketComponent
-  | EMComponent
-  | EM1Component
-  | EMDataComponent
-  | EM1DataComponent;
-
 export function isSwitchComponent(
   component: Component,
 ): component is SwitchComponent {

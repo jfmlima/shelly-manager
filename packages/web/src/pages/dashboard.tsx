@@ -44,10 +44,6 @@ export function Dashboard() {
     setBulkActionsOpen(true);
   };
 
-  const handleBulkActionComplete = () => {
-    // refetch();
-  };
-
   return (
     <div className="min-h-[calc(100vh-8rem)] flex flex-col">
       {/* Main Content */}
@@ -123,7 +119,6 @@ export function Dashboard() {
         open={bulkActionsOpen}
         onOpenChange={setBulkActionsOpen}
         selectedDevices={selectedDevices}
-        onComplete={handleBulkActionComplete}
       />
     </div>
   );
