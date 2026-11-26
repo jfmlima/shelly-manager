@@ -57,28 +57,6 @@ class ValidationError(ShellyManagerError):
         super().__init__(msg, {"field": field, "value": value})
 
 
-class NetworkError(ShellyManagerError):
-
-    def __init__(self, operation: str, error: str, message: str | None = None):
-        msg = message or f"Network error during {operation}: {error}"
-        super().__init__(msg, {"operation": operation, "error": error})
-
-
-class ActionExecutionError(ShellyManagerError):
-
-    def __init__(
-        self,
-        action_type: str,
-        device_ip: str,
-        error: str,
-        message: str | None = None,
-    ):
-        msg = message or f"Action '{action_type}' failed on device {device_ip}: {error}"
-        super().__init__(
-            msg, {"action_type": action_type, "device_ip": device_ip, "error": error}
-        )
-
-
 class BulkOperationError(ShellyManagerError):
 
     def __init__(
@@ -91,20 +69,6 @@ class BulkOperationError(ShellyManagerError):
         super().__init__(
             msg, {"operation": operation, "failed_devices": failed_devices}
         )
-
-
-class ExportError(ShellyManagerError):
-
-    def __init__(self, format: str, error: str, message: str | None = None):
-        msg = message or f"Export error for format '{format}': {error}"
-        super().__init__(msg, {"format": format, "error": error})
-
-
-class LoggingError(ShellyManagerError):
-
-    def __init__(self, operation: str, error: str, message: str | None = None):
-        msg = message or f"Logging error during {operation}: {error}"
-        super().__init__(msg, {"operation": operation, "error": error})
 
 
 class FirmwareError(ShellyManagerError):

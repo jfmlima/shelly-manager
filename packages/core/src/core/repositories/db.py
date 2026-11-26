@@ -1,5 +1,4 @@
 import os
-from collections.abc import AsyncGenerator
 
 from core.repositories.models import Base
 from core.settings import settings
@@ -11,17 +10,14 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-# Ensure the directory exists
 db_path = settings.database_path()
 os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
-# Database connection URL
-# We use aiosqlite for async SQLite support
 DB_URL = f"sqlite+aiosqlite:///{db_path}"
 
 engine = create_async_engine(
     DB_URL,
-    echo=False,  # Set to True for SQL query logging
+    echo=False,
     future=True,
 )
 
@@ -46,8 +42,3 @@ async def create_schema(target: AsyncEngine) -> None:
                 "ON device_backups (created_at)"
             )
         )
-
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async with async_session_factory() as session:
-        yield session

@@ -6,9 +6,7 @@ class RpcMethods:
     GET_STATUS = "Shelly.GetStatus"
     LIST_METHODS = "Shelly.ListMethods"
     CHECK_FOR_UPDATE = "Shelly.CheckForUpdate"
-    UPDATE = "Shelly.Update"
     REBOOT = "Shelly.Reboot"
-    FACTORY_RESET = "Shelly.FactoryReset"
     SET_AUTH = "Shelly.SetAuth"
 
     # Component-level config methods

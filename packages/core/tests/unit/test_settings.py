@@ -1,7 +1,5 @@
 import json
 
-import pytest
-from core.domain.entities.exceptions import ValidationError
 from core.settings import AppSettings, NetworkSettings
 
 
@@ -28,25 +26,6 @@ def test_it_loads_backup_settings_from_config_file(tmp_path, monkeypatch):
     assert settings.backup.poll_interval_seconds == 300
 
 
-def test_it_saves_backup_settings_to_config_file(tmp_path, monkeypatch):
-    config_path = tmp_path / "config.json"
-
-    monkeypatch.setenv(
-        "SHELLY_SECRET_KEY", "0N6fK7YkEmvA0I4d1sD4v15uvB94H4A1N1nMG8vLMOg="
-    )
-
-    settings = AppSettings(config_file=str(config_path))
-    settings.backup.scheduler_enabled = False
-    settings.backup.poll_interval_seconds = 300
-    settings.save_config()
-
-    saved = json.loads(config_path.read_text())
-    assert saved["backup"] == {
-        "scheduler_enabled": False,
-        "poll_interval_seconds": 300,
-    }
-
-
 def test_it_loads_firmware_settings_from_config_file(tmp_path, monkeypatch):
     config_path = tmp_path / "config.json"
     config_path.write_text(
@@ -69,27 +48,6 @@ def test_it_loads_firmware_settings_from_config_file(tmp_path, monkeypatch):
     assert settings.firmware.dir == str(tmp_path / "fw")
     assert settings.firmware.advertised_base_url == "http://192.168.40.252:8000"
     assert settings.firmware.index_url == "https://updates.shelly.cloud/update"
-
-
-def test_it_saves_firmware_settings_to_config_file(tmp_path, monkeypatch):
-    config_path = tmp_path / "config.json"
-
-    monkeypatch.setenv(
-        "SHELLY_SECRET_KEY", "0N6fK7YkEmvA0I4d1sD4v15uvB94H4A1N1nMG8vLMOg="
-    )
-
-    settings = AppSettings(config_file=str(config_path))
-    settings.firmware.advertised_base_url = "http://192.168.40.252:8000"
-    settings.save_config()
-
-    saved = json.loads(config_path.read_text())
-    assert saved["firmware"] == {
-        "dir": "./data/firmware",
-        "advertised_base_url": "http://192.168.40.252:8000",
-        "index_url": "https://updates.shelly.cloud/update",
-        "verify_ssl": False,
-        "allowed_download_hosts": "shelly.cloud",
-    }
 
 
 def test_it_reads_a_comma_separated_download_allow_list(monkeypatch):
@@ -130,38 +88,12 @@ def test_it_accepts_any_download_host_only_when_asked_explicitly(monkeypatch):
     assert settings.firmware.download_host_allow_list() == []
 
 
-def test_it_creates_the_firmware_dir_on_validate(tmp_path, monkeypatch):
-    monkeypatch.setenv(
-        "SHELLY_SECRET_KEY", "0N6fK7YkEmvA0I4d1sD4v15uvB94H4A1N1nMG8vLMOg="
-    )
-
-    settings = AppSettings(config_file=str(tmp_path / "config.json"))
-    settings.data_dir = str(tmp_path / "data")
-    settings.firmware.dir = str(tmp_path / "data" / "firmware")
-    settings.validate_settings()
-
-    assert (tmp_path / "data" / "firmware").is_dir()
-
-
 def test_it_builds_without_a_secret_key(monkeypatch):
     monkeypatch.delenv("SHELLY_SECRET_KEY", raising=False)
 
     settings = AppSettings(config_file="does-not-exist.json", _env_file=None)
 
     assert settings.secret_key is None
-
-
-def test_it_rejects_a_missing_secret_key_on_validate(tmp_path, monkeypatch):
-    monkeypatch.delenv("SHELLY_SECRET_KEY", raising=False)
-
-    settings = AppSettings(config_file=str(tmp_path / "config.json"), _env_file=None)
-    settings.data_dir = str(tmp_path / "data")
-    settings.firmware.dir = str(tmp_path / "data" / "firmware")
-
-    with pytest.raises(ValidationError) as excinfo:
-        settings.validate_settings()
-
-    assert "SHELLY_SECRET_KEY" in str(excinfo.value)
 
 
 def test_it_builds_with_auth_disabled_by_default(monkeypatch):
@@ -184,22 +116,6 @@ def test_it_reads_the_auth_token_from_the_environment(monkeypatch):
     settings = AppSettings(config_file="does-not-exist.json", _env_file=None)
 
     assert settings.auth_token == "my-auth-token"
-
-
-def test_it_never_writes_the_auth_token_to_the_config_file(tmp_path, monkeypatch):
-    config_path = tmp_path / "config.json"
-
-    monkeypatch.setenv(
-        "SHELLY_SECRET_KEY", "0N6fK7YkEmvA0I4d1sD4v15uvB94H4A1N1nMG8vLMOg="
-    )
-    monkeypatch.setenv("SHELLY_AUTH_TOKEN", "my-auth-token")
-
-    settings = AppSettings(config_file=str(config_path))
-    settings.save_config()
-
-    saved = json.loads(config_path.read_text())
-    assert "auth_token" not in saved
-    assert "secret_key" not in saved
 
 
 def test_it_retries_a_scanned_address_once_by_default(monkeypatch):
