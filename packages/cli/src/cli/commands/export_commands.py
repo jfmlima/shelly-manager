@@ -31,7 +31,6 @@ def export_commands() -> None:
     default="json",
     help="Export format (default: json)",
 )
-@click.option("--scan", is_flag=True, help="Scan network for devices before export")
 @device_targeting_options
 @click.option(
     "--timeout",
@@ -50,7 +49,6 @@ async def devices(
     ctx: click.Context,
     output: str,
     format: str,
-    scan: bool,
     targets: tuple[str, ...],
     targets_opt: tuple[str, ...],
     timeout: float,
@@ -65,7 +63,6 @@ async def devices(
     and CIDR notation via the targeting system.
 
     Examples:
-      shelly-manager export devices --scan
       shelly-manager export devices 192.168.1.0/24 --format csv
       shelly-manager export devices -t 192.168.1.100 -t 192.168.1.101 --include-config -o my-devices.json
     """
@@ -77,7 +74,6 @@ async def devices(
     request = ExportRequest(
         output=output,
         format=format,
-        scan=scan,
         targets=list(targets) + list(targets_opt),
         timeout=timeout,
         include_config=include_config,
