@@ -31,28 +31,6 @@ class CredentialCreateRequest(BaseModel):
         return validate_mac(v, allow_wildcard=True)
 
 
-class AddIPRequest(BaseModel):
-    ip: str = Field(..., description="IP address to add")
-
-    @field_validator("ip")
-    @classmethod
-    def validate_ip(cls, v: str) -> str:
-        return validate_ip_address(v)
-
-
-class RemoveIPRequest(BaseModel):
-    ip: str = Field(..., description="IP address to remove")
-
-    @field_validator("ip")
-    @classmethod
-    def validate_ip(cls, v: str) -> str:
-        return validate_ip_address(v)
-
-
-class UpdateDeviceConfigRequest(BaseModel):
-    config: dict[str, Any] = Field(..., description="Device configuration object")
-
-
 class BulkExportConfigRequest(BaseModel):
     """Request for bulk configuration export."""
 

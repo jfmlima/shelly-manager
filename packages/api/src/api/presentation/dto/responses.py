@@ -2,7 +2,6 @@
 Response models for API serialization.
 """
 
-from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -14,19 +13,6 @@ class CredentialResponse(BaseModel):
     mac: str
     username: str
     last_seen_ip: str | None = None
-
-
-class DeviceResponse(BaseModel):
-    ip: str
-    device_id: str | None = None
-    device_type: str | None = None
-    model_name: str | None = None
-    device_name: str | None = None
-    firmware_version: str | None = None
-    status: str
-    response_time: float | None = None
-    error_message: str | None = None
-    last_seen: datetime | None = None
 
 
 class BulkExportConfigResponse(BaseModel):
