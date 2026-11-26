@@ -6,6 +6,7 @@ import logging
 
 from core.domain.entities.discovered_device import DiscoveredDevice
 from core.domain.entities.exceptions import FirmwareConfigurationError
+from core.domain.enums.enums import Status
 from core.domain.value_objects.base_device_request import BaseDeviceRequest
 from core.domain.value_objects.component_action_request import (
     ComponentActionRequest as CoreActionRequest,
@@ -13,6 +14,8 @@ from core.domain.value_objects.component_action_request import (
 from core.domain.value_objects.get_component_actions_request import (
     GetComponentActionsRequest,
 )
+from core.use_cases.scan_devices import FOUND_STATUSES
+from core.utils.target_parser import parse_target
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -59,18 +62,10 @@ class ComponentActionsUseCase:
                 "No targets specified. Provide device IPs, ranges, or CIDR."
             )
 
-        discovery_request = DeviceDiscoveryRequest(
-            targets=request.targets,
-            timeout=request.timeout,
-            workers=request.workers,
-        )
-        device_list: list[DiscoveredDevice] = (
-            await self._device_discovery.discover_devices(discovery_request)
-        )
-        device_ips = [d.ip for d in device_list]
+        device_ips, unanswered = await self._discover_targets(request)
 
         if not device_ips:
-            return []
+            return unanswered
 
         if not request.force:
             action_desc = f"{request.action} on {request.component_key}"
@@ -130,7 +125,7 @@ class ComponentActionsUseCase:
 
                 progress.advance()
 
-        return results
+        return results + unanswered
 
     async def execute_local_update(
         self, request: ComponentActionRequest, channel: str = "stable"
@@ -146,18 +141,10 @@ class ComponentActionsUseCase:
                 "No targets specified. Provide device IPs, ranges, or CIDR."
             )
 
-        discovery_request = DeviceDiscoveryRequest(
-            targets=request.targets,
-            timeout=request.timeout,
-            workers=request.workers,
-        )
-        device_list: list[DiscoveredDevice] = (
-            await self._device_discovery.discover_devices(discovery_request)
-        )
-        device_ips = [d.ip for d in device_list]
+        device_ips, unanswered = await self._discover_targets(request)
 
         if not device_ips:
-            return []
+            return unanswered
 
         if not request.force:
             devices = ", ".join(device_ips[:3]) + (
@@ -216,7 +203,7 @@ class ComponentActionsUseCase:
 
                 progress.advance()
 
-        return results
+        return results + unanswered
 
     async def list_actions(
         self, request: ComponentActionsListRequest
@@ -294,7 +281,9 @@ class ComponentActionsUseCase:
             results: List of component action results to display
         """
         if not results:
-            self._console.print("\n[yellow]No results to display[/yellow]")
+            self._console.print(
+                "\n[yellow]No device answered at the given targets[/yellow]"
+            )
             return
 
         first_result = results[0]
@@ -378,3 +367,57 @@ class ComponentActionsUseCase:
                 border_style="blue",
             )
             self._console.print(panel)
+
+    async def _discover_targets(
+        self, request: ComponentActionRequest
+    ) -> tuple[list[str], list[ComponentActionResult]]:
+        """Split the targets into devices to act on and failed result rows.
+
+        An address that does not answer is a failure only when it was named on
+        its own: the silent addresses of a range or CIDR are expected.
+        """
+        discovery_request = DeviceDiscoveryRequest(
+            targets=request.targets,
+            timeout=request.timeout,
+            workers=request.workers,
+            include_failed=True,
+        )
+        device_list: list[DiscoveredDevice] = (
+            await self._device_discovery.discover_devices(discovery_request)
+        )
+        named = _single_addresses(request.targets)
+
+        device_ips: list[str] = []
+        unanswered: list[ComponentActionResult] = []
+        for device in device_list:
+            if device.status in FOUND_STATUSES:
+                device_ips.append(device.ip)
+                continue
+            silent = device.status == Status.UNREACHABLE
+            if silent and device.ip not in named:
+                continue
+            reason = device.error_message or "no answer"
+            unanswered.append(
+                ComponentActionResult(
+                    ip=device.ip,
+                    status="error",
+                    component_key=request.component_key,
+                    action=request.action,
+                    parameters=request.parameters,
+                    message=(
+                        f"Did not answer: {reason}" if silent else f"Failed: {reason}"
+                    ),
+                    error=reason,
+                    action_successful=False,
+                )
+            )
+        return device_ips, unanswered
+
+
+def _single_addresses(targets: list[str]) -> set[str]:
+    named: set[str] = set()
+    for target in targets:
+        addresses = list(parse_target(target))
+        if len(addresses) == 1:
+            named.add(addresses[0])
+    return named

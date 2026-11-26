@@ -15,7 +15,7 @@ from ..entities import (
     DeviceScanRequest,
     DeviceStatusRequest,
 )
-from ..exceptions import EXIT_VALIDATION
+from ..exceptions import EXIT_ERROR, EXIT_VALIDATION
 from ..presentation.styles import Messages
 from ..use_cases.device.component_actions import ComponentActionsUseCase
 from ..use_cases.device.device_status import DeviceStatusUseCase
@@ -463,6 +463,8 @@ async def _run_component_action(
         _print_usage_error(console, e, *examples)
         sys.exit(EXIT_VALIDATION)
     actions_use_case.display_action_results(results)
+    if not results or not all(result.action_successful for result in results):
+        sys.exit(EXIT_ERROR)
 
 
 __all__ = ["device_commands", "scan"]
