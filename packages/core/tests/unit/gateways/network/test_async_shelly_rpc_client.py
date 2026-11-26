@@ -291,3 +291,52 @@ class TestAuthStateCacheGating:
         client._invalidate_auth_cache("192.168.1.100")
 
         assert auth_state_cache.requires_auth("AABBCCDDEEFF") is False
+
+
+class TestDeviceReplacedAtTheSameIp:
+    """DHCP can hand a device's address to another device with other credentials."""
+
+    async def test_it_uses_the_new_devices_credentials_after_one_failed_call(self):
+        device = {"mac": "AABBCC0000A1", "password": "pass-a"}
+        passwords = {"AABBCC0000A1": "pass-a", "AABBCC0000B1": "pass-b"}
+
+        async def post(url, json, headers=None, auth=None, timeout=None):
+            response = MagicMock()
+            if json["method"] == "Shelly.GetDeviceInfo":
+                response.status_code = 200
+                response.json.return_value = {"result": {"mac": device["mac"]}}
+            elif (
+                isinstance(auth, httpx.DigestAuth)
+                and auth._password == device["password"].encode()
+            ):
+                response.status_code = 200
+                response.json.return_value = {"result": {"ok": True}}
+            else:
+                response.status_code = 401
+                response.text = "Unauthorized"
+            return response
+
+        async def resolve_credentials(mac):
+            return MagicMock(username="admin", password=passwords[mac])
+
+        session = AsyncMock(spec=httpx.AsyncClient)
+        session.post.side_effect = post
+        authentication_service = MagicMock()
+        authentication_service.resolve_credentials = AsyncMock(
+            side_effect=resolve_credentials
+        )
+        client = AsyncShellyRPCClient(
+            session=session,
+            authentication_service=authentication_service,
+            auth_state_cache=AuthStateCache(),
+        )
+
+        first, _ = await client.make_rpc_request("192.168.1.100", "Switch.Toggle")
+        assert first == {"result": {"ok": True}}
+
+        device.update(mac="AABBCC0000B1", password="pass-b")
+        with pytest.raises(DeviceAuthenticationError):
+            await client.make_rpc_request("192.168.1.100", "Switch.Toggle")
+        after_swap, _ = await client.make_rpc_request("192.168.1.100", "Switch.Toggle")
+
+        assert after_swap == {"result": {"ok": True}}
