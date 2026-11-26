@@ -10,6 +10,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from ..network.rpc_envelope import RpcError, rpc_result
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,4 +29,8 @@ class RpcRead(BaseModel):
             logger.error(f"Error getting {what}: {result}")
             return cls(body=missing)
         response, _ = result
-        return cls(body=response.get("result", response), answered=True)
+        try:
+            return cls(body=rpc_result(response), answered=True)
+        except RpcError as e:
+            logger.warning(f"Device refused {what}: {e}")
+            return cls(body=missing, answered=True)

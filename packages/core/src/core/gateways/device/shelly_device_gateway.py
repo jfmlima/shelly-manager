@@ -107,10 +107,10 @@ class ShellyDeviceGateway(DeviceGateway):
                 update_info, _ = await self._rpc_client.make_rpc_request(
                     ip, RpcMethods.CHECK_FOR_UPDATE, timeout=effective_timeout
                 )
-                update_data = update_info.get("result", update_info)
+                update_data = rpc_result(update_info)
 
-                stable_update = update_data.get("stable", {}) if update_data else {}
-                beta_update = update_data.get("beta", {}) if update_data else {}
+                stable_update = update_data.get("stable", {})
+                beta_update = update_data.get("beta", {})
 
                 stable_version = stable_update.get("version")
                 beta_version = beta_update.get("version")
@@ -124,9 +124,11 @@ class ShellyDeviceGateway(DeviceGateway):
                 else:
                     device.status = Status.NO_UPDATE_NEEDED
 
+            except RpcError as e:
+                logger.warning("%s refused the update check: %s", ip, e)
+
             except Exception as e:
                 logger.error(f"Error checking for updates: {e}", exc_info=True)
-                pass
 
             return device
 
@@ -206,7 +208,7 @@ class ShellyDeviceGateway(DeviceGateway):
                 params={"offset": 0},
                 timeout=self.timeout,
             )
-            components = response.get("result", response).get("components", [])
+            components = rpc_result(response).get("components", [])
             return [
                 c["key"]
                 for c in components
@@ -394,7 +396,7 @@ class ShellyDeviceGateway(DeviceGateway):
             methods_response, _ = await self._rpc_client.make_rpc_request(
                 ip, RpcMethods.LIST_METHODS, timeout=self.timeout
             )
-            result = methods_response.get("result", methods_response)
+            result = rpc_result(methods_response)
             if isinstance(result, dict) and isinstance(result.get("methods"), list):
                 return [m for m in result["methods"] if isinstance(m, str)]
 
