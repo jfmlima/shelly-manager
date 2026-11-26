@@ -149,3 +149,46 @@ class TestCommonUtilities:
 
         assert excinfo.value.code == EXIT_VALIDATION
         assert "/rpc/Shelly.GetStatus" in buffer.getvalue()
+
+    @pytest.mark.parametrize(
+        "fields, message",
+        [
+            (
+                {"targets": []},
+                "Either 'targets' must be provided or 'use_mdns' must be True",
+            ),
+            (
+                {"targets": ["192.168.1.1"], "max_workers": 500},
+                "max_workers: Input should be less than or equal to 200",
+            ),
+        ],
+    )
+    def test_async_command_decorator_prints_request_validation_errors_plainly(
+        self, fields, message
+    ):
+        import io
+        from types import SimpleNamespace
+
+        from core.domain.value_objects.scan_request import ScanRequest
+        from rich.console import Console
+
+        buffer = io.StringIO()
+        ctx = SimpleNamespace(
+            obj=SimpleNamespace(
+                console=Console(file=buffer, force_terminal=False, width=200),
+                verbose=False,
+            )
+        )
+
+        @async_command
+        async def build_request(ctx):
+            ScanRequest(**fields)
+
+        with pytest.raises(SystemExit) as excinfo:
+            build_request(ctx)
+
+        output = buffer.getvalue()
+        assert excinfo.value.code == EXIT_VALIDATION
+        assert message in output
+        assert "errors.pydantic.dev" not in output
+        assert "input_value" not in output

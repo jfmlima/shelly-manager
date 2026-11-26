@@ -12,6 +12,7 @@ from typing import Any
 
 import click
 from core.domain.value_objects.scan_request import ScanRequest
+from pydantic import ValidationError
 from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
@@ -193,8 +194,20 @@ def _report_error(args: Any, error: Exception) -> None:
     obj = getattr(args[0], "obj", None) if args else None
     console = getattr(obj, "console", None)
     if console is None:
-        click.echo(str(error), err=True)
+        click.echo(_error_text(error), err=True)
         return
-    console.print(Messages.error(escape(str(error))))
+    console.print(Messages.error(escape(_error_text(error))))
     if getattr(obj, "verbose", False):
         console.print_exception()
+
+
+def _error_text(error: Exception) -> str:
+    if not isinstance(error, ValidationError):
+        return str(error)
+    return "; ".join(_validation_issue(issue) for issue in error.errors())
+
+
+def _validation_issue(issue: Any) -> str:
+    message = str(issue["msg"]).removeprefix("Value error, ")
+    field = ".".join(str(part) for part in issue["loc"])
+    return f"{field}: {message}" if field else message
