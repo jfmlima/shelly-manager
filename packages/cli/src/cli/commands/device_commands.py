@@ -250,6 +250,7 @@ async def list_component_actions(
 @actions.command("execute")
 @click.argument("component_key")
 @click.argument("action")
+@click.argument("targets", nargs=-1)
 @device_targeting_options
 @click.option("--force", is_flag=True, help="Skip confirmation")
 @common_options
@@ -395,6 +396,7 @@ async def update_firmware(
 
 @device_commands.command("toggle")
 @click.argument("component_key")
+@click.argument("targets", nargs=-1)
 @device_targeting_options
 @click.option("--force", is_flag=True)
 @common_options

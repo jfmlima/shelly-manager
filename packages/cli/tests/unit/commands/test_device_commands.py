@@ -863,6 +863,63 @@ class TestActionsCommands:
 
         assert result.exit_code != 0
 
+    @pytest.mark.parametrize(
+        ("args", "component_key", "action", "targets"),
+        [
+            (
+                ["toggle", "switch:0", "-t", "192.168.1.100"],
+                "switch:0",
+                "Toggle",
+                ["192.168.1.100"],
+            ),
+            (
+                ["toggle", "switch:1", "192.168.1.100"],
+                "switch:1",
+                "Toggle",
+                ["192.168.1.100"],
+            ),
+            (
+                ["actions", "execute", "switch:0", "Toggle", "-t", "192.168.1.100"],
+                "switch:0",
+                "Toggle",
+                ["192.168.1.100"],
+            ),
+            (
+                ["actions", "execute", "shelly", "Reboot", "192.168.1.100"],
+                "shelly",
+                "Reboot",
+                ["192.168.1.100"],
+            ),
+        ],
+    )
+    def test_component_commands_run_the_action_on_their_targets(
+        self,
+        cli_context,
+        sample_device,
+        sample_action_result,
+        args,
+        component_key,
+        action,
+        targets,
+    ):
+        mock_scan_interactor = cli_context.container.get_scan_interactor.return_value
+        mock_scan_interactor.execute.return_value = [sample_device]
+        mock_action_interactor = AsyncMock()
+        mock_action_interactor.execute.return_value = sample_action_result
+        cli_context.container.get_execute_component_action_interactor.return_value = (
+            mock_action_interactor
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(device_commands, [*args, "--force"], obj=cli_context)
+
+        assert result.exit_code == 0, result.output
+        assert mock_scan_interactor.execute.call_args.args[0].targets == targets
+        request = mock_action_interactor.execute.call_args.args[0]
+        assert request.device_ip == sample_device.ip
+        assert request.component_key == component_key
+        assert request.action == action
+
     def test_actions_execute_requires_parameters(self, cli_context):
         """Test that actions execute requires component and action parameters."""
         runner = CliRunner()
